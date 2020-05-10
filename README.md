@@ -1,6 +1,6 @@
-# PoppyS - Syntactical Highlighting for Natural Language
+# PoppyS - Syntactical Highlighting for Natural Language in Haskell
 # Preamble
-Syntactically highlighting PDF Documents.  
+Syntactically highlighting PDF Documents in Haskell.  
 Experimental.  
 An example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-gtk))
 ![demo](./poppySMovie.gif)
