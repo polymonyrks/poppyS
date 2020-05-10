@@ -46,7 +46,8 @@ See [stanford CoreNLP Parser](https://stanfordnlp.github.io/CoreNLP/other-langua
 ## Installation of poppyS(PDF Document Reader)
 ### git clone
 ```shell
-git clone ...
+
+git clone https://github.com/polymonyrks/poppyS.git
 ```
 ### stack build
 ```shell
