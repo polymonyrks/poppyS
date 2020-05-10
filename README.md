@@ -1,11 +1,10 @@
 # PoppyS - Syntactically Highlighting for Natural Language
 # Preamble
-![poppySGif](https://polymony.net/wp-content/uploads/2020/05/poppySPromote.gif)
-Syntactically highlighting PDF Documents. Under Development.  
+Syntactically highlighting PDF Documents.  
 An example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-gtk))
 # Installation
 ## Ubuntu20.04
-OS:[Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)です。  
+OS:[Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)  
 ## Update Packages list
 ```shell
 sudo apt update
