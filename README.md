@@ -11,22 +11,22 @@ OS:[Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)
 ```shell
 sudo apt update
 ```
-## Installation of Haskell Stack
+## Haskell Stack
 [stack](https://docs.haskellstack.org/en/stable/README/)
 ```shell
 wget -qO- https://get.haskellstack.org/ | sh
 ```
-## Installation of gi-gtk
+## gi-gtk
 [https://github.com/haskell-gi/haskell-gi](gi-gtk)
 ```shell
 sudo apt install libgirepository1.0-dev libwebkit2gtk-4.0-dev libgtksourceview-3.0-dev
 ```
-## Installation of poppler
+## poppler
 ```shell
 sudo apt install libpoppler-dev libpoppler-glib-dev
 ```
-## Installation of stanford CoreNLP Server with docker
-### Installation of docker
+## Stanford CoreNLP Server with docker
+### Docker
 ```shell
 sudo apt install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
 ```
@@ -39,12 +39,12 @@ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubun
 ```shell
 sudo apt install docker-ce
 ```
-### Installation of stanford CoreNLP Parser
+### Stanford CoreNLP Parser
 ```shell
 sudo docker pull graham3333/corenlp-complete
 ```
 See [stanford CoreNLP Parser](https://stanfordnlp.github.io/CoreNLP/other-languages.html) and [Graham MacDonald](https://hub.docker.com/r/graham3333/corenlp-complete)  
-## Installation of poppyS(PDF Document Reader)
+## poppyS(PDF Document Reader)
 ### git clone
 ```shell
 
@@ -55,11 +55,11 @@ git clone https://github.com/polymonyrks/poppyS.git
 cd poppyS
 stack build
 ```
-## Execution of PoppyS
+# Execution of PoppyS
 1. Put a PDF File into ./pdfs Directory. Only English and one Column Documents.  
 2. Run Stanford CoreNLP Server.
 3. Execute PoppyS.
-### Examples of PDFs
+## PDF Examples
 1. Computer Science
 * [Haskell Wikibooks](https://en.wikibooks.org/wiki/Haskell)
 * [Basic Category Theory](https://arxiv.org/abs/1612.09375)
@@ -76,19 +76,19 @@ stack build
 * [Basics of Molecular Biology](https://homes.cs.washington.edu/~tompa/papers/molbio.pdf)
 * [Clinical characteristics of 2019 novel coronavirus infection in China](https://www.medrxiv.org/content/10.1101/2020.02.06.20020974v1)
 
-### Running of Stanford CoreNLP Server
+## Running Stanford CoreNLP Server
 ```
 sudo docker run -p 9000:9000 nlpbox/corenlp
 ```
-### Execution of poppyS
+## Execute poppyS
 ```shell
 stack exec poppyS-exe
 ```
-## how to read PDF
-### wait a second
+# How to read PDF
+## Wait a second
 Once execute poppyS, wait for a few seconds, then some words will be colored by yellow.
 If no word is colored, then rerun Stanford CoreNLP Server.
-### keyboard
+## Keyboard
 |  command  |  effect  |
 | ---- | ---- |
 |  j  | increase page (2 pages) |
@@ -99,14 +99,14 @@ If no word is colored, then rerun Stanford CoreNLP Server.
 |  x  | decoloring of some pharases |
 |  dd  | decoloring of all pharases |
 |  :w Enter  | save coloring setting |
-### Mouse
+## Mouse
 Click some words, then some phrases are colored. This coloring is toggled. Click the same word multiple times.  
-## License
-(see also LISENCE file included with Haskell source.)  
+# License
+(see also LICENSE file included with Haskell source.)  
 Based on BSD3. For personal use and/or educational purpose use are O.K.  
 
 I also have some patent applications relating to this source files and technology used there.  
-If you comply with the LISENSE Terms, then I never assert the mentioned usage in LICENSE Terms by such intellectual properties.  
+If you comply with the LICENSE Terms, then I never assert the mentioned usage in LICENSE Terms by such intellectual properties.  
 
 If you interested in commercial use, then please contact me.  
   * Functional Toy Manufactureing (Japanese Homepage) (https://www.polymony.net)  
