@@ -1,0 +1,67 @@
+library:
+  source-dirs: src
+tests:
+  poppyS-test:
+    source-dirs: test
+    main: Spec.hs
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - poppyS
+copyright: 2020 Author name here
+maintainer: example@example.com
+dependencies:
+- text
+- base >= 4.7 && < 5
+- gi-gtk
+- haskell-gi-base
+- gi-poppler
+- transformers
+- gi-cairo
+- gi-gdk
+- gi-gdkpixbuf
+- gi-glib
+- old-time
+- cairo
+- vector
+- http-conduit
+- http-client
+- aeson
+- lens
+- aeson-lens
+- text-icu
+- bytestring
+- MissingH
+- deepseq
+- directory
+- process
+- Diff
+- turtle
+- foldl
+- time
+- snowball
+- directory
+- strict
+- unicode-show
+
+name: poppyS
+version: 0.1.0.0
+extra-source-files:
+- README.md
+- ChangeLog.md
+author: Author name here
+github: githubuser/poppyS
+license: BSD3
+executables:
+  poppyS-exe:
+    source-dirs: app
+    main: Main.hs
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - poppyS
+description: Please see the README on GitHub at <https://github.com/githubuser/poppyS#readme>

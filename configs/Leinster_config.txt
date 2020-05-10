@@ -1,0 +1,5 @@
+"51"
+"adjunct,Pink"
+"univers,Aqua"
+"functor,Blue"
+"categori,Red"
