@@ -76,7 +76,7 @@ stack build
 * [Basics of Molecular Biology](https://homes.cs.washington.edu/~tompa/papers/molbio.pdf)
 * [Clinical characteristics of 2019 novel coronavirus infection in China](https://www.medrxiv.org/content/10.1101/2020.02.06.20020974v1)
 
-## Running Stanford CoreNLP Server
+## Run Stanford CoreNLP Server
 ```
 sudo docker run -p 9000:9000 nlpbox/corenlp
 ```
@@ -96,8 +96,8 @@ If no word is colored, then rerun Stanford CoreNLP Server.
 |  Right  | increase page (1 pages) |
 |  Left  | decrease page (1 pages) |
 |  Down  | crop merginal white zones and adjust page size|
-|  x  | decoloring of some pharases |
-|  dd  | decoloring of all pharases |
+|  x  | decoloring of some phrases |
+|  dd  | decoloring of all phrases |
 |  :w Enter  | save coloring setting |
 ## Mouse
 Click some words, then some phrases are colored. This coloring is toggled. Click the same word multiple times.  
