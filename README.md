@@ -5,8 +5,10 @@ Experimental.
 An example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-gtk))
 ![demo](./poppySMovie.gif)
 # Installation
-## Ubuntu20.04
-OS:[Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)  
+## OS
+Recommended OS:[Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)  
+lubuntu 20.04 also works.  
+For other Distros, MacOS, or Windows et.c., equivalent process may work (not checked).  
 ## Update Packages list
 ```shell
 sudo apt update
