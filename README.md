@@ -87,7 +87,7 @@ stack exec poppyS-exe
 # How to read PDF
 ## Wait a second
 Once execute poppyS, wait for a few seconds, then some words will be colored by yellow.
-If no word is colored, then rerun Stanford CoreNLP Server.
+If no word is colored, then re-Execute poppyS.
 ## Keyboard
 |  command  |  effect  |
 | ---- | ---- |
