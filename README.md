@@ -2,6 +2,7 @@
 # Preamble
 Syntactically highlighting PDF Documents.  
 An example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-gtk))
+![demo](https://polymony.net/wp-content/uploads/2020/05/poppySPromote.gif)
 # Installation
 ## Ubuntu20.04
 OS:[Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)  
