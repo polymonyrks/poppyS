@@ -25,6 +25,7 @@ import Data.Algorithm.Diff
 import Data.Time
 import System.Timeout
 import System.Environment
+import System.Directory
 import qualified Turtle
 import qualified Control.Foldl as Fold
 import Text.Show.Unicode
@@ -548,6 +549,7 @@ getTokenPositions docPathSuffix = do
   let
     inPath = (reverse $ dropWhile (\c -> not $ c == '.') $ reverse docPathSuffix) ++ "html"
   res <- parsePDFHtml <$> iVecFromFileJP inPath
+  removeFile inPath
   return res
 
 replaceStr nd ns str = Text.unpack $ Text.replace nd ns $ Text.pack str
