@@ -1,5 +1,4 @@
 {-# LANGUAGE GADTs #-}
--- {-# LANGUAGE OverloadedStrings #-}
 
 module PopSExp where
 

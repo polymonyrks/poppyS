@@ -152,8 +152,6 @@ mainGtk = do
       layouts <- mapM (\n -> MV.read layoutsPrim n) $ [0 .. (MV.length layoutsPrim - 1)]
       let
         notSetIds = takeFstL $ filter (\x@(i, x1) -> x1 == []) $ indexing layouts
-        -- aldsNext = V.filter (\n -> not $ elem n notSetIds) alds
-      -- putStrLn "revised"
       mapM (\n -> MV.modify sexps (\x -> Nothing) n) notSetIds
       let
         defaultLayout = [CSq{sqTop = 0.0, sqLeft = 0.0, sqBot = 1.0, sqRight = 1.0}]
@@ -179,7 +177,6 @@ mainGtk = do
       layouts <- mapM (\n -> MV.read layoutsPrim n) $ [0 .. (MV.length layoutsPrim - 1)]
       let
         notSetIds = takeFstL $ filter (\x@(i, x1) -> x1 == []) $ indexing layouts
-        -- aldsNext = V.filter (\n -> not $ elem n notSetIds) alds
       mapM (\n -> MV.modify sexps (\x -> Nothing) n) notSetIds
       let
         layoutLeft = CSq{sqTop = 0.0, sqLeft = 0.0, sqBot = 1.0, sqRight = 0.5}
@@ -353,13 +350,11 @@ mainGtk = do
           forWinTitle = (show word)
           colorIndex = dkTogColIndex doc
           (newInd, newColor)
-            -- | isToggling = (colorIndex, togging currCol)
             | isAlreadyL && button == 1 = (colorIndex, togging currCol)
             | isAlreadyL = (colorIndex, toggingRev currCol)
             | isAlreadyG = (colorIndex, currCol)
             | otherwise = (newIndex, color)
              where
-              -- isToggling = (fst $ head currConfig) == word
               currCol = snd $ head alrdGlobalConfigs
               newIndexTemp
                 | button == 1 = (colorIndex + 1)
@@ -401,7 +396,6 @@ mainGtk = do
               let
                  dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
                  droppedG = filter (\x -> not $ (fst x) == word) $ dksGlobalConfig docs
-              --modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = [(word, color)] ++ (dkConfig doc), dkTogColIndex = newIndex})
               modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = [(word, newColor)] ++ dropped, dkTogColIndex = newIndex})
               modifyIORef docsRef (\docs -> docs {dksGlobalConfig = [(word, newColor)] ++ droppedG})
               Gtk.widgetQueueDraw window
@@ -423,7 +417,6 @@ mainGtk = do
   on window #motionNotifyEvent $ \event -> do
     col <- get event #x
     row <- get event #y
-    -- putStrLn $ "at " ++ (show (col, row))
     return False
 
   on window #draw $ \context -> do
@@ -464,7 +457,6 @@ mainGtk = do
         case sexpsMaybe of
           Nothing -> []
           Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) $ concatMap (takeSpecTags (\tg -> (snd tg) == NP)) sexps
-          -- Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
             where
               g x = case x of
                 Nothing -> False
@@ -476,7 +468,6 @@ mainGtk = do
         case sexpsMaybeNext of
           Nothing -> []
           Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) $ concatMap (takeSpecTags (\tg -> (snd tg) == NP)) sexps
-          -- Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
             where
               g x = case x of
                 Nothing -> False
@@ -497,7 +488,6 @@ mainGtk = do
            g tok = head $ filter (\y -> tok == (fst $ snd y)) stemmedOrderedTagged
       rectsSpecial@(special0, special1) =
         let
-          -- concated = map sqToRect $ concat $ takeSndL $ map () $ specialsPrius
           concated = map (\x@(i, (tk, sq)) -> (i, sq)) $ specialsPrius
           concated0 = concat $ takeSndL $ filter (\x -> fst x == 0) concated
           concated1 = concat $ takeSndL $ filter (\x -> fst x == 1) concated
@@ -523,7 +513,6 @@ mainGtk = do
     hw@(width, height) <- Gtk.windowGetSize window
     (pWid', pHei') <- GPop.pageGetSize page
     let
-      -- ratio' = (fromIntegral height) / (pHei' - offSetTop' - offSetBot')
     renderWithContext context $ do
       save
       setOperator OperatorSource
@@ -545,7 +534,6 @@ mainGtk = do
           pageNext <- GPop.documentGetPage currDoc nextPage
           save
           scale ratioNext ratioNext
-          -- translate (pWid' - pageLeftNext) (- pageTopNext)
           translate (pWid' - pageLeftNext - (pWid' - pageRight) - pageLeft) (- pageTopNext)
           zeroRect <- GPop.rectangleNew
           GPop.pageRender pageNext context

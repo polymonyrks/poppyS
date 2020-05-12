@@ -57,30 +57,6 @@ foldTokSq = foldSExp f0 f1 f2 ([], [])
     f1 (resTok, resSq) (resTok1, resSq1) = (resTok ++ resTok1, resSq ++ resSq1)
     f2 tag tokSq@(str, sqs) = ([str], sqs)
 
-main4 = do
-  aa <- getArgs
-  let
-    minn = read $ aa !! 0 :: Int
-    maxa = read $ aa !! 1 :: Int
-    ff n = do
-      a <- getNPs n
-      putStrLn $ show n
-      return a
-  aa <- mapM ff [minn .. maxa]
-  putStrLn ""
-
-getNPs nPage = do
-  aa <- getSExpsIO pdfPathLoc nPage
-  let
-    res = map f aa
-      where
-        f bb = ee
-          where
-            detached = mapNode snd id bb
-            cc = takeSpecTags (\x -> x == NP) detached
-            dd = filter (\y -> isBottomBy id y) cc
-            ee = map (mapNode id (\x -> (fst x, synSqs $ snd x))) dd
-  return res
 
 synSqs :: [Sq Double] -> [Sq Double]
 synSqs [] = []
@@ -120,9 +96,7 @@ page <- GPop.documentGetPage doc nPage
 getSExpsIOPoppy1 tokSqTruePrim page = do
   presNubPrim <- iVecFromFile "tessPresDiv.txt"
   postNubPrim <- iVecFromFile "tessPostDiv.txt"
-  tessRess <- tesseractPartlyIO page tokSqTruePrim
   tessRessChar@(stackedSens, charSqV) <- tesseractPartlyIOChar page tokSqTruePrim
-  charSq <- pageGetTokSqLibs2 page
   let
     retrSexpS (sens, charSqs) = do
       let
@@ -199,33 +173,6 @@ stanAssign2Poppy1 charSqs stanRess = map reconsSExp resSExpForg
       where
         f y@(raw, stacked) n = (drop n raw, stacked ++ [take n raw])
 
-{-
-tessStanIOTess page tokSqTruePrim = do
-  presNubPrim <- iVecFromFile "tessPresDiv.txt"
-  postNubPrim <- iVecFromFile "tessPostDiv.txt"
-  tessRess <- tesseractPartlyIO page tokSqTruePrim
-  let
-   f tessRes = do
-     let
-       presNub = V.map (\x -> read x) presNubPrim :: V.Vector (String, String)
-       postNub = V.map (\x -> read x) postNubPrim :: V.Vector (String, String)
-       sens = fromTokensToSens $ takeFst tessRes :: String
-     res <- retrStanfordRes sens isLinux
-     let
-       parsed = parseNPs2 res
-       stParsed = V.concatMap (\x -> takeSnd x) parsed
-       stParsedFull = V.concatMap id parsed
-       tessResMutated = replaceEtDivideHead presNub $ replaceEtDivideLast postNub tessRes
-       stData = assSqsToPhraseNeo stParsed tessResMutated
-       ooo = V.zip stData stParsedFull
-     return (res, stParsed, takeFst ooo, takeSnd ooo)
-  resPartlySyned <- V.mapM f tessRess
-  let
-    res@(a, b, c, d) = V.foldl' f (V.empty, V.empty, V.empty, V.empty) resPartlySyned
-      where
-        f y@(st1, st2, st3, st4) x@(x1, x2, x3, x4) = (st1 V.++ x1, st2 V.++ x2, st3 V.++ x3, st4 V.++ x4)
-  return res
--}
 
 tesseractPartlyIOChar page tokSqTruePrim = do
   (colPrim, rowPrim) <- GPop.pageGetSize page
@@ -261,66 +208,10 @@ tesseractPartlyIOChar page tokSqTruePrim = do
          g ((row1, col1), (row2, col2)) = CSq {sqTop = rowPrim - row2, sqLeft = col1, sqBot = rowPrim - row1, sqRight = col2}
   return (stackedSens, res2S)
 
--- rksprpr
-tesseractPartlyIO page tokSqTruePrim = do
-  (colPrim, rowPrim) <- GPop.pageGetSize page
-  charsPrim <- getCharPositionFromPopplerPrim page tokSqTruePrim
-  tokSqsRatioPartly <- popplerTokenizePartlyIO charsPrim
-  let
-    res
-     | tokSqsRatioPartly == (V.fromList [V.fromList [("",V.empty)]]) = V.empty
-     | otherwise = V.map (concatLastBar3 . tokSqs) tokSqsRatioPartly
-     where
-      tokSqs tokSqsRatio = V.map (\x@(str, sqs) -> (str, V.map f sqs)) tokSqsRatio
-       where
-         row = rowPrim
-         col = colPrim
-         f ((r1, c1), (r2, c2)) = ((g1 r1 row, g1 c1 col), (g2 r2 row, g2 c2 col))
-              where
-                g1 :: Double -> Double -> Double
-                g1 ratio space
-                 | floored - 1 < 0 = floored
-                 | otherwise = floored - 1
-                    where
-                      floored = ratio * space
-                g2 :: Double -> Double -> Double
-                g2 ratio space
-                 | floored + 1 > space - 1 = floored
-                 | otherwise = floored + 1
-                    where
-                      floored = ratio * space
-    res2 = V.map (\xs -> V.map (\x@(tok, sqs) -> (tok, V.map g sqs)) xs) res
-       where
-         g ((row1, col1), (row2, col2)) = CSq {sqTop = rowPrim - row2, sqLeft = col1, sqBot = rowPrim - row1, sqRight = col2}
-  return res2
-
-concatLastBar3 :: V.Vector (String, V.Vector SquareD) -> V.Vector (String, V.Vector SquareD)
-concatLastBar3 arrPrim
-  | arrPrim == V.empty = V.empty
-  | otherwise = pl V.++ (V.singleton st)
-     where
-       arr = V.filter (\x@(str,sqs) -> (not $ str == "") && (not $ sqs == V.empty)) arrPrim
-       headArr@(headTok, headSqs) = V.head arr
-       tailArr = V.tail arr
-       folded@(st, pl) = V.foldl' f ((headTok, headSqs), V.empty) tailArr
-       f y@(stacked@(cTok, cSqs), pooled) x@(tok, sqs)
-         | cSqs == V.empty = resConcated
-         | newCol < fronteerCol && isNewTokLastBar = resConcated
-         | otherwise = resNormal
-            where
-              fronteerCol = snd $ snd $ V.last cSqs :: Double
-              newCol = snd $ snd $ V.last sqs :: Double
-              isNewTokLastBar
-                | length tok < 2 = False
-                | otherwise = last cTok == '-'
-              resConcated = (((init cTok) ++ tok, cSqs V.++ sqs), pooled)
-              resNormal = ((tok, sqs), pooled V.++ (V.singleton stacked))
 
 type Square = ((Int, Int), (Int, Int))
 type SquareD = ((Double, Double), (Double, Double))
--- docName = "dijkstra"
--- n = 2
--- rksprpr
+
 popplerTokenizePartlyS charsPrim = folded
   where
     marks = V.fromList [',', '.', ';', head ":", '!', '?']
@@ -356,41 +247,6 @@ popplerTokenizePartlyS charsPrim = folded
             isPrevBarContinueNextLine = isPrevBar && (not isIso) && isReturned && (not isBlockTerminate) && (not isBlockTerminateMarked)
             isContinueNextLine        =                             isReturned && (not isBlockTerminate) && (not isBlockTerminateMarked)
 
-popplerTokenizePartlyIO chars = do
-      let
-        marks = V.fromList [',', '.', ';', head ":", '!', '?']
-        regularReturnCols
-          | returns == V.empty = V.empty
-          | otherwise = continued
-          where
-            returns = V.map (\x@(c,sq) -> snd $ snd $ V.head $ V.concatMap id sq) $ V.filter (\x@(c,_) -> c == '\n') chars
-            g x@(_,scoreX) y@(_,scoreY) = compare scoreX scoreY
-            -- continued = vNub $ takeFst $ V.filter (\x@(x1, x2) -> x1 - x2 == 0.0) $ V.zip (V.init returns) (V.tail returns)
-            continued = vNub $ takeFst $ V.filter (\x@(x1, x2) -> abs (x1 - x2) < 0.001) $ V.zip (V.init returns) (V.tail returns)
-        charsDivided = V.snoc pol st
-            where
-              res@(st,pol) = V.foldl' f3 (V.empty, V.empty) chars
-              f3 y@(stacked, pooled) x@(c,sqss)
-                | c == '\n' && (not $ V.elem col2 regularReturnCols) = (V.empty, V.snoc pooled (V.snoc stacked x))
-                | otherwise = (V.snoc stacked x, pooled)
-                 where
-                   col2 = snd $ snd $ V.head $ V.concatMap id sqss
-        getSens chars = V.snoc resPooled $ (residueStr, residueStacked)
-          where
-            res@(residueStr, residueStacked, resPooled) = V.foldl' f ("", V.empty, V.empty) chars
-            f y@(stStr, stackedSqs, pooled) x@(c, vsqs)
-              | isFinalized && stStr == "" = y
-              | isFinalized && isMarksNotInsulated && isLastMarks = ("", V.empty, pooled V.++ (V.fromList [(init stStr, V.init stackedSqs), ([last stStr], V.singleton $ V.last stackedSqs)]))
-              | isFinalized = ("", V.empty, V.snoc pooled (stStr, stackedSqs))
-              | otherwise = (stStr ++ [c], V.snoc stackedSqs vsqs, pooled)
-                where
-                  isFinalized = (c == ' ' || c == '\n')
-                  isMarksNotInsulated = (not $ V.length stackedSqs < 2) && (not $ length stStr < 2)
-                  isLastMarks = V.elem (last stStr) marks
-        resSens = V.map (\x -> (f. getSens) x) charsDivided
-           where
-             f vs = V.map (\y@(str, sqss) -> (str, V.concatMap id $ V.concatMap id sqss)) vs
-      return resSens
 
 getCharPositionFromPopplerPrim page tokSqTruePrim = do
   pageStr <- GPop.pageGetText page
@@ -458,13 +314,11 @@ getCharPositionFromPopplerPrim page tokSqTruePrim = do
             where
               along r = fromIntegral (1 + floor r)
               ashort r = fromIntegral ((floor r) - 1)
-    --tokSqTrueFiltered = V.filter (\x@(tok, _) -> not $ tok == "\n") tokSqTrue
     tokSqTrueFiltered = V.filter (\x@(tok, _) -> not $ tok == "\n") tokSqTrueWided
     salvaged2Prim = V.map f $ takeSnd tokSqTrueFiltered
       where
         f sq = includesSorted
           where
-            --includes = V.filter (\x@(c, sqn) -> isIncludedPopplerRect sq sqn) charPossRectFlattened
             includes = V.filter (\x@(c, sqn) -> isIncludedPopplerRect sq sqn) charPossRectFlattenedShrinked
             includesSorted = vSortBy h2 includes
                where
@@ -488,7 +342,6 @@ getCharPositionFromPopplerPrim page tokSqTruePrim = do
 
     diffDoubled = V.map (\x@(c, sqss) -> (c, V.map (\sqs -> V.map g sqs) sqss)) diff2
        where
-         -- g sq = ((1.0 - neoRLow, neoCLeft), (1.0 - neoRHigh, neoCRight))
          g sq = ((1.0 - neoRLow, neoCLeft), (1.0 - neoRHigh, neoCRight))
             where
               cLeft = sqLeft sq
@@ -502,7 +355,6 @@ getCharPositionFromPopplerPrim page tokSqTruePrim = do
     diffDoubledDeEmpty = V.filter (\x@(tok, sqs) -> not $ g sqs) diffDoubled
        where
          g sqs = sqs == V.empty || sqs == V.singleton V.empty
-  -- return diffDoubledDeEmpty
   return diffDoubled
 
 isIncludedPopplerRect ns@(PopPRectangle a b c d) nd@(PopPRectangle e f g h)
@@ -582,7 +434,6 @@ parsePDFHtml xs = V.map (\x -> h x) paged
               wid = takeWhile (\c -> not $ c == '\"') $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 3
          wds = V.filter (\x -> Lis.isPrefixOf "<word" (replaceStr " " "" x)) $ V.tail pgs
     parseWord hei cs = (token, PopPRectangle (xMin -handi) (hei - yMax - handi) (xMax + handi) (hei - yMin + handi))
-    -- parseWord hei cs = (token, CSq { sqLeft = (xMin - handi), sqTop =  (hei - yMax - handi), sqRight = (xMax + handi), sqBot = (hei - yMin + handi)})
        where
          delimited = delimitAtWO2 ' ' id cs
          toDouble str = read str :: Double
@@ -786,8 +637,6 @@ stanIOPoppy1 str = do
     stanRess = map (render . head) $ tail delimited
   return  stanRess
 
-
--- 値が全て埋まっているということ
 isTSFinalized :: Eq a => TokSq a b -> Bool
 isTSFinalized ts = isAllAssigned
   where
@@ -846,7 +695,6 @@ rebuildSquare tokLib chLibs = (token, charSqs)
 
 fillLibs linLibs tokLibs chLibs hei = (linResult, tokAssigneds, pureTokenSquares )
   where
-    -- fAss tLibs1 lLib = res
     fAss tLibs1 lLib = lLib {tsValTable = res2, tsIncOrphs = orphs}
         where
           chldIds = map tsId $ filter g tLibs1

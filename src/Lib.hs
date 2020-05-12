@@ -29,8 +29,6 @@ vSortBy f xs = V.fromList $  Lis.sortBy f $ V.toList xs
 
 iVecFromFile :: String -> IO (V.Vector String)
 iVecFromFile listPath = do
-  -- handle <- openFile listPath ReadMode
-  -- fText <- hGetContents handle
   fText <- STR.readFile listPath
   let forout = V.fromList $ lines fText :: V.Vector String
   return forout
@@ -38,14 +36,12 @@ iVecFromFile listPath = do
 iVecFromFileStrict :: String -> IO (V.Vector String)
 iVecFromFileStrict listPath = do
   handle <- openFile listPath ReadMode
-  -- handle <- openFile listPath ReadMode
   fText <- hGetContents handle
   let forout = V.fromList $ lines fText :: V.Vector String
   return forout
 
 oVecToFile :: Show a => V.Vector a -> String -> IO ()
 oVecToFile vec fpath = do
-  -- handle <- openFile fpath WriteMode
   handle <- openFile fpath WriteMode
   V.mapM (\x -> hPutStrLn handle $ show x) vec
   hClose handle
@@ -68,7 +64,6 @@ oVecToFileJP vec fpath = do
 
 cshow :: Show a => V.Vector a -> IO (V.Vector ())
 cshow vec = do
-  -- V.mapM (\x -> putStrLn $ show x) vec
   V.mapM (\x -> uprint x) vec
 
 cshowIndexing :: Show a => V.Vector a -> IO (V.Vector ())
