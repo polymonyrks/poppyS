@@ -62,6 +62,9 @@ stack build
 2. Run Stanford CoreNLP Server.
 3. Execute poppyS.
 ## PDF Examples
+This program poppyS is suitable for hard to read documents such as a bit greek or latin ones.  
+The documents below are such kind of examples.  
+Read them yourself with this poppyS.  
 1. Computer Science
 * [Haskell Wikibooks](https://en.wikibooks.org/wiki/Haskell)
 * [Basic Category Theory](https://arxiv.org/abs/1612.09375)
@@ -88,8 +91,8 @@ stack exec poppyS-exe
 ```
 # How to read PDF
 ## Wait a few Seconds
-Once execute poppyS, wait a few seconds, then some words will be colored by yellow.
-If no word is colored, this is probably timeout of Stanford CoreNLP Server, so re-execute poppyS.
+Once execute poppyS, wait a few seconds, then some words will be colored by yellow.  
+If no word is colored, this is probably timeout of Stanford CoreNLP Server, so re-execute poppyS.  
 ## Keyboard
 |  command  |  effect  |
 | ---- | ---- |
@@ -103,6 +106,10 @@ If no word is colored, this is probably timeout of Stanford CoreNLP Server, so r
 |  :w Enter  | save coloring setting |
 ## Mouse
 Click some words, then corresponding some phrases are colored. When click the same word multiple times, the coloring is toggled.  
+# Tactics
+Coloring words makes it easy to find some phrases you pay special attention to, but over coloring increase entropy.  
+You should have some tactics. I'll show some examples soon.  
+This program(and the art of coloring reading) is imcomplete and experimental yet, but someday will be very common I appreciate.  
 # License
 (see also LICENSE file included with Haskell source.)  
 Based on BSD3. For personal use and/or educational purpose use are O.K.  
