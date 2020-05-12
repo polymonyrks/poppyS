@@ -3,3 +3,4 @@ poppyS.cabal
 /app/kako/
 /src/kako/
 *~
+*.html

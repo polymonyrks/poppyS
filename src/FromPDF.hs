@@ -16,7 +16,7 @@ import qualified Control.Lens as LENS
 import qualified Data.Aeson.Lens as AL
 import Data.Text.ICU.Convert as ICU
 import qualified Data.ByteString.Lazy as BL
-import Lib (iVecFromFile, oVecToFile, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getHistogram, getDivideLine)
+import Lib (iVecFromFile, iVecFromFileJP, oVecToFile, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getHistogram, getDivideLine, vSortBy)
 import PopSExp (indexingSP, forgetSExp, injectSExpI, reconsSExp, showSP, mapNode, isBottomBy, takeSpecTags)
 import ParserP (parse, pSExp)
 import SExp
@@ -102,12 +102,494 @@ checkPage nPage nSens = do
   putStrLn ""
 
 {-
-pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/CTFP.pdf"
 pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/3331554.3342603.pdf"
+pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/Leinster.pdf"
+pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/CTFP.pdf"
 nPage = fromIntegral 1
 layoutsPrim = [CSq{sqTop = 0.0, sqLeft = 0.0, sqBot = 1.0, sqRight = 1.0}]
 layoutMode = TwoCols
+docPathSuffix = "./pdfs/CTFP.pdf"
+tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
+nPage = 106
+tokSqTruePrim = tokSqTrues V.! nPage
+doc <- GPop.documentNewFromFile pdfPath Nothing
+page <- GPop.documentGetPage doc nPage
 -}
+
+getSExpsIOPoppy1 tokSqTruePrim page = do
+  presNubPrim <- iVecFromFile "tessPresDiv.txt"
+  postNubPrim <- iVecFromFile "tessPostDiv.txt"
+  tessRess <- tesseractPartlyIO page tokSqTruePrim
+  tessRessChar@(stackedSens, charSqV) <- tesseractPartlyIOChar page tokSqTruePrim
+  charSq <- pageGetTokSqLibs2 page
+  let
+    retrSexpS (sens, charSqs) = do
+      let
+        presNub = V.map (\x -> read x) presNubPrim :: V.Vector (String, String)
+        postNub = V.map (\x -> read x) postNubPrim :: V.Vector (String, String)
+      stanRess <- stanIOPoppy1 sens
+      let
+        sexps = stanAssign2Poppy1 charSqs stanRess
+      return sexps
+  bb <- V.mapM retrSexpS $ V.zip stackedSens charSqV
+  return $ concatMap id bb
+
+stanAssign2Poppy1 charSqs stanRess = map reconsSExp resSExpForg
+  where
+    indexed = map forgetIndexed stanRess
+    lengths = map length indexed
+    indexedFlattened = concat indexed
+    tokens = V.map f $ V.filter (\val -> not $ val == Nothing) $ takeThdT $ V.fromList indexedFlattened
+       where
+         f x = case x of
+           Just x -> x
+           Nothing -> ""
+    interposedSpace
+      | tokens == V.empty = V.empty
+      | otherwise = V.fromList $  V.foldl' f (V.head tokens) $ V.tail tokens
+      where
+        f y x = y ++ " " ++ x
+    chSqsMute = charSqs
+    assigned = assignByDiff interposedSpace chSqsMute
+    assignedFlt = V.map (\x@(c, sqss) -> (c, V.concatMap id sqss)) assigned
+    forgottenIndexed = indexing indexedFlattened
+    onlyToken = map (\x@(i, (is, tg, tk)) -> (i, g tk)) $ filter (\x@(i, (is, tg, tk)) -> f tk) forgottenIndexed
+       where
+         f tk = case tk of
+           Nothing -> False
+           Just _ -> True
+         g tk = case tk of
+           Nothing -> ""
+           Just a -> a
+    justsIndices = takeFstL onlyToken
+    onlyTokenInterposed
+     | onlyToken == [] = []
+     | otherwise = foldl f [head onlyToken] $ tail onlyToken
+        where
+          f y x = y ++ [(-1, " ")] ++ [x]
+    onlyTokenFlt = concatMap (\x@(i,str) -> map (\y -> (i, y)) str) onlyTokenInterposed
+    index = takeFstL onlyTokenFlt
+    chars = V.fromList $ takeSndL onlyTokenFlt
+    assedSqs = map h2 $ Lis.groupBy (\x -> \y -> (fst x) == (fst y)) $ zip index $ V.toList $  V.map (\x@(c, sqss) -> (c, V.concatMap id sqss)) $ assignByDiff chars assignedFlt
+       where
+         h2 lis = (i, (tokens, sqs))
+           where
+             i = fst $ head lis
+             tokens = takeFstL $ takeSndL lis
+             sqs = concatMap V.toList $ takeSndL $ takeSndL lis
+    assedSqs2 = map h3 $ Lis.groupBy (\x -> \y -> (fst x) == (fst y)) $ filter (\x@(i,_) -> not $ i == -1) $ zip index $ V.toList $ takeSnd $ assignByDiff chars assignedFlt
+       where
+         h3 lis = (i, sqs)
+           where
+             i = fst $ head lis
+             sqs = concatMap (V.toList . (V.concatMap id)) $ takeSndL lis
+    resForgotten2 = map g3 forgottenIndexed
+      where
+        g3 (i, (is, tg, mbStr))
+         | isJust = (is, tg, Just (tk, tokSq))
+         | otherwise = (is, tg, Nothing)
+           where
+             tk = case mbStr of
+               Just tkk -> tkk
+               Nothing -> ""
+             isJust = not $ mbStr == Nothing
+             tokSq = snd $ head $ filter (\x -> (fst x) == i) assedSqs2
+    separated@(rawRes, resSExpForg) = foldl f (resForgotten2, []) lengths
+      where
+        f y@(raw, stacked) n = (drop n raw, stacked ++ [take n raw])
+
+{-
+tessStanIOTess page tokSqTruePrim = do
+  presNubPrim <- iVecFromFile "tessPresDiv.txt"
+  postNubPrim <- iVecFromFile "tessPostDiv.txt"
+  tessRess <- tesseractPartlyIO page tokSqTruePrim
+  let
+   f tessRes = do
+     let
+       presNub = V.map (\x -> read x) presNubPrim :: V.Vector (String, String)
+       postNub = V.map (\x -> read x) postNubPrim :: V.Vector (String, String)
+       sens = fromTokensToSens $ takeFst tessRes :: String
+     res <- retrStanfordRes sens isLinux
+     let
+       parsed = parseNPs2 res
+       stParsed = V.concatMap (\x -> takeSnd x) parsed
+       stParsedFull = V.concatMap id parsed
+       tessResMutated = replaceEtDivideHead presNub $ replaceEtDivideLast postNub tessRes
+       stData = assSqsToPhraseNeo stParsed tessResMutated
+       ooo = V.zip stData stParsedFull
+     return (res, stParsed, takeFst ooo, takeSnd ooo)
+  resPartlySyned <- V.mapM f tessRess
+  let
+    res@(a, b, c, d) = V.foldl' f (V.empty, V.empty, V.empty, V.empty) resPartlySyned
+      where
+        f y@(st1, st2, st3, st4) x@(x1, x2, x3, x4) = (st1 V.++ x1, st2 V.++ x2, st3 V.++ x3, st4 V.++ x4)
+  return res
+-}
+
+tesseractPartlyIOChar page tokSqTruePrim = do
+  (colPrim, rowPrim) <- GPop.pageGetSize page
+  charsPrim <- getCharPositionFromPopplerPrim page tokSqTruePrim
+  let
+    tokSqsRatioPartlyChars = popplerTokenizePartlyS charsPrim
+    stackedSens = takeFst tokSqsRatioPartlyChars
+    stackedChars = takeSnd tokSqsRatioPartlyChars
+    resS = V.map tokSqs stackedChars
+     where
+      tokSqs tokSqsRatio = V.map (\x@(c, sqs) -> (c, V.concatMap (V.map f) sqs)) tokSqsRatio
+       where
+         row = rowPrim
+         col = colPrim
+         f ((r1, c1), (r2, c2)) = ((g1 r1 row, g1 c1 col), (g2 r2 row, g2 c2 col))
+              where
+                g1 :: Double -> Double -> Double
+                g1 ratio space
+                 | floored - 1 < 0 = floored
+                 --  | otherwise = floored - 1
+                 | otherwise = floored
+                    where
+                      floored = ratio * space
+                g2 :: Double -> Double -> Double
+                g2 ratio space
+                 | floored + 1 > space - 1 = floored
+                 --  | otherwise = floored + 1
+                 | otherwise = floored
+                    where
+                      floored = ratio * space
+    res2S = V.map (\xs -> V.map (\x@(tok, sqs) -> (tok, V.map g sqs)) xs) resS
+       where
+         g ((row1, col1), (row2, col2)) = CSq {sqTop = rowPrim - row2, sqLeft = col1, sqBot = rowPrim - row1, sqRight = col2}
+  return (stackedSens, res2S)
+
+-- rksprpr
+tesseractPartlyIO page tokSqTruePrim = do
+  (colPrim, rowPrim) <- GPop.pageGetSize page
+  charsPrim <- getCharPositionFromPopplerPrim page tokSqTruePrim
+  tokSqsRatioPartly <- popplerTokenizePartlyIO charsPrim
+  let
+    res
+     | tokSqsRatioPartly == (V.fromList [V.fromList [("",V.empty)]]) = V.empty
+     | otherwise = V.map (concatLastBar3 . tokSqs) tokSqsRatioPartly
+     where
+      tokSqs tokSqsRatio = V.map (\x@(str, sqs) -> (str, V.map f sqs)) tokSqsRatio
+       where
+         row = rowPrim
+         col = colPrim
+         f ((r1, c1), (r2, c2)) = ((g1 r1 row, g1 c1 col), (g2 r2 row, g2 c2 col))
+              where
+                g1 :: Double -> Double -> Double
+                g1 ratio space
+                 | floored - 1 < 0 = floored
+                 | otherwise = floored - 1
+                    where
+                      floored = ratio * space
+                g2 :: Double -> Double -> Double
+                g2 ratio space
+                 | floored + 1 > space - 1 = floored
+                 | otherwise = floored + 1
+                    where
+                      floored = ratio * space
+    res2 = V.map (\xs -> V.map (\x@(tok, sqs) -> (tok, V.map g sqs)) xs) res
+       where
+         g ((row1, col1), (row2, col2)) = CSq {sqTop = rowPrim - row2, sqLeft = col1, sqBot = rowPrim - row1, sqRight = col2}
+  return res2
+
+concatLastBar3 :: V.Vector (String, V.Vector SquareD) -> V.Vector (String, V.Vector SquareD)
+concatLastBar3 arrPrim
+  | arrPrim == V.empty = V.empty
+  | otherwise = pl V.++ (V.singleton st)
+     where
+       arr = V.filter (\x@(str,sqs) -> (not $ str == "") && (not $ sqs == V.empty)) arrPrim
+       headArr@(headTok, headSqs) = V.head arr
+       tailArr = V.tail arr
+       folded@(st, pl) = V.foldl' f ((headTok, headSqs), V.empty) tailArr
+       f y@(stacked@(cTok, cSqs), pooled) x@(tok, sqs)
+         | cSqs == V.empty = resConcated
+         | newCol < fronteerCol && isNewTokLastBar = resConcated
+         | otherwise = resNormal
+            where
+              fronteerCol = snd $ snd $ V.last cSqs :: Double
+              newCol = snd $ snd $ V.last sqs :: Double
+              isNewTokLastBar
+                | length tok < 2 = False
+                | otherwise = last cTok == '-'
+              resConcated = (((init cTok) ++ tok, cSqs V.++ sqs), pooled)
+              resNormal = ((tok, sqs), pooled V.++ (V.singleton stacked))
+
+type Square = ((Int, Int), (Int, Int))
+type SquareD = ((Double, Double), (Double, Double))
+-- docName = "dijkstra"
+-- n = 2
+-- rksprpr
+popplerTokenizePartlyS charsPrim = folded
+  where
+    marks = V.fromList [',', '.', ';', head ":", '!', '?']
+    folded
+      | charsPrim == V.empty = V.empty
+      | hChar == '\n' = V.empty
+      | hChar == ' ' = V.empty
+      | otherwise = V.snoc pooledBlocksF (stackedStrF, pooledLineF V.++ stackedCharF)
+      where
+        folddd@(stackedStrF, stackedCharF, prevColF, pooledLineF, pooledBlocksF) = V.foldl' g ([hChar], V.singleton $ V.head charsPrim, 0.0, V.empty, V.empty) $ V.tail charsPrim
+        headhead@(hChar, hSqss) = V.head charsPrim
+
+        g y@(stackedStr, stackedChar, prevLineCol, pooledLine, pooledBlocks) x@(c, sqss)
+          | isBlockTerminate = ("", V.empty, currCol, V.empty, V.snoc pooledBlocks (stackedStr, pooledLine V.++ (V.snoc stackedChar x)))
+          | isBlockTerminateMarked = ("", V.empty, currCol, V.empty, V.snoc pooledBlocks (stackedStr, pooledLine V.++ (V.snoc stackedChar x)))
+          | isContinueLine = (stackedStr ++ [c], V.snoc stackedChar x, prevLineCol, pooledLine, pooledBlocks)
+          | isPrevBarContinueNextLine = (init stackedStr     , V.empty, currCol, pooledLine V.++ (V.snoc stackedChar x), pooledBlocks)
+          | isContinueNextLine        = (snocL stackedStr ' ', V.empty, currCol, pooledLine V.++ (V.snoc stackedChar x), pooledBlocks)
+          | otherwise = (snocL stackedStr ' ', V.empty, currCol, pooledLine V.++ (V.snoc stackedChar x), pooledBlocks)
+          where
+            currCol = snd $ snd $ V.head $ V.head sqss
+            -- currCol = snd $ snd $ V.last $ V.last sqss -- <- correct?
+            isPrevSpace = 0 < length stackedStr && last stackedStr == ' '
+            isPrevBar = 0 < length stackedStr && last stackedStr == '-'
+            isPrevMark = 0 < length stackedStr && (V.elem (last stackedStr) marks)
+            isIso = 1 < length stackedStr && (last $ tail stackedStr) == ' '
+            isReturned = c == '\n'
+            isNotPrevBlocked = not $ pooledLine == V.empty
+
+            isBlockTerminate = isReturned && (0.001 < abs (prevLineCol - currCol)) && isNotPrevBlocked
+            isBlockTerminateMarked = isReturned && isPrevMark && (not isIso) && isNotPrevBlocked
+            isContinueLine = not isReturned
+            isPrevBarContinueNextLine = isPrevBar && (not isIso) && isReturned && (not isBlockTerminate) && (not isBlockTerminateMarked)
+            isContinueNextLine        =                             isReturned && (not isBlockTerminate) && (not isBlockTerminateMarked)
+
+popplerTokenizePartlyIO chars = do
+      let
+        marks = V.fromList [',', '.', ';', head ":", '!', '?']
+        regularReturnCols
+          | returns == V.empty = V.empty
+          | otherwise = continued
+          where
+            returns = V.map (\x@(c,sq) -> snd $ snd $ V.head $ V.concatMap id sq) $ V.filter (\x@(c,_) -> c == '\n') chars
+            g x@(_,scoreX) y@(_,scoreY) = compare scoreX scoreY
+            -- continued = vNub $ takeFst $ V.filter (\x@(x1, x2) -> x1 - x2 == 0.0) $ V.zip (V.init returns) (V.tail returns)
+            continued = vNub $ takeFst $ V.filter (\x@(x1, x2) -> abs (x1 - x2) < 0.001) $ V.zip (V.init returns) (V.tail returns)
+        charsDivided = V.snoc pol st
+            where
+              res@(st,pol) = V.foldl' f3 (V.empty, V.empty) chars
+              f3 y@(stacked, pooled) x@(c,sqss)
+                | c == '\n' && (not $ V.elem col2 regularReturnCols) = (V.empty, V.snoc pooled (V.snoc stacked x))
+                | otherwise = (V.snoc stacked x, pooled)
+                 where
+                   col2 = snd $ snd $ V.head $ V.concatMap id sqss
+        getSens chars = V.snoc resPooled $ (residueStr, residueStacked)
+          where
+            res@(residueStr, residueStacked, resPooled) = V.foldl' f ("", V.empty, V.empty) chars
+            f y@(stStr, stackedSqs, pooled) x@(c, vsqs)
+              | isFinalized && stStr == "" = y
+              | isFinalized && isMarksNotInsulated && isLastMarks = ("", V.empty, pooled V.++ (V.fromList [(init stStr, V.init stackedSqs), ([last stStr], V.singleton $ V.last stackedSqs)]))
+              | isFinalized = ("", V.empty, V.snoc pooled (stStr, stackedSqs))
+              | otherwise = (stStr ++ [c], V.snoc stackedSqs vsqs, pooled)
+                where
+                  isFinalized = (c == ' ' || c == '\n')
+                  isMarksNotInsulated = (not $ V.length stackedSqs < 2) && (not $ length stStr < 2)
+                  isLastMarks = V.elem (last stStr) marks
+        resSens = V.map (\x -> (f. getSens) x) charsDivided
+           where
+             f vs = V.map (\y@(str, sqss) -> (str, V.concatMap id $ V.concatMap id sqss)) vs
+      return resSens
+
+getCharPositionFromPopplerPrim page tokSqTruePrim = do
+  pageStr <- GPop.pageGetText page
+  let
+    tokens = V.map (Text.pack . V.toList) $ V.concatMap (\x -> delimitAtV '\n' x) $ V.fromList $ map V.fromList $ delimitAtWO2 ' ' id  $ Text.unpack pageStr
+  posi <- V.mapM (popPPageFindText page) tokens
+  let
+    zippedToken = V.zip tokens posi
+    flattened = vNub $ V.concatMap (\x@(tok, sqs) -> V.fromList $ map (\y -> (tok, y)) sqs) zippedToken
+  pSize@(totWidth, totHeight) <- GPop.pageGetSize page
+  let
+    tokSqTrue = res
+      where
+        res
+          | tokSqTruePrim == V.empty = V.empty
+          | otherwise = pl V.++ st
+              where
+                resPrim@(st,pl,_,_,_) = V.foldl' h3 (V.singleton headVal, V.empty, (c1, r1, c2, r2), c2,r2) (V.tail tokSqTruePrim)
+                headVal@(tk, (PopPRectangle c1 r1 c2 r2)) = V.head tokSqTruePrim
+
+                h3 y@(stacked, pooled, (minC, minR, maxC, maxR), frons,fronsRow) x@(tktk, (PopPRectangle cc1 cr1 cc2 cr2))
+                  | isEntered = (V.singleton x, pooled V.++ revisedStacked, (neoMinC, neoMinR, neoMaxC, neoMaxR), cc2,cr2)
+                  | isReturned = (V.singleton x, pooled V.++ revisedStacked, (neoMinC, neoMinR, neoMaxC, neoMaxR), cc2,cr2)
+                  | otherwise = (V.snoc stacked x, pooled, (neoMinC, neoMinR, neoMaxC, neoMaxR), cc2,cr2)
+                  where
+                    isEntered = cc1 < frons
+                    isReturned = fronsRow < cr2
+                    neoMinC
+                     | isEntered || isReturned = cc1
+                     | cc1 < minC = cc1
+                     | otherwise = minC
+                    neoMinR
+                     | isEntered || isReturned = cr1
+                     | cr1 < minR = cr1
+                     | otherwise = minR
+                    neoMaxC
+                     | isEntered || isReturned = cc2
+                     | maxC < cc2 = cc2
+                     | otherwise = maxC
+                    neoMaxR
+                     | isEntered || isReturned = cr2
+                     | maxR < cr2 = cr2
+                     | otherwise = maxR
+                    revisedStacked = V.map h4 stacked
+                       where
+                         h4 (xtk, (PopPRectangle xc1 xr1 xc2 xr2)) = (xtk, (PopPRectangle xc1 minR xc2 maxR))
+    tokSqTrueWided = V.map (\x@(x1,x2) -> (x1, f x2)) tokSqTrue
+       where
+         f (PopPRectangle xc1 xr1 xc2 xr2) = (PopPRectangle (ashort xc1) (ashort xr1) (along xc2) (along xr2))
+            where
+              along r = fromIntegral (1 + floor r)
+              ashort r = fromIntegral ((floor r) - 1)
+    chars = extractChars $ Text.unpack pageStr :: [Char]
+  charPossRect <- getCharPossSqRect chars page V.empty
+  let
+    charPossRectFlattened :: V.Vector (Char, PopPRectangle)
+    charPossRectFlattened = V.concatMap (\x@(c, sqs) -> V.map (\sq -> (c, sq)) sqs) charPossRect
+    charPossRectFlattenedSorted = vSortBy h2 $ vSortBy h1 charPossRectFlattened
+      where
+        h1 (_,ns@(PopPRectangle a b c d)) (_,nd@(PopPRectangle e f g h)) = compare a e
+        h2 (_,ns@(PopPRectangle a b c d)) (_,nd@(PopPRectangle e f g h)) = compare h d
+    charPossRectFlattenedShrinked = V.map (\x@(x1,x2) -> (x1, f x2)) charPossRectFlattened
+       where
+         f (PopPRectangle xc1 xr1 xc2 xr2) = (PopPRectangle (along xc1) (along xr1) (ashort xc2) (ashort xr2))
+            where
+              along r = fromIntegral (1 + floor r)
+              ashort r = fromIntegral ((floor r) - 1)
+    --tokSqTrueFiltered = V.filter (\x@(tok, _) -> not $ tok == "\n") tokSqTrue
+    tokSqTrueFiltered = V.filter (\x@(tok, _) -> not $ tok == "\n") tokSqTrueWided
+    salvaged2Prim = V.map f $ takeSnd tokSqTrueFiltered
+      where
+        f sq = includesSorted
+          where
+            --includes = V.filter (\x@(c, sqn) -> isIncludedPopplerRect sq sqn) charPossRectFlattened
+            includes = V.filter (\x@(c, sqn) -> isIncludedPopplerRect sq sqn) charPossRectFlattenedShrinked
+            includesSorted = vSortBy h2 includes
+               where
+                 h2 (_,ns@(PopPRectangle a b c d)) (_,nd@(PopPRectangle e f g h)) = compare c g
+    zipped = V.zip (takeFst tokSqTrue) (V.map (V.toList . takeFst) salvaged2Prim)
+    zippedAll = V.zip tokSqTrue (V.map takeSnd salvaged2Prim)
+    salvaged2 :: V.Vector (Char, PopPRectangle)
+    salvaged2 = V.concatMap id salvaged2Prim
+    salvagedRecovered = V.map (\x -> f x) salvaged2
+       where
+         f (ch, pRect) = including
+           where
+             including = V.head $ V.filter (\x@(c,sq) -> ch == c && isIncludedPopplerRect sq pRect) charPossRectFlattened
+
+    cSqsDivid :: V.Vector (Char, Sq Double)
+    cSqsDivid = V.map (\x@(c, sqRect) -> (c, pRectToSq totHeight sqRect)) $ salvagedRecovered
+    pageStrVec = V.fromList $ Text.unpack pageStr :: V.Vector Char
+
+    diffPrim = vGetDiffBy (==) pageStrVec $ takeFst cSqsDivid
+    diff2 = assignByDiff pageStrVec $ V.map (\x@(c, sq) -> (c, V.singleton sq)) cSqsDivid :: V.Vector (Char, V.Vector (V.Vector (Sq Double)))
+
+    diffDoubled = V.map (\x@(c, sqss) -> (c, V.map (\sqs -> V.map g sqs) sqss)) diff2
+       where
+         -- g sq = ((1.0 - neoRLow, neoCLeft), (1.0 - neoRHigh, neoCRight))
+         g sq = ((1.0 - neoRLow, neoCLeft), (1.0 - neoRHigh, neoCRight))
+            where
+              cLeft = sqLeft sq
+              rHigh = sqTop sq
+              cRight = sqRight sq
+              rLow = sqBot sq
+              neoCLeft = cLeft / totWidth
+              neoCRight = cRight / totWidth
+              neoRHigh = rHigh / totHeight
+              neoRLow = rLow / totHeight
+    diffDoubledDeEmpty = V.filter (\x@(tok, sqs) -> not $ g sqs) diffDoubled
+       where
+         g sqs = sqs == V.empty || sqs == V.singleton V.empty
+  -- return diffDoubledDeEmpty
+  return diffDoubled
+
+isIncludedPopplerRect ns@(PopPRectangle a b c d) nd@(PopPRectangle e f g h)
+  = (a <= e) && (b <= f) && (g <= c) && (h <= d)
+
+popPPageFindText page token = do
+  rects <- GPop.pageFindText page token
+  rectsSwapped <- mapM (gpopRectToPopPRect page) rects
+  return rectsSwapped
+
+getCharPossSqRect [] page stacked = return stacked
+getCharPossSqRect (c:cs) page stacked = do
+  charPoss <- popPPageFindText page $ Text.pack [c]
+  aaaa <- getCharPossSqRect cs page (V.snoc stacked (c, V.fromList charPoss))
+  return $ aaaa
+
+extractChars :: String -> String
+extractChars str = res
+  where
+    res = Lis.sort $ Lis.nub str
+
+delimitAtV :: Eq a => a -> V.Vector a -> V.Vector (V.Vector a)
+delimitAtV d vs = V.snoc resPl resSt
+  where
+    res@(resSt, resPl) = V.foldl' f (V.empty, V.empty) vs
+      where
+        f y@(stacked, pooled) x
+          | x == d = (V.empty, V.snoc (V.snoc pooled stacked) $ V.singleton x)
+          | otherwise = (V.snoc stacked x, pooled)
+
+data PopPRectangle = PopPRectangle Double Double Double Double
+  deriving (Show, Eq, Ord, Read)
+   -- xSmaller ySmaller xBigger yBigger
+   -- from Normal mathematical Axis (lower left is (0, 0))
+
+pRectToSq :: Double -> PopPRectangle -> Sq Double
+pRectToSq hei (PopPRectangle smallX smallY bigX bigY) = CSq {sqTop =  hei - bigY, sqLeft = smallX, sqBot = hei - smallY, sqRight = bigX}
+
+
+getTokenPositions docPathSuffix = do
+  let
+    -- docPathSuffix = "./pdfs/Leinster.pdf"
+  execShell $ "pdftotext -bbox " ++ "\"" ++ docPathSuffix ++ "\""
+  let
+    inPath = (reverse $ dropWhile (\c -> not $ c == '.') $ reverse docPathSuffix) ++ "html"
+  res <- parsePDFHtml <$> iVecFromFileJP inPath
+  return res
+
+replaceStr nd ns str = Text.unpack $ Text.replace nd ns $ Text.pack str
+
+parsePDFHtml :: V.Vector String -> V.Vector (V.Vector (String, PopPRectangle))
+parsePDFHtml xs = V.map (\x -> h x) paged
+  where
+    handi = 0.000001
+    paged = V.snoc pl st
+       where
+         res@(st, pl) = V.foldl' f (V.empty, V.empty) xs
+         f y@(stacked, pooled) x
+           | isTriggerred = (V.singleton x, pooled)
+           | isTermed = (V.empty, V.snoc pooled stacked)
+           | otherwise = (V.snoc stacked x, pooled)
+          where
+            deSpaced = replaceStr " " "" x
+            isTriggerred = Lis.isPrefixOf "<page" deSpaced
+            isTermed = Lis.isPrefixOf "</page" deSpaced
+    h pgsPrim = V.map (parseWord heit) wds
+      where
+        (heit, wds, widt) = g pgsPrim
+    g pgs = (heit, wds, widt)
+       where
+         (widt, heit) = (read wid :: Double, read hei :: Double)
+            where
+              sizeStrPrim = V.head pgs
+              delimited = delimitAtWO2 ' ' id sizeStrPrim
+              hei = takeWhile (\c -> not $ c == '\"') $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 4
+              wid = takeWhile (\c -> not $ c == '\"') $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 3
+         wds = V.filter (\x -> Lis.isPrefixOf "<word" (replaceStr " " "" x)) $ V.tail pgs
+    parseWord hei cs = (token, PopPRectangle (xMin -handi) (hei - yMax - handi) (xMax + handi) (hei - yMin + handi))
+    -- parseWord hei cs = (token, CSq { sqLeft = (xMin - handi), sqTop =  (hei - yMax - handi), sqRight = (xMax + handi), sqBot = (hei - yMin + handi)})
+       where
+         delimited = delimitAtWO2 ' ' id cs
+         toDouble str = read str :: Double
+         xMin = toDouble $ init $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 5
+         yMin = toDouble $ init $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 6
+         xMax = toDouble $ init $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 7
+         yMaxPrim = init $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 8
+         yMax = toDouble $ takeWhile (\c -> not $ c == '\"') yMaxPrim
+         token = tail $ dropWhile (\c -> not $ c == '>') $ takeWhile (\c -> not $ c == '<') yMaxPrim
 
 getSExpsIOOldNew pdfPath nPage = do
   doc <- GPop.documentNewFromFile pdfPath Nothing
@@ -264,6 +746,26 @@ stanAssign2 chSqs stanRess = map reconsSExp resSExpForg
 stanIO chSqs = do
   let
     str = toSentences chSqs
+  conv <- open "UTF8" Nothing
+  let
+    text = fromUnicode conv $ Text.pack str
+  req <- HT.setRequestMethod "POST" <$> HT.parseRequest command
+  req2 <-buildRequest command $ RequestBodyBS text
+  jsonString <- responseBody <$> HT.httpLbs req2
+  let
+    bulkResult = ICU.toUnicode conv $ BL.toStrict jsonString
+    splitted = Text.split (== '\n') bulkResult
+    delimited = delimitAtWO2By (\a -> Text.take (Text.length initWord) a == initWord) id splitted
+      where
+        initWord = "      \"index\":"
+    render tarText = Text.replace "\\n" "\n" $ f $ Text.drop 3 $ Text.dropWhile (\c -> not $ c == ':') tarText
+      where
+        f bulk = Text.take (Text.length bulk - 2) bulk
+    stanRess = map (render . head) $ tail delimited
+  return  stanRess
+
+
+stanIOPoppy1 str = do
   conv <- open "UTF8" Nothing
   let
     text = fromUnicode conv $ Text.pack str
@@ -593,6 +1095,16 @@ swapRectAns page rect = do
   set rect0 [#x1 := x1,  #y1 := row - y2, #x2 := x2,  #y2 := row - y1]
   return rect0
 
+gpopRectToPopPRect :: GPop.Page -> GPop.Rectangle -> IO PopPRectangle
+gpopRectToPopPRect page rect = do
+  -- rect <- swapRectAns page rect0
+  x1 <- GPop.getRectangleX1 rect
+  x2 <- GPop.getRectangleX2 rect
+  y1 <- GPop.getRectangleY1 rect
+  y2 <- GPop.getRectangleY2 rect
+  -- return ((x1, y1), (x2, y2))
+  return $ PopPRectangle x1 y1 x2 y2
+
 showRect :: GPop.Rectangle -> IO (Sq Double)
 showRect rect = do
   x1 <- GPop.getRectangleX1 rect
@@ -602,8 +1114,11 @@ showRect rect = do
   -- return ((x1, y1), (x2, y2))
   return $ CSq {sqTop = y1, sqLeft = x1, sqBot = y2, sqRight = x2}
 
-cshowI lis = mapM_ uprint $ zip [0 .. (length lis - 1)] lis
-cshow lis = mapM_ uprint  lis
+cshowIL lis = mapM_ uprint $ zip [0 .. (length lis - 1)] lis
+cshowL lis = mapM_ uprint  lis
+
+cshowI lis = cshowIL $ V.toList lis
+cshow lis = cshowL $ V.toList lis
 
 swapEtFlatten :: [(a, [b])] -> [(b, a)]
 swapEtFlatten lis = concatMap (\x@(xa, xbs) -> map (\xb -> (xb, xa)) xbs) lis
@@ -1022,6 +1537,13 @@ getDivideLayout hei1 wid1 sqs
 
 
 isIncludePoint poi@(r, c) sq = sqLeft sq <= c && c <= sqRight sq && sqTop sq <= r && r <= sqBot sq
+
+fromTokensToSens :: V.Vector String -> String
+fromTokensToSens arr
+  | arr == V.empty = ""
+  | otherwise = V.foldl' f (V.head arr) (V.tail arr)
+    where
+      f y x = y ++ " " ++ x
 
 fromTokensToSensJP :: V.Vector String -> String
 fromTokensToSensJP arr

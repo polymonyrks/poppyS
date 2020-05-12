@@ -1,15 +1,15 @@
-# PoppyS - Syntactical Highlighting for Natural Language in Haskell
+# poppyS - Syntactical Highlighting for Natural Language in Haskell
 # Preamble
 Syntactically highlighting PDF Documents in Haskell.  
-Experimental.  
-An example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-gtk))
+This is a Functional Toy Programming. Experimental.  
+Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-gtk))
 ![demo](./poppySMovie.gif)
 # Installation
 ## OS
-Recommend: [Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)  
+Recommended: [Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)  
 [lubuntu 20.04](https://lubuntu.me/downloads/) also works.  
-For other Distros, MacOS, or Windows et.c., equivalent process may work (not checked).  
-## Update Packages list
+For other Distros, MacOS, or Windows etc., equivalent process may work (not checked).  
+## Update Package List
 ```shell
 sudo apt update
 ```
@@ -57,10 +57,10 @@ git clone https://github.com/polymonyrks/poppyS.git
 cd poppyS
 stack build
 ```
-# Execution of PoppyS
-1. Put a PDF File into ./pdfs Directory. Only English and one Column Documents.  
+# Execution of poppyS
+1. Put a PDF File into ./pdfs Directory. Only English and one Column Documents supported.  
 2. Run Stanford CoreNLP Server.
-3. Execute PoppyS.
+3. Execute poppyS.
 ## PDF Examples
 1. Computer Science
 * [Haskell Wikibooks](https://en.wikibooks.org/wiki/Haskell)
@@ -69,12 +69,12 @@ stack build
 * [SICP](https://web.mit.edu/alexmv/6.037/sicp.pdf)
 * [Practical Foundations for Programing Languages](http://profs.sci.univr.it/~merro/files/harper.pdf)
 * [Homotopy Type Theory](http://saunders.phil.cmu.edu/book/hott-ebook.pdf)
-2. Legal
+2. Legal / Financial
 * [Copyright Law of the United States](https://www.copyright.gov/title17/title17.pdf)
 * [License Agreement Templates](https://otl.stanford.edu/sites/g/files/sbiybj10286/f/exclusive_03-06-2018.pdf)
 * [Annual Report (2019) (Apple Inc.)](https://s2.q4cdn.com/470004039/files/doc_financials/2019/ar/_10-K-2019-(As-Filed).pdf)
 * [host city contract - Tokyo 2020 Olympic Games](https://gtimg.tokyo2020.org/image/upload/production/jxnoeerdp7hxvgtgxp73.pdf)
-3. Medical
+3. Biology / Medical
 * [Basics of Molecular Biology](https://homes.cs.washington.edu/~tompa/papers/molbio.pdf)
 * [Clinical characteristics of 2019 novel coronavirus infection in China](https://www.medrxiv.org/content/10.1101/2020.02.06.20020974v1)
 
@@ -87,29 +87,29 @@ sudo docker run -p 9000:9000 nlpbox/corenlp
 stack exec poppyS-exe
 ```
 # How to read PDF
-## Wait a second
-Once execute poppyS, wait for a few seconds, then some words will be colored by yellow.
-If no word is colored, then re-Execute poppyS.
+## Wait a few Seconds
+Once execute poppyS, wait a few seconds, then some words will be colored by yellow.
+If no word is colored, this is probably timeout of Stanford CoreNLP Server, so re-execute poppyS.
 ## Keyboard
 |  command  |  effect  |
 | ---- | ---- |
 |  j  | increase page (2 pages) |
 |  k  | decrease page (2 pages) |
-|  Right  | increase page (1 pages) |
-|  Left  | decrease page (1 pages) |
+|  Right  | increase page (1 page) |
+|  Left  | decrease page (1 page) |
 |  Down  | crop merginal white zones and adjust page size|
 |  x  | decoloring of some phrases |
 |  dd  | decoloring of all phrases |
 |  :w Enter  | save coloring setting |
 ## Mouse
-Click some words, then some phrases are colored. This coloring is toggled. Click the same word multiple times.  
+Click some words, then corresponding some phrases are colored. When click the same word multiple times, the coloring is toggled.  
 # License
 (see also LICENSE file included with Haskell source.)  
 Based on BSD3. For personal use and/or educational purpose use are O.K.  
 
-I also have some patent applications relating to this source files and technology used there.  
+I also have some patent applications relating to this source files and technology used therein.  
 If you comply with the LICENSE Terms, then I never assert the mentioned usage in LICENSE Terms by such intellectual properties.  
 
-If you interested in commercial use, then please contact me.  
+If you are interested in commercial use, then please contact me.  
   * Functional Toy Manufactureing (Japanese Homepage) (https://www.polymony.net)  
   * Email: polymonyrks@polymony.net or polymonyrks@gmail.com  
