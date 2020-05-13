@@ -87,7 +87,7 @@ layoutsPrim = [CSq{sqTop = 0.0, sqLeft = 0.0, sqBot = 1.0, sqRight = 1.0}]
 layoutMode = TwoCols
 docPathSuffix = "./pdfs/CTFP.pdf"
 tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
-nPage = 106
+nPage = 106 + 8
 tokSqTruePrim = tokSqTrues V.! nPage
 doc <- GPop.documentNewFromFile pdfPath Nothing
 page <- GPop.documentGetPage doc nPage
@@ -96,8 +96,29 @@ page <- GPop.documentGetPage doc nPage
 getSExpsIOPoppy1 tokSqTruePrim page = do
   presNubPrim <- iVecFromFile "tessPresDiv.txt"
   postNubPrim <- iVecFromFile "tessPostDiv.txt"
-  tessRessChar@(stackedSens, charSqV) <- tesseractPartlyIOChar page tokSqTruePrim
+  charSqV <- tesseractPartlyIOChar page tokSqTruePrim
   let
+    charSqVConcated = V.map (V.concatMap (V.map f)) charSqV
+      where
+        f (c, sqss) = (c, V.concatMap id sqss)
+    stackedSens = blockLinesConcated
+      where
+        blockLineChars = V.map (V.map (V.map fst)) charSqV -- :: V.Vector (V.Vector (V.Vector Char)) -- first is Block second is lines in Block last is Line in Lines
+        blockLinesConcated = V.map concatLines blockLineChars
+          where
+            concatLines bLines
+              | bLines == V.empty = ""
+              | otherwise = folddd
+             where
+                bLinesStr = V.map V.toList bLines
+                folddd = V.foldl' g (V.head bLinesStr) $ V.tail bLinesStr
+                g y x
+                  | isLastBar = y ++ x
+                  | isLastSpace = y ++ x
+                  | otherwise = y ++ " " ++ x
+                  where
+                    isLastBar = 0 < length x && last x == '-'
+                    isLastSpace = 0 < length x && last x == ' '
     retrSexpS (sens, charSqs) = do
       let
         presNub = V.map (\x -> read x) presNubPrim :: V.Vector (String, String)
@@ -106,7 +127,7 @@ getSExpsIOPoppy1 tokSqTruePrim page = do
       let
         sexps = stanAssign2Poppy1 charSqs stanRess
       return sexps
-  bb <- V.mapM retrSexpS $ V.zip stackedSens charSqV
+  bb <- V.mapM retrSexpS $ V.zip stackedSens charSqVConcated
   return $ concatMap id bb
 
 stanAssign2Poppy1 charSqs stanRess = map reconsSExp resSExpForg
@@ -179,11 +200,10 @@ tesseractPartlyIOChar page tokSqTruePrim = do
   charsPrim <- getCharPositionFromPopplerPrim page tokSqTruePrim
   let
     tokSqsRatioPartlyChars = popplerTokenizePartlyS charsPrim
-    stackedSens = takeFst tokSqsRatioPartlyChars
-    stackedChars = takeSnd tokSqsRatioPartlyChars
+    stackedChars = tokSqsRatioPartlyChars
     resS = V.map tokSqs stackedChars
      where
-      tokSqs tokSqsRatio = V.map (\x@(c, sqs) -> (c, V.concatMap (V.map f) sqs)) tokSqsRatio
+      tokSqs tokSqsRatio = V.map (V.map (\x@(c, sqs) -> (c, V.map (V.map (g. f)) sqs))) tokSqsRatio
        where
          row = rowPrim
          col = colPrim
@@ -203,10 +223,8 @@ tesseractPartlyIOChar page tokSqTruePrim = do
                  | otherwise = floored
                     where
                       floored = ratio * space
-    res2S = V.map (\xs -> V.map (\x@(tok, sqs) -> (tok, V.map g sqs)) xs) resS
-       where
          g ((row1, col1), (row2, col2)) = CSq {sqTop = rowPrim - row2, sqLeft = col1, sqBot = rowPrim - row1, sqRight = col2}
-  return (stackedSens, res2S)
+  return resS
 
 
 type Square = ((Int, Int), (Int, Int))
@@ -219,34 +237,44 @@ popplerTokenizePartlyS charsPrim = folded
       | charsPrim == V.empty = V.empty
       | hChar == '\n' = V.empty
       | hChar == ' ' = V.empty
-      | otherwise = V.snoc pooledBlocksF (stackedStrF, pooledLineF V.++ stackedCharF)
+      | otherwise = V.snoc pooledBlocksF (V.snoc pooledLinesF stackedCharsF)
       where
-        folddd@(stackedStrF, stackedCharF, prevColF, pooledLineF, pooledBlocksF) = V.foldl' g ([hChar], V.singleton $ V.head charsPrim, 0.0, V.empty, V.empty) $ V.tail charsPrim
-        headhead@(hChar, hSqss) = V.head charsPrim
+        folddd@(stackedCharsF, prevLineColF, pooledLinesF, pooledBlocksF)
+          | otherwise = V.foldl' g (V.singleton $ V.head charsPrim, iniRight, V.empty, V.empty) $ V.tail charsPrim
+        hChar = fst $ V.head charsPrim
+        iniRight = snd $ snd $ V.last $ V.last $ snd $ V.head charsPrim
 
-        g y@(stackedStr, stackedChar, prevLineCol, pooledLine, pooledBlocks) x@(c, sqss)
-          | isBlockTerminate = ("", V.empty, currCol, V.empty, V.snoc pooledBlocks (stackedStr, pooledLine V.++ (V.snoc stackedChar x)))
-          | isBlockTerminateMarked = ("", V.empty, currCol, V.empty, V.snoc pooledBlocks (stackedStr, pooledLine V.++ (V.snoc stackedChar x)))
-          | isContinueLine = (stackedStr ++ [c], V.snoc stackedChar x, prevLineCol, pooledLine, pooledBlocks)
-          | isPrevBarContinueNextLine = (init stackedStr     , V.empty, currCol, pooledLine V.++ (V.snoc stackedChar x), pooledBlocks)
-          | isContinueNextLine        = (snocL stackedStr ' ', V.empty, currCol, pooledLine V.++ (V.snoc stackedChar x), pooledBlocks)
-          | otherwise = (snocL stackedStr ' ', V.empty, currCol, pooledLine V.++ (V.snoc stackedChar x), pooledBlocks)
+        g y@(stackedChars, prevLineCol, pooledLines, pooledBlocks) x@(c, sqss)
+          | isLargelyEarlyReturned && (not isBlockTerminate) = (nextStackedChars, prevLineCol, pooledLines, V.snoc pooledBlocks pooledLines)
+          | isBlockTerminate       = (V.empty, currCol, V.empty, nextPooledBlocks)
+          | isBlockTerminateMarked = (V.empty, currCol, V.empty, nextPooledBlocks)
+          | isContinueLine = (nextStackedChars, prevLineCol, pooledLines, pooledBlocks)
+          | isContinueNextLine = (V.singleton x, currCol, V.snoc pooledLines stackedChars, pooledBlocks)
+          | otherwise  = (V.singleton x, currCol, V.snoc pooledLines stackedChars, pooledBlocks)
+          -- | otherwise = undefined
           where
+            resPrevPrev = V.last $ V.init $ V.init pooledBlocks
+            resPrev = V.last $ V.init pooledBlocks
+            resTerminated = (V.empty, V.empty, currCol, V.empty, V.snoc pooledBlocks nextPooledLines)
+            nextPooledBlocks = (V.snoc pooledBlocks nextPooledLines)
+            nextPooledLines = V.snoc pooledLines $ nextStackedChars
+            nextStackedChars = (V.snoc stackedChars x)
+            isNotInitializedBlock = (1 < (V.length stackedChars))
             currCol = snd $ snd $ V.head $ V.head sqss
-            -- currCol = snd $ snd $ V.last $ V.last sqss -- <- correct?
-            isPrevSpace = 0 < length stackedStr && last stackedStr == ' '
-            isPrevBar = 0 < length stackedStr && last stackedStr == '-'
-            isPrevMark = 0 < length stackedStr && (V.elem (last stackedStr) marks)
-            isIso = 1 < length stackedStr && (last $ tail stackedStr) == ' '
+            isInitialCharStacked = not $ stackedChars == V.empty
+            isPrevMark = (not isInitialCharStacked) && (V.elem (fst $ V.last stackedChars) marks)
+            isIso = (1 < (V.length stackedChars)) && ((fst $ V.last $ V.init stackedChars) == ' ')
             isReturned = c == '\n'
-            isNotPrevBlocked = not $ pooledLine == V.empty
+            isNotPrevBlocked = not $ pooledLines == V.empty
 
-            isBlockTerminate = isReturned && (0.001 < abs (prevLineCol - currCol)) && isNotPrevBlocked
+            isBlockTerminate = isReturned && (0.001 < (prevLineCol - currCol)) && isNotPrevBlocked
             isBlockTerminateMarked = isReturned && isPrevMark && (not isIso) && isNotPrevBlocked
             isContinueLine = not isReturned
-            isPrevBarContinueNextLine = isPrevBar && (not isIso) && isReturned && (not isBlockTerminate) && (not isBlockTerminateMarked)
-            isContinueNextLine        =                             isReturned && (not isBlockTerminate) && (not isBlockTerminateMarked)
+            isContinueNextLine = isReturned && (not isBlockTerminate) && (not isBlockTerminateMarked)
 
+            -- below is for prevprev ends by marked terminated, and prev early returned case.
+            -- If prevprev ends were not marked terminated then this is contradicted because in such cases it was continued.
+            isLargelyEarlyReturned = isReturned && (0.001 < (currCol - prevLineCol)) && isNotPrevBlocked
 
 getCharPositionFromPopplerPrim page tokSqTruePrim = do
   pageStr <- GPop.pageGetText page
