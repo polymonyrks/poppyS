@@ -1,7 +1,7 @@
 # poppyS - Syntactical Highlighting for Natural Language in Haskell
 # Preamble
 Syntactically highlighting PDF Documents in Haskell.  
-This is a Functional Toy Programming. Experimental.  
+This is a Functional Toy Programming. Experimental yet.  
 Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-gtk))
 ![demo](./poppySMovie.gif)
 # Installation
@@ -91,7 +91,7 @@ stack exec poppyS-exe
 ```
 # How to read PDF
 ## Wait a few Seconds
-Once execute poppyS, wait a few seconds, then some words will be colored by yellow.  
+Once execute poppyS, wait a few seconds. Some words will be colored by yellow.  
 If no word is colored, this is probably timeout of Stanford CoreNLP Server, so re-execute poppyS.  
 ## Keyboard
 |  command  |  effect  |
@@ -106,10 +106,12 @@ If no word is colored, this is probably timeout of Stanford CoreNLP Server, so r
 |  :w Enter  | save coloring setting |
 ## Mouse
 Click some words, then corresponding some phrases are colored. When click the same word multiple times, the coloring is toggled.  
+Pressing Key x enters into Deleting Mode. Click some words, then the correspoinding phrases become de-colored.  
+Pressing Key x again leaves Deleting Mode.
 # Tactics
-Coloring words makes it easy to find some phrases you pay special attention to, but over coloring increase entropy.  
+Coloring words makes it easy to see some phrases you want to pay attention to, but over coloring increase entropy.  
 You should have some tactics. I'll show some examples soon.  
-This program(and the art of coloring reading) is imcomplete and experimental yet, but someday will be very common I appreciate.  
+This program(and the art of reading with coloring) is imcomplete and experimental yet, but someday will be very common I appreciate.  
 # License
 (see also LICENSE file included with Haskell source.)  
 Based on BSD3. For personal use and/or educational purpose use are O.K.  
