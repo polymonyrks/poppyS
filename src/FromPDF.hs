@@ -327,22 +327,24 @@ getCharPositionFromPopplerPrim page tokSqTruePrim = do
             where
               along r = fromIntegral (1 + floor r)
               ashort r = fromIntegral ((floor r) - 1)
+    tokSqTrueFiltered = V.filter (\x@(tok, _) -> not $ tok == "\n") tokSqTrueWided
     chars = extractChars $ Text.unpack pageStr :: [Char]
   charPossRect <- getCharPossSqRect chars page V.empty
   let
     charPossRectFlattened :: V.Vector (Char, PopPRectangle)
     charPossRectFlattened = V.concatMap (\x@(c, sqs) -> V.map (\sq -> (c, sq)) sqs) charPossRect
-    charPossRectFlattenedSorted = vSortBy h2 $ vSortBy h1 charPossRectFlattened
-      where
-        h1 (_,ns@(PopPRectangle a b c d)) (_,nd@(PopPRectangle e f g h)) = compare a e
-        h2 (_,ns@(PopPRectangle a b c d)) (_,nd@(PopPRectangle e f g h)) = compare h d
-    charPossRectFlattenedShrinked = V.map (\x@(x1,x2) -> (x1, f x2)) charPossRectFlattened
+    charPossRectFlattenedShrinked = V.map (\x@(x1,x2) -> (x1, g x2)) charPossRectFlattened
        where
+         {-
          f (PopPRectangle xc1 xr1 xc2 xr2) = (PopPRectangle (along xc1) (along xr1) (ashort xc2) (ashort xr2))
             where
               along r = fromIntegral (1 + floor r)
               ashort r = fromIntegral ((floor r) - 1)
-    tokSqTrueFiltered = V.filter (\x@(tok, _) -> not $ tok == "\n") tokSqTrueWided
+-}
+         g (PopPRectangle xc1 xr1 xc2 xr2) = (PopPRectangle centerX centerY centerX centerY)
+            where
+              centerX = 0.5 * (xc1 + xc2)
+              centerY = 0.5 * (xr1 + xr2)
     salvaged2Prim = V.map f $ takeSnd tokSqTrueFiltered
       where
         f sq = includesSorted
@@ -351,8 +353,8 @@ getCharPositionFromPopplerPrim page tokSqTruePrim = do
             includesSorted = vSortBy h2 includes
                where
                  h2 (_,ns@(PopPRectangle a b c d)) (_,nd@(PopPRectangle e f g h)) = compare c g
-    zipped = V.zip (takeFst tokSqTrue) (V.map (V.toList . takeFst) salvaged2Prim)
-    zippedAll = V.zip tokSqTrue (V.map takeSnd salvaged2Prim)
+    --zipped = V.zip (takeFst tokSqTrue) (V.map (V.toList . takeFst) salvaged2Prim)
+    --zippedAll = V.zip tokSqTrue (V.map takeSnd salvaged2Prim)
     salvaged2 :: V.Vector (Char, PopPRectangle)
     salvaged2 = V.concatMap id salvaged2Prim
     salvagedRecovered = V.map (\x -> f x) salvaged2
@@ -389,7 +391,8 @@ isIncludedPopplerRect ns@(PopPRectangle a b c d) nd@(PopPRectangle e f g h)
   = (a <= e) && (b <= f) && (g <= c) && (h <= d)
 
 popPPageFindText page token = do
-  rects <- GPop.pageFindText page token
+  -- rects <- GPop.pageFindText page token
+  rects <- GPop.pageFindTextWithOptions page token [GPop.FindFlagsCaseSensitive]
   rectsSwapped <- mapM (gpopRectToPopPRect page) rects
   return rectsSwapped
 
@@ -421,10 +424,9 @@ data PopPRectangle = PopPRectangle Double Double Double Double
 pRectToSq :: Double -> PopPRectangle -> Sq Double
 pRectToSq hei (PopPRectangle smallX smallY bigX bigY) = CSq {sqTop =  hei - bigY, sqLeft = smallX, sqBot = hei - smallY, sqRight = bigX}
 
-
+-- docPathSuffix = "./pdfs/CTFP.pdf"
 getTokenPositions docPathSuffix = do
   let
-    -- docPathSuffix = "./pdfs/Leinster.pdf"
   execShell $ "pdftotext -bbox " ++ "\"" ++ docPathSuffix ++ "\""
   let
     inPath = (reverse $ dropWhile (\c -> not $ c == '.') $ reverse docPathSuffix) ++ "html"
@@ -434,9 +436,11 @@ getTokenPositions docPathSuffix = do
 
 replaceStr nd ns str = Text.unpack $ Text.replace nd ns $ Text.pack str
 
+-- pgsPrim = paged V.! 114
 parsePDFHtml :: V.Vector String -> V.Vector (V.Vector (String, PopPRectangle))
 parsePDFHtml xs = V.map (\x -> h x) paged
   where
+    -- handi = 0.0 -- 0.000001
     handi = 0.000001
     paged = V.snoc pl st
        where
