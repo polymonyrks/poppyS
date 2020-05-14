@@ -82,16 +82,34 @@ checkPage nPage nSens = do
 pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/3331554.3342603.pdf"
 pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/Leinster.pdf"
 pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/CTFP.pdf"
+pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/The_CUDA_Handbook.pdf"
 nPage = fromIntegral 1
 layoutsPrim = [CSq{sqTop = 0.0, sqLeft = 0.0, sqBot = 1.0, sqRight = 1.0}]
 layoutMode = TwoCols
 docPathSuffix = "./pdfs/CTFP.pdf"
+docPathSuffix = "./pdfs/The_CUDA_Handbook.pdf"
 tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
-nPage = 106 + 8
+-- nPage = 106 + 8 - 2
+nPage = 15
 tokSqTruePrim = tokSqTrues V.! nPage
 doc <- GPop.documentNewFromFile pdfPath Nothing
 page <- GPop.documentGetPage doc nPage
 -}
+
+tes n = do
+  let
+    pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/The_CUDA_Handbook.pdf"
+    layoutsPrim = [CSq{sqTop = 0.0, sqLeft = 0.0, sqBot = 1.0, sqRight = 1.0}]
+    layoutMode = TwoCols
+    docPathSuffix = "./pdfs/The_CUDA_Handbook.pdf"
+  tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
+  let
+    tokSqTruePrim = tokSqTrues V.! fromIntegral n
+  doc <- GPop.documentNewFromFile pdfPath Nothing
+  page <- GPop.documentGetPage doc nPage
+  aa <- getSExpsIOPoppy1 tokSqTruePrim page
+  print n
+  mapM showSP aa
 
 getSExpsIOPoppy1 tokSqTruePrim page = do
   presNubPrim <- iVecFromFile "tessPresDiv.txt"
@@ -197,9 +215,9 @@ stanAssign2Poppy1 charSqs stanRess = map reconsSExp resSExpForg
 
 tesseractPartlyIOChar page tokSqTruePrim = do
   (colPrim, rowPrim) <- GPop.pageGetSize page
-  charsPrim <- getCharPositionFromPopplerPrim page tokSqTruePrim
+  charsPrimPrim <- getCharPositionFromPopplerPrim page tokSqTruePrim
   let
-    tokSqsRatioPartlyChars = popplerTokenizePartlyS charsPrim
+    tokSqsRatioPartlyChars = popplerTokenizePartlyS charsPrimPrim
     stackedChars = tokSqsRatioPartlyChars
     resS = V.map tokSqs stackedChars
      where
@@ -230,8 +248,12 @@ tesseractPartlyIOChar page tokSqTruePrim = do
 type Square = ((Int, Int), (Int, Int))
 type SquareD = ((Double, Double), (Double, Double))
 
-popplerTokenizePartlyS charsPrim = folded
+popplerTokenizePartlyS charsPrimPrim = folded
   where
+    charsPrim = V.filter ggg charsPrimPrim
+      where
+        ggg xs = not (snd xs == V.empty || snd xs == V.singleton V.empty)
+
     marks = V.fromList [',', '.', ';', head ":", '!', '?']
     folded
       | charsPrim == V.empty = V.empty
@@ -276,6 +298,9 @@ popplerTokenizePartlyS charsPrim = folded
             -- If prevprev ends were not marked terminated then this is contradicted because in such cases it was continued.
             isLargelyEarlyReturned = isReturned && (0.001 < (currCol - prevLineCol)) && isNotPrevBlocked
 
+-- prpr errored Below
+-- nPage = 15
+-- pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/The_CUDA_Handbook.pdf"
 getCharPositionFromPopplerPrim page tokSqTruePrim = do
   pageStr <- GPop.pageGetText page
   let
@@ -325,8 +350,10 @@ getCharPositionFromPopplerPrim page tokSqTruePrim = do
        where
          f (PopPRectangle xc1 xr1 xc2 xr2) = (PopPRectangle (ashort xc1) (ashort xr1) (along xc2) (along xr2))
             where
-              along r = fromIntegral (1 + floor r)
-              ashort r = fromIntegral ((floor r) - 1)
+              along r = fromIntegral (5 + floor r)
+              ashort r = fromIntegral ((floor r) - 5)
+              --along r = fromIntegral (1 + floor r)
+              --ashort r = fromIntegral ((floor r) - 1)
     tokSqTrueFiltered = V.filter (\x@(tok, _) -> not $ tok == "\n") tokSqTrueWided
     chars = extractChars $ Text.unpack pageStr :: [Char]
   charPossRect <- getCharPossSqRect chars page V.empty
@@ -361,6 +388,9 @@ getCharPositionFromPopplerPrim page tokSqTruePrim = do
        where
          f (ch, pRect) = including
            where
+             -- sq which includes shrinked itself.
+             -- if it has one more squares which has that shrinked point, what can I do(head is not appro.).
+             -- maybe this recovering not needed since g function above can be applied at f in salvaged2Prim
              including = V.head $ V.filter (\x@(c,sq) -> ch == c && isIncludedPopplerRect sq pRect) charPossRectFlattened
 
     cSqsDivid :: V.Vector (Char, Sq Double)

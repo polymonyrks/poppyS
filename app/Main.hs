@@ -925,6 +925,10 @@ stackStan window mvars docsRef docRef = do
 
   nextForward <- getNextNothing mvSexps currPage
   nextBackward <- getPrevNothing mvSexps currPage
+  putStrLn $ show nextForward
+  putStrLn $ show nextBackward
+  putStrLn "processed"
+
 
   if nextForward == Nothing && nextBackward == Nothing
     then return ()
