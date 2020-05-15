@@ -80,6 +80,8 @@ Read them yourself with this poppyS.
 3. Biology / Medical
 * [Basics of Molecular Biology](https://homes.cs.washington.edu/~tompa/papers/molbio.pdf)
 * [Clinical characteristics of 2019 novel coronavirus infection in China](https://www.medrxiv.org/content/10.1101/2020.02.06.20020974v1)
+4. User's Manual
+* [Camera Manual](https://1vision.co.il/pdfs/vieworks/manual/User_Manual_VA_GigE_EN.pdf)
 
 ## Run Stanford CoreNLP Server
 ```
