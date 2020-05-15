@@ -19,7 +19,7 @@ sudo apt update
 wget -qO- https://get.haskellstack.org/ | sh
 ```
 ## gi-gtk
-[https://github.com/haskell-gi/haskell-gi](gi-gtk)
+[https://github.com/haskell-gi/haskell-gi](https://github.com/haskell-gi/haskell-gi)
 ```shell
 sudo apt install libgirepository1.0-dev libwebkit2gtk-4.0-dev libgtksourceview-3.0-dev
 ```
