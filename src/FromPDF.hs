@@ -83,37 +83,26 @@ pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/3331554.3342603.pdf"
 pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/Leinster.pdf"
 pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/CTFP.pdf"
 pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/The_CUDA_Handbook.pdf"
+pathPrefix = "file://"
+pathInfix1 = "/home/polymony/poppyS/"
+pathInfix2 = "pdfs/"
+pdfs <- listDirectory (pathInfix1 ++ pathInfix2)
+pdfPath = Text.pack $ pathPrefix ++ pathInfix1 ++ pathInfix2 ++ (head pdfs)
 nPage = fromIntegral 1
 layoutsPrim = [CSq{sqTop = 0.0, sqLeft = 0.0, sqBot = 1.0, sqRight = 1.0}]
 layoutMode = TwoCols
 docPathSuffix = "./pdfs/CTFP.pdf"
 docPathSuffix = "./pdfs/The_CUDA_Handbook.pdf"
+docPathSuffix = "./" ++ pathInfix2 ++ (head pdfs)
 tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
 -- nPage = 106 + 8 - 2
-nPage = 15
+nPage = 22
 tokSqTruePrim = tokSqTrues V.! nPage
 doc <- GPop.documentNewFromFile pdfPath Nothing
 page <- GPop.documentGetPage doc nPage
 -}
 
-tes n = do
-  let
-    pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/The_CUDA_Handbook.pdf"
-    layoutsPrim = [CSq{sqTop = 0.0, sqLeft = 0.0, sqBot = 1.0, sqRight = 1.0}]
-    layoutMode = TwoCols
-    docPathSuffix = "./pdfs/The_CUDA_Handbook.pdf"
-  tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
-  let
-    tokSqTruePrim = tokSqTrues V.! fromIntegral n
-  doc <- GPop.documentNewFromFile pdfPath Nothing
-  page <- GPop.documentGetPage doc nPage
-  aa <- getSExpsIOPoppy1 tokSqTruePrim page
-  print n
-  mapM showSP aa
-
 getSExpsIOPoppy1 tokSqTruePrim page = do
-  presNubPrim <- iVecFromFile "tessPresDiv.txt"
-  postNubPrim <- iVecFromFile "tessPostDiv.txt"
   charSqV <- tesseractPartlyIOChar page tokSqTruePrim
   let
     charSqVConcated = V.map (V.concatMap (V.map f)) charSqV
@@ -138,9 +127,6 @@ getSExpsIOPoppy1 tokSqTruePrim page = do
                     isLastBar = 0 < length x && last x == '-'
                     isLastSpace = 0 < length x && last x == ' '
     retrSexpS (sens, charSqs) = do
-      let
-        presNub = V.map (\x -> read x) presNubPrim :: V.Vector (String, String)
-        postNub = V.map (\x -> read x) postNubPrim :: V.Vector (String, String)
       stanRess <- stanIOPoppy1 sens
       let
         sexps = stanAssign2Poppy1 charSqs stanRess
@@ -1096,9 +1082,12 @@ toSentences chls = init res
       where
         strs = takeFstL chl
 
-forgetIndexed res = forgotten
+forgetIndexed res
+  | parsed == [] = error "error: cannot parse pSExp reshaped !!"
+  | otherwise = forgotten
   where
     reshaped = reshapeSexp $ V.fromList $ map Text.unpack $ Text.split (== '\n')  res
+    parsed = parse pSExp reshaped
     sexp = fst $ head $ parse pSExp reshaped
     indexed = indexingSP sexp
     forgotten = map (\x@((x1,x2),x3) -> (x1,x2,x3)) $ forgetSExp indexed
