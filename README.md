@@ -109,18 +109,20 @@ Similar to [Vim Keybindings](https://www.vim.org/).
 |  p  | paste(recover) Coloring |
 |  :w Enter  | save the state |
 ## Coloring
-Click some words, then some corresponding phrases are colored. When you click the same word multiple times, the coloring is toggled. 
-The toggle table is Red -> Blue -> Green -> Purple -> Orange -> Pink -> Aqua -> Cyan -> Red .. .
+Click some words, then some corresponding phrases are colored. When you click the same word multiple times, the coloring is toggled.  
+The toggle table is Red -> Blue -> Green -> Purple -> Orange -> Pink -> Aqua -> Cyan -> Red .. .  
 Pressing Key dd decolors all phrases. Some special words are remained yellowed.   
-Yellowed words(word roots) are special ones in respect to how much area to be colored when you select them.   
+Yellowed words are special ones in respect to how much area to be colored when you select them.   
 After pressing dd, if you press key p then recover the previous state  
 (Caveat: If you click another word after dd then the previous state is updated(destroyed).).  
-This temporary decoloring(dd) and recovering(p) is effective.  
+Even you decolor(dd) all the phrases, the tuples (e.g. (Red, word1), (Green, word2), (Aqua, word3) ..) are memoried.  
+Next time you click such words, you can start from the previous color.  
+This temporary decoloring(dd), recovering(p) and/or starting previous colors is effective.  
 Pressing Key x enters into Deleting Mode. Click some words, then the correspoinding phrases become decolored.  
 Pressing Key x again leaves Deleting Mode.
-# Tactics
+# Tactics and Training
 Coloring words makes it easy to look clearly some phrases, but too-much-coloring increase entropy.  
-You should have some tactics. I'll show some examples soon.  
+You should have some tactics and training (the latter is like a VR game). I'll show some examples soon.  
 The art of reading natural language with coloring is imcomplete and experimental yet, but someday will be very common I appreciate.  
 # License
 (see also LICENSE file included with Haskell source.)  
