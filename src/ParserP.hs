@@ -112,7 +112,8 @@ try p = CParserP f
 
 notSExpStructual = satisfy f
   where
-    cs = ['[', '(', '"', ')', ']', ' ']
+    -- cs = ['[', '(', '"', ')', ']', ' ']
+    cs = ['(', ')', ' ']
     f c = not $ elem c cs
 
 pSExp :: ParserP Char (SExp Tag String)

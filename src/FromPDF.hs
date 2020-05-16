@@ -1083,11 +1083,12 @@ toSentences chls = init res
         strs = takeFstL chl
 
 forgetIndexed res
-  | parsed == [] = error "error: cannot parse pSExp reshaped !!"
+  | parsed == [] = error errorMesse
   | otherwise = forgotten
   where
     reshaped = reshapeSexp $ V.fromList $ map Text.unpack $ Text.split (== '\n')  res
     parsed = parse pSExp reshaped
+    errorMesse = "error: cannot parse pSExp reshaped\n" ++ "reshaped = " ++ (show reshaped)
     sexp = fst $ head $ parse pSExp reshaped
     indexed = indexingSP sexp
     forgotten = map (\x@((x1,x2),x3) -> (x1,x2,x3)) $ forgetSExp indexed
