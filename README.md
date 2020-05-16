@@ -96,6 +96,7 @@ stack exec poppyS-exe
 Once execute poppyS, wait a few seconds. Some words will be colored by yellow.  
 If no word is colored, this is probably timeout of Stanford CoreNLP Server, so re-execute poppyS.  
 ## Keyboard
+Similar to [Vim Keybindings](https://www.vim.org/).
 |  command  |  effect  |
 | ---- | ---- |
 |  j  | increase page (2 pages) |
@@ -103,20 +104,27 @@ If no word is colored, this is probably timeout of Stanford CoreNLP Server, so r
 |  Right  | increase page (1 page) |
 |  Left  | decrease page (1 page) |
 |  Down  | crop merginal white zones and adjust page size|
-|  x  | decoloring of some phrases |
-|  dd  | decoloring of all phrases |
-|  :w Enter  | save coloring setting |
-## Mouse
-Click some words, then corresponding some phrases are colored. When click the same word multiple times, the coloring is toggled.  
-Pressing Key x enters into Deleting Mode. Click some words, then the correspoinding phrases become de-colored.  
+|  x  | cut coloring (enter in or leave of Deleting Mode) |
+|  dd  | decolor all phrases |
+|  p  | paste(recover) Coloring |
+|  :w Enter  | save the state |
+## Coloring
+Click some words, then some corresponding phrases are colored. When you click the same word multiple times, the coloring is toggled. 
+The toggle table is Red -> Blue -> Green -> Purple -> Orange -> Pink -> Aqua -> Cyan -> Red .. .
+Pressing Key dd decolors all phrases. Some special words are remained yellowed.   
+Yellowed words(word roots) are special ones in respect to how much area to be colored when you select them.   
+After pressing dd, if you press key p then recover the previous state  
+(Caveat: If you click another word after dd then the previous state is updated(destroyed).).  
+This temporary decoloring(dd) and recovering(p) is effective.  
+Pressing Key x enters into Deleting Mode. Click some words, then the correspoinding phrases become decolored.  
 Pressing Key x again leaves Deleting Mode.
 # Tactics
-Coloring words makes it easy to see some phrases you want to pay attention to, but over coloring increase entropy.  
+Coloring words makes it easy to look clearly some phrases, but too-much-coloring increase entropy.  
 You should have some tactics. I'll show some examples soon.  
-This program(and the art of reading with coloring) is imcomplete and experimental yet, but someday will be very common I appreciate.  
+The art of reading natural language with coloring is imcomplete and experimental yet, but someday will be very common I appreciate.  
 # License
 (see also LICENSE file included with Haskell source.)  
-Based on BSD3. For personal use and/or educational purpose use are O.K.  
+Modified BSD3. For personal use and/or educational purpose use are O.K.  
 
 I also have some patent applications relating to this source files and technology used therein.  
 If you comply with the LICENSE Terms, then I never assert the mentioned usage in LICENSE Terms by such intellectual properties.  
