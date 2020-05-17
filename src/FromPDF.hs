@@ -97,11 +97,13 @@ docPathSuffix = "./" ++ pathInfix2 ++ (head pdfs)
 tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
 -- nPage = 106 + 8 - 2
 nPage = 26
+nPage = 14
+nPage = 105
 tokSqTruePrim = tokSqTrues V.! nPage
 doc <- GPop.documentNewFromFile pdfPath Nothing
 page <- GPop.documentGetPage doc nPage
 sexps <- getSExpsIOPoppy1 tokSqTruePrim page
-sexp = sexps !! 16
+sexp = sexps !! 8
 sexpG = mapNode snd fst sexp
 -}
 
@@ -378,7 +380,7 @@ getCharPositionFromPopplerPrim page tokSqTruePrim = do
          f (ch, pRect) = including
            where
              -- sq which includes shrinked itself.
-             -- if it has one more squares which has that shrinked point, what can I do(head is not appro.).
+             -- if it has one more squares which has that shrinked point, what can I do (head is not appro.).
              -- maybe this recovering not needed since g function above can be applied at f in salvaged2Prim
              including = V.head $ V.filter (\x@(c,sq) -> ch == c && isIncludedPopplerRect sq pRect) charPossRectFlattened
 
@@ -999,19 +1001,33 @@ swapRectAns page rect = do
 gpopRectToPopPRect :: GPop.Page -> GPop.Rectangle -> IO PopPRectangle
 gpopRectToPopPRect page rect = do
   -- rect <- swapRectAns page rect0
-  x1 <- GPop.getRectangleX1 rect
-  x2 <- GPop.getRectangleX2 rect
-  y1 <- GPop.getRectangleY1 rect
-  y2 <- GPop.getRectangleY2 rect
+  x1Prim <- GPop.getRectangleX1 rect
+  x2Prim <- GPop.getRectangleX2 rect
+  y1Prim <- GPop.getRectangleY1 rect
+  y2Prim <- GPop.getRectangleY2 rect
+  let
+    (x1, x2)
+     | x1Prim < x2Prim = (x1Prim, x2Prim)
+     | otherwise = (x2Prim, x1Prim)
+    (y1, y2)
+     | y1Prim < y2Prim = (y1Prim, y2Prim)
+     | otherwise = (y2Prim, y1Prim)
   -- return ((x1, y1), (x2, y2))
   return $ PopPRectangle x1 y1 x2 y2
 
 showRect :: GPop.Rectangle -> IO (Sq Double)
 showRect rect = do
-  x1 <- GPop.getRectangleX1 rect
-  x2 <- GPop.getRectangleX2 rect
-  y1 <- GPop.getRectangleY1 rect
-  y2 <- GPop.getRectangleY2 rect
+  x1Prim <- GPop.getRectangleX1 rect
+  x2Prim <- GPop.getRectangleX2 rect
+  y1Prim <- GPop.getRectangleY1 rect
+  y2Prim <- GPop.getRectangleY2 rect
+  let
+    (x1, x2)
+     | x1Prim < x2Prim = (x1Prim, x2Prim)
+     | otherwise =  (x2Prim, x1Prim)
+    (y1, y2)
+     | y1Prim < y2Prim = (y1Prim, y2Prim)
+     | otherwise =  (y2Prim, y1Prim)
   -- return ((x1, y1), (x2, y2))
   return $ CSq {sqTop = y1, sqLeft = x1, sqBot = y2, sqRight = x2}
 

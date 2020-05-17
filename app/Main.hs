@@ -475,7 +475,7 @@ mainGtk = do
               g2 x = case x of
                 Nothing -> ("", [])
                 Just y -> y
-      ngStems = ["that", "this"]
+      ngStems = ["that", "this", "them"]
       stemmed = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $ map (\x -> (stemEng $ fst x, snd x)) detacheds
       stemmedNext = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $  map (\x -> (stemEng $ fst x, snd x)) detachedsNext
       stemmedOrdered = stemmed ++ stemmedNext
@@ -681,6 +681,7 @@ retrTextFromPoint posTokens pos = satisfied
 
 command = "http://localhost:9000/?annotators=parse&outputFormat=json"
 
+{-
 pageGetPosCharList :: GPop.Page -> IO [(Text.Text, [Sq Double])]
 pageGetPosCharList page = do
   chars <- (map (\c -> Text.pack [c]) . Lis.nub . Lis.sort . head) <$> ((\c -> [c])  . Text.unpack) <$> GPop.pageGetText page
@@ -710,7 +711,6 @@ pageGetPosCharListFlattened :: GPop.Page -> [Text.Text]-> IO [(Sq Double, Text.T
 pageGetPosCharListFlattened page chars = do
   res <- swapEtFlatten <$> pageGetPosCharListPrim page chars
   return $ Lis.nub res
-
 pageGetPosTokenListPrim :: GPop.Page -> [Text.Text]-> IO [(Sq Double, Text.Text)]
 pageGetPosTokenListPrim page tokens = do
   let
@@ -723,6 +723,8 @@ pageGetPosTokenListPrim page tokens = do
       return (cStr, recrec)
   res <- swapEtFlatten <$> mapM retrieveRect tokens
   return $ Lis.nub res
+-}
+
 
 initWidgets = do
   vbox <- Gtk.boxNew Gtk.OrientationVertical 0
