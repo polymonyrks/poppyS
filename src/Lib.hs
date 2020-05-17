@@ -21,6 +21,13 @@ takeFstT = V.map fstT
 takeSndT = V.map sndT
 takeThdT = V.map thdT
 
+takeFstL = map fst
+takeSndL = map snd
+
+takeFstTL = map fstT
+takeSndTL = map sndT
+takeThdTL = map thdT
+
 someFunc :: IO ()
 someFunc = putStrLn "someFunc"
 
@@ -113,6 +120,9 @@ delimitAtWO2By g conv bulks =
 
 indexing :: V.Vector a -> V.Vector (Int, a)
 indexing xs = V.zip (V.fromList [0 .. (V.length xs - 1)]) xs
+
+indexingL :: [a] -> [(Int, a)]
+indexingL xs = zip [0 .. (length xs - 1)] xs
 
 deMaybe :: a -> Maybe a -> a
 deMaybe defo val =
@@ -213,6 +223,14 @@ capNumber f lb ub n
   | ub < f n = ub
   | otherwise = f n
 
+fstQ (a, b, c, d) = a
+sndQ (a, b, c, d) = b
+thdQ (a, b, c, d) = c
+forQ (a, b, c, d) = d
 
+takeFstQ = V.map fstQ
+takeSndQ = V.map sndQ
+takethdQ = V.map thdQ
+takeforQ = V.map forQ
 
 

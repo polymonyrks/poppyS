@@ -11,6 +11,7 @@ import qualified Data.Vector as V
 import Data.String.Utils
 import Control.DeepSeq
 import Text.Show.Unicode
+import Lib (indexingL, takeFstL)
 -- import qualified Data.Text as T
 
 data SExp a b where
@@ -86,6 +87,39 @@ modifyPossession (Opr tag sexps) = (Opr (f tag) (map modifyPossession sexps))
     getTag (Atom tag tok) = Just tag
     getTag (Opr tag sexps) = Just tag
 
+--tag = NP
+--sexp = [(Atom JJ "homotopy"), (Atom NN "theory"), (Atom CC "and"), (Atom NN "type"), (Atom NN "theory")]
+
+modifyLastNPConj :: SExp Tag b -> SExp Tag b
+modifyLastNPConj Nil = Nil
+modifyLastNPConj (Atom tag tok) = (Atom tag tok)
+modifyLastNPConj (Opr tag sexps)
+  | isTagNP && isSexpsAllAtom && (not $ ccIndices == []) = (Opr tag resSexps)
+  | isSexpsAllAtom = (Opr tag sexps)
+  | otherwise = (Opr tag (map modifyLastNPConj sexps))
+  where
+    isTagNP = tag == NP
+    isSexpsAllAtom = and $ map isAtom sexps
+    takeFstL xs = map fst xs
+    snocL xs x = xs ++ [x]
+    ccIndices = takeFstL $ filter (\x -> snd x == Just CC) $ indexingL $ map getTag sexps
+    spans
+     | cLast == length sexps = st
+     | otherwise = snocL st [cLast .. (length sexps - 1)]
+       where
+         res@(cLast, st) = foldl f (0, []) ccIndices
+           where
+             f (prevC, stacked) c
+               | c == 0 = (1, snocL stacked [0])
+               | otherwise = (c + 1, stacked ++ [[prevC .. (c - 1)], [c]])
+    resSexps = map gg spans
+      where
+        gg span = Opr NP (map (\n -> sexps !! n) span)
+
+getTag :: SExp Tag b -> Maybe Tag
+getTag Nil = Nothing
+getTag (Atom tag _) = Just tag
+getTag (Opr tag _) = Just tag
 
 mapAtom :: (b -> c) -> SExp a b -> SExp a c
 mapAtom f Nil = Nil

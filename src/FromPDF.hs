@@ -98,7 +98,6 @@ tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
 -- nPage = 106 + 8 - 2
 nPage = 26
 nPage = 14
-nPage = 105
 tokSqTruePrim = tokSqTrues V.! nPage
 doc <- GPop.documentNewFromFile pdfPath Nothing
 page <- GPop.documentGetPage doc nPage
@@ -122,21 +121,29 @@ getSExpsIOPoppy1 tokSqTruePrim page = do
               | bLines == V.empty = ""
               | otherwise = folddd
              where
-                bLinesStr = V.map V.toList bLines
+                bLinesStr = V.map (fff . V.toList) bLines
+                 where
+                   fff strstr
+                    | strstr == "" = ""
+                    | last strstr == '\n' = init strstr
+                    | otherwise = strstr
                 folddd = V.foldl' g (V.head bLinesStr) $ V.tail bLinesStr
                 g y x
-                  | isLastBar = y ++ x
+                  | x == "" = y
+                  | (not isIsolated) && isLastBar = (init y) ++ x
                   | isLastSpace = y ++ x
                   | otherwise = y ++ " " ++ x
                   where
-                    isLastBar = 0 < length x && last x == '-'
-                    isLastSpace = 0 < length x && last x == ' '
+                    isIsolated = 1 < length y && ((last $ init y) == ' ')
+                    isLastBar = 0 < length y && last y == '-'
+                    isLastSpace = 0 < length x && last y == ' '
     retrSexpS (sens, charSqs) = do
       stanRess <- stanIOPoppy1 sens
       let
         sexps = stanAssign2Poppy1 charSqs stanRess
       return sexps
-  bb <- V.mapM retrSexpS $ V.zip stackedSens charSqVConcated
+    zipped = V.zip stackedSens charSqVConcated
+  bb <- V.mapM retrSexpS zipped
   return $ concatMap id bb
 
 stanAssign2Poppy1 charSqs stanRess = map reconsSExp resSExpForg
@@ -250,48 +257,54 @@ popplerTokenizePartlyS charsPrimPrim = folded
       | charsPrim == V.empty = V.empty
       | hChar == '\n' = V.empty
       | hChar == ' ' = V.empty
-      | otherwise = V.snoc pooledBlocksF (V.snoc pooledLinesF stackedCharsF)
+      | otherwise = V.filter (\x -> not $ x == V.empty) $ V.snoc pooledBlocksF (V.snoc pooledLinesF stackedCharsF)
       where
         folddd@(stackedCharsF, prevLineColF, pooledLinesF, pooledBlocksF)
           | otherwise = V.foldl' g (V.singleton $ V.head charsPrim, iniRight, V.empty, V.empty) $ V.tail charsPrim
         hChar = fst $ V.head charsPrim
-        iniRight = snd $ snd $ V.last $ V.last $ snd $ V.head charsPrim
+        -- iniRight = snd $ snd $ V.last $ V.last $ snd $ V.head charsPrim
+        iniRight = 0.0
 
+        -- TermAtRight
+        --    terminate previous line, and pool them as a new block.
+        -- TermAtLeft
+        --    terminate previous line and current line, and pool them as a new block.
+        -- TermByMark
+        --    terminate previous line and current line, and pool them as a new block.
         g y@(stackedChars, prevLineCol, pooledLines, pooledBlocks) x@(c, sqss)
-          | isLargelyEarlyReturned && (not isBlockTerminate) = (nextStackedChars, prevLineCol, pooledLines, V.snoc pooledBlocks pooledLines)
-          | isBlockTerminate       = (V.empty, currCol, V.empty, nextPooledBlocks)
-          | isBlockTerminateMarked = (V.empty, currCol, V.empty, nextPooledBlocks)
-          | isContinueLine = (nextStackedChars, prevLineCol, pooledLines, pooledBlocks)
-          | isContinueNextLine = (V.singleton x, currCol, V.snoc pooledLines stackedChars, pooledBlocks)
-          | otherwise  = (V.singleton x, currCol, V.snoc pooledLines stackedChars, pooledBlocks)
-          -- | otherwise = undefined
+          | isTerminateBlockRM = (V.empty,          currCol,     V.empty,              nextPooledBlocksRM)
+          | isTerminateBlockR  = (V.empty,          currCol,     nextPooledLineSingle, nextPooledBlocksR)
+          | isTerminateBlockL  = (V.empty,          currCol,     V.empty,              nextPooledBlocksL)
+          | isTerminateBlockM  = (V.empty,          currCol,     V.empty,              nextPooledBlocksL)
+          | isTerminateLine    = (V.empty,          currCol,     nextPooledLines,      pooledBlocks)
+          | otherwise          = (nextStackedChars, prevLineCol, pooledLines,          pooledBlocks)
           where
-            resPrevPrev = V.last $ V.init $ V.init pooledBlocks
-            resPrev = V.last $ V.init pooledBlocks
-            resTerminated = (V.empty, V.empty, currCol, V.empty, V.snoc pooledBlocks nextPooledLines)
-            nextPooledBlocks = (V.snoc pooledBlocks nextPooledLines)
+            currCol = snd $ snd $ V.head $ V.head sqss
+
+            nextPooledBlocksRM = V.snoc (V.snoc pooledBlocks pooledLines) nextPooledLineSingle
+            nextPooledBlocksR = (V.snoc pooledBlocks pooledLines)
+            nextPooledBlocksL = (V.snoc pooledBlocks nextPooledLines)
+            nextPooledLineSingle = V.singleton nextStackedChars
             nextPooledLines = V.snoc pooledLines $ nextStackedChars
             nextStackedChars = (V.snoc stackedChars x)
-            isNotInitializedBlock = (1 < (V.length stackedChars))
-            currCol = snd $ snd $ V.head $ V.head sqss
+
             isInitialCharStacked = not $ stackedChars == V.empty
-            isPrevMark = (not isInitialCharStacked) && (V.elem (fst $ V.last stackedChars) marks)
-            isIso = (1 < (V.length stackedChars)) && ((fst $ V.last $ V.init stackedChars) == ' ')
             isReturned = c == '\n'
             isNotPrevBlocked = not $ pooledLines == V.empty
 
-            isBlockTerminate = isReturned && (0.001 < (prevLineCol - currCol)) && isNotPrevBlocked
-            isBlockTerminateMarked = isReturned && isPrevMark && (not isIso) && isNotPrevBlocked
-            isContinueLine = not isReturned
-            isContinueNextLine = isReturned && (not isBlockTerminate) && (not isBlockTerminateMarked)
+            isTerminateLine = isReturned
+            -- isTerminateBlockR = isReturned && (0.001 < (currCol - prevLineCol)) && isNotPrevBlocked
+           -- isTerminateBlockL = isReturned && (0.001 < (prevLineCol - currCol)) && isNotPrevBlocked
+            -- isTerminateBlockM = isReturned && isPrevMark && (not isIso) && isNotPrevBlocked
+            isTerminateBlockL = isReturned && (0.001 < (prevLineCol - currCol))
+            isTerminateBlockR = isReturned && (0.001 < (currCol - prevLineCol))
+            isTerminateBlockM = isReturned && isPrevMark && (not isIso)
+              where
+                isPrevMark = (not isInitialCharStacked) && (V.elem (fst $ V.last stackedChars) marks)
+                isIso = (1 < (V.length stackedChars)) && ((fst $ V.last $ V.init stackedChars) == ' ')
+            isTerminateBlockRM = isTerminateBlockR && isTerminateBlockM
+        ho = V.map (V.map (V.toList . takeFst)) folded
 
-            -- below is for prevprev ends by marked terminated, and prev early returned case.
-            -- If prevprev ends were not marked terminated then this is contradicted because in such cases it was continued.
-            isLargelyEarlyReturned = isReturned && (0.001 < (currCol - prevLineCol)) && isNotPrevBlocked
-
--- prpr errored Below
--- nPage = 15
--- pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/The_CUDA_Handbook.pdf"
 getCharPositionFromPopplerPrim page tokSqTruePrim = do
   pageStr <- GPop.pageGetText page
   let
@@ -1109,7 +1122,8 @@ forgetIndexed res
     parsed = parse pSExp reshaped
     errorMesse = "error: cannot parse pSExp reshaped\n" ++ "reshaped = " ++ (show reshaped)
     -- sexp =  fst $ head $ parse pSExp reshaped
-    sexp =  modifyPossession $ fst $ head $ parse pSExp reshaped
+    sexp =  modifyLastNPConj $ modifyPossession $ fst $ head $ parse pSExp reshaped
+    -- sexp =  modifyPossession $ fst $ head $ parse pSExp reshaped
     indexed = indexingSP sexp
     forgotten = map (\x@((x1,x2),x3) -> (x1,x2,x3)) $ forgetSExp indexed
 
