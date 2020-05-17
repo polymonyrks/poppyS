@@ -72,6 +72,21 @@ listSubTokens (Opr tag sexps) = (V.foldl' g [] $ V.fromList sexps)
   where
     g y x = y ++ (listSubTokens x)
 
+modifyPossession :: SExp Tag b -> SExp Tag b
+modifyPossession Nil = Nil
+modifyPossession (Atom tag tok) = (Atom tag tok)
+modifyPossession (Opr tag sexps) = (Opr (f tag) (map modifyPossession sexps))
+  where
+    f tag
+     | isIncPOS = DT
+     | otherwise = tag
+    isIncPOS = elem (Just POS) childTags
+    childTags = map getTag sexps
+    getTag Nil = Nothing
+    getTag (Atom tag tok) = Just tag
+    getTag (Opr tag sexps) = Just tag
+
+
 mapAtom :: (b -> c) -> SExp a b -> SExp a c
 mapAtom f Nil = Nil
 mapAtom f (Atom tag tok) = (Atom tag (f tok))

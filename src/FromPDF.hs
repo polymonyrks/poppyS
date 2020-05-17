@@ -96,10 +96,13 @@ docPathSuffix = "./pdfs/The_CUDA_Handbook.pdf"
 docPathSuffix = "./" ++ pathInfix2 ++ (head pdfs)
 tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
 -- nPage = 106 + 8 - 2
-nPage = 22
+nPage = 26
 tokSqTruePrim = tokSqTrues V.! nPage
 doc <- GPop.documentNewFromFile pdfPath Nothing
 page <- GPop.documentGetPage doc nPage
+sexps <- getSExpsIOPoppy1 tokSqTruePrim page
+sexp = sexps !! 16
+sexpG = mapNode snd fst sexp
 -}
 
 getSExpsIOPoppy1 tokSqTruePrim page = do
@@ -1089,7 +1092,8 @@ forgetIndexed res
     reshaped = reshapeSexp $ V.fromList $ map Text.unpack $ Text.split (== '\n')  res
     parsed = parse pSExp reshaped
     errorMesse = "error: cannot parse pSExp reshaped\n" ++ "reshaped = " ++ (show reshaped)
-    sexp = fst $ head $ parse pSExp reshaped
+    -- sexp =  fst $ head $ parse pSExp reshaped
+    sexp =  modifyPossession $ fst $ head $ parse pSExp reshaped
     indexed = indexingSP sexp
     forgotten = map (\x@((x1,x2),x3) -> (x1,x2,x3)) $ forgetSExp indexed
 
