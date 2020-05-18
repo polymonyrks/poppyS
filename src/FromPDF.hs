@@ -96,7 +96,6 @@ docPathSuffix = "./pdfs/The_CUDA_Handbook.pdf"
 docPathSuffix = "./" ++ pathInfix2 ++ (head pdfs)
 tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
 nPage = 106 + 8 - 2 -- <- for One Line Problem in CTFP
-nPage = 106 + 8 - 2 + 10
 tokSqTruePrim = tokSqTrues V.! nPage
 doc <- GPop.documentNewFromFile pdfPath Nothing
 page <- GPop.documentGetPage doc nPage
@@ -145,9 +144,19 @@ getSExpsIOPoppy1 tokSqTruePrim page = do
   bb <- V.mapM retrSexpS zipped
   return $ concatMap id bb
 
+replaceStanTable = [("-LRB-", "("), ("-RRB-", ")")]
+
 stanAssign2Poppy1 charSqs stanRess = map reconsSExp resSExpForg
   where
-    indexed = map forgetIndexed stanRess
+    indexed = map (gg . forgetIndexed) stanRess
+      where
+        gg = map g
+        g (a, b, c) = (a, b, ff <$> c)
+        ff str = case found of
+          Nothing -> str
+          Just (_, e) -> e
+          where
+            found = Lis.find (\str2 -> (fst str2) == str) replaceStanTable
     lengths = map length indexed
     indexedFlattened = concat indexed
     tokens = V.map f $ V.filter (\val -> not $ val == Nothing) $ takeThdT $ V.fromList indexedFlattened
