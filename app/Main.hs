@@ -475,7 +475,7 @@ mainGtk = do
               g2 x = case x of
                 Nothing -> ("", [])
                 Just y -> y
-      ngStems = ["that", "this", "them"]
+      ngStems = ["that", "this", "them", "their"]
       stemmed = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $ map (\x -> (stemEng $ fst x, snd x)) detacheds
       stemmedNext = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $  map (\x -> (stemEng $ fst x, snd x)) detachedsNext
       stemmedOrdered = stemmed ++ stemmedNext

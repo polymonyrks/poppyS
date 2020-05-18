@@ -95,9 +95,8 @@ docPathSuffix = "./pdfs/CTFP.pdf"
 docPathSuffix = "./pdfs/The_CUDA_Handbook.pdf"
 docPathSuffix = "./" ++ pathInfix2 ++ (head pdfs)
 tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
--- nPage = 106 + 8 - 2
-nPage = 26
-nPage = 14
+nPage = 106 + 8 - 2 -- <- for One Line Problem in CTFP
+nPage = 106 + 8 - 2 + 10
 tokSqTruePrim = tokSqTrues V.! nPage
 doc <- GPop.documentNewFromFile pdfPath Nothing
 page <- GPop.documentGetPage doc nPage
@@ -354,10 +353,12 @@ getCharPositionFromPopplerPrim page tokSqTruePrim = do
        where
          f (PopPRectangle xc1 xr1 xc2 xr2) = (PopPRectangle (ashort xc1) (ashort xr1) (along xc2) (along xr2))
             where
-              along r = fromIntegral (5 + floor r)
-              ashort r = fromIntegral ((floor r) - 5)
-              --along r = fromIntegral (1 + floor r)
-              --ashort r = fromIntegral ((floor r) - 1)
+              -- along r = fromIntegral (5 + floor r)
+              -- ashort r = fromIntegral ((floor r) - 5)
+              -- along r = fromIntegral (1 + floor r)
+              -- ashort r = fromIntegral ((floor r) - 1)
+              along r = r
+              ashort r = r
     tokSqTrueFiltered = V.filter (\x@(tok, _) -> not $ tok == "\n") tokSqTrueWided
     chars = extractChars $ Text.unpack pageStr :: [Char]
   charPossRect <- getCharPossSqRect chars page V.empty
