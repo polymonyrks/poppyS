@@ -230,7 +230,7 @@ forQ (a, b, c, d) = d
 
 takeFstQ = V.map fstQ
 takeSndQ = V.map sndQ
-takethdQ = V.map thdQ
-takeforQ = V.map forQ
+takeThdQ = V.map thdQ
+takeForQ = V.map forQ
 
 

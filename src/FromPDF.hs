@@ -16,7 +16,7 @@ import qualified Control.Lens as LENS
 import qualified Data.Aeson.Lens as AL
 import Data.Text.ICU.Convert as ICU
 import qualified Data.ByteString.Lazy as BL
-import Lib (iVecFromFile, iVecFromFileJP, oVecToFile, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getHistogram, getDivideLine, vSortBy)
+import Lib (iVecFromFile, iVecFromFileJP, oVecToFile, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getHistogram, getDivideLine, vSortBy, fstT, sndT, thdT, takeFstT, takeSndT, takeThdT, fstQ, sndQ, thdQ, forQ, takeFstQ, takeSndQ, takeThdQ, takeForQ)
 import PopSExp (indexingSP, forgetSExp, injectSExpI, reconsSExp, showSP, mapNode, isBottomBy, takeSpecTags)
 import ParserP (parse, pSExp)
 import SExp
@@ -95,14 +95,219 @@ docPathSuffix = "./pdfs/CTFP.pdf"
 docPathSuffix = "./pdfs/The_CUDA_Handbook.pdf"
 docPathSuffix = "./" ++ pathInfix2 ++ (head pdfs)
 tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
-nPage = 106 + 8 - 2 -- <- for One Line Problem in CTFP
-tokSqTruePrim = tokSqTrues V.! nPage
+nPage = 21
+nPage = 24
+nPage = 289
+nPage = 0
 doc <- GPop.documentNewFromFile pdfPath Nothing
 page <- GPop.documentGetPage doc nPage
+
+ff n = getSExpsIOSCheck =<< GPop.documentGetPage doc n
+mapM ff [0 .. 0]
+
+
+aa@(isExistsText, rects) <- GPop.pageGetTextLayout page
+chars <- mapM (GPop.pageGetTextForArea page) rects
+rectsSwapped <- mapM (gpopRectToPopPRect page) rects
+sqs = map (pRectToSq hei) rectsSwapped
+charRects = zip chars rects
+charSqs = zip chars sqs
+
 sexps <- getSExpsIOPoppy1 tokSqTruePrim page
 sexp = sexps !! 8
 sexpG = mapNode snd fst sexp
 -}
+
+getSExpsIOSCheck page = do
+  n <- GPop.pageGetIndex page
+  (wid, hei) <- GPop.pageGetSize page
+  chInfos <- getChInfos page
+  let
+    blocks = getBlock chInfos hei wid
+  -- charSqV <- tesseractPartlyIOChar page tokSqTruePrim
+  let
+    forBlocksCheck = V.map (V.map (V.map chIChar)) blocks
+  putStrLn $ show forBlocksCheck
+  putStrLn $ show n
+
+
+getSExpsIOS page = do
+  (wid, hei) <- GPop.pageGetSize page
+  chInfos <- getChInfos page
+  blocks <- (\x -> getBlock x hei wid) <$> getChInfos page
+  -- charSqV <- tesseractPartlyIOChar page tokSqTruePrim
+  let
+    forBlocksCheck = V.map (V.map (V.map chIChar)) blocks
+    charSqVConcated = V.map (V.concatMap (V.map f)) blocks
+      where
+        f inf
+          | chText == "" = error "a square's chText is Void"
+          | otherwise = (head chText, V.singleton $ chISq inf)
+          where
+            chText = Text.unpack $ chIChar inf
+  {-
+    charSqVConcated = V.map (V.concatMap (V.map f)) charSqV
+      where
+        f (c, sqss) = (c, V.concatMap id sqss)
+-}
+    stackedSens = blockLinesConcated
+      where
+        -- blockLineChars = V.map (V.map (V.map fst)) charSqV -- :: V.Vector (V.Vector (V.Vector Char)) -- first is Block second is lines in Block last is Line in Lines
+        blockLineChars = V.map (V.map (V.map (head . Text.unpack . chIChar))) blocks -- :: V.Vector (V.Vector (V.Vector Char)) -- first is Block second is lines in Block last is Line in Lines
+        blockLinesConcated = V.map concatLines blockLineChars
+          where
+            concatLines bLines
+              | bLines == V.empty = ""
+              | otherwise = folddd
+             where
+                bLinesStr = V.map (fff . V.toList) bLines
+                 where
+                   fff strstr
+                    | strstr == "" = ""
+                    | last strstr == '\n' = init strstr
+                    | otherwise = strstr
+                folddd = V.foldl' g (V.head bLinesStr) $ V.tail bLinesStr
+                g y x
+                  | x == "" = y
+                  | (not isIsolated) && isLastBar = (init y) ++ x
+                  | isLastSpace = y ++ x
+                  | otherwise = y ++ " " ++ x
+                  where
+                    isIsolated = 1 < length y && ((last $ init y) == ' ')
+                    isLastBar = 0 < length y && last y == '-'
+                    isLastSpace = 0 < length x && last y == ' '
+    retrSexpS (sens, charSqs) = do
+      stanRess <- stanIOPoppy1 sens
+      let
+        sexps = stanAssign2Poppy1 charSqs stanRess
+      return sexps
+    zipped = V.zip stackedSens charSqVConcated
+  bb <- V.mapM retrSexpS zipped
+  return $ concatMap id bb
+
+data ChInfo = CChInfo {
+    chIChar :: Text.Text
+  , chISq :: Sq Double
+  , chIFontName :: [Maybe Text.Text]
+  , chIFontSize :: [Double]
+  }
+    deriving (Eq, Ord, Show)
+
+getChInfos page = do
+  txttxt <- GPop.pageGetText page
+  if txttxt == ""
+    then return V.empty
+    else do
+      (wid, hei) <- GPop.pageGetSize page
+      aa@(isExistsText, rects) <- GPop.pageGetTextLayout page
+      chars <- mapM (GPop.pageGetTextForArea page) rects
+      rectsSwapped <- mapM (gpopRectToPopPRect page) rects
+      attrss <- mapM (GPop.pageGetTextAttributesForArea page) rects
+      let
+        getFontNames attrsPrim = do
+          fontsPrim <- mapM GPop.getTextAttributesFontName attrsPrim
+          return fontsPrim
+        getFontSizes attrsPrim = do
+          fontsPrim <- mapM GPop.getTextAttributesFontSize attrsPrim
+          return fontsPrim
+        freeAttrs attrs = do
+          mapM GPop.textAttributesFree attrs
+      fontNames <- mapM getFontNames attrss
+      fontSizes <- mapM getFontSizes attrss
+      -- mapM freeAttrs attrss
+      let
+        -- sqs = map (pRectToSq hei) rectsSwapped
+        sqs = map pRectToSqNoSwap rectsSwapped
+        charRects = zip chars rects
+        charSqs = zip chars sqs
+        fonts = zip fontNames fontSizes
+        chInfos = V.fromList $ map f $ zip charSqs fonts
+          where
+            f ((ch, sq), (fName, fSize)) = CChInfo {
+              chIChar = ch
+            , chISq = sq
+            , chIFontName = fName
+            , chIFontSize = fSize}
+      return chInfos
+
+-- prp
+getBlock chInfos hei wid
+  | chInfos == V.empty = V.empty
+  | otherwise = folded
+  where
+    marks = V.map (Text.pack . (\x -> [x])) $ V.fromList ['.', ';', head ":", '!', '?']
+    folded
+      | otherwise = V.filter (\x -> not $ x == V.empty) $ V.snoc pooledBlocksF (V.snoc pooledLinesF stackedCharsF)
+      where
+        folddd@(stackedCharsF, pooledLinesF, pooledBlocksF)
+          | otherwise = V.foldl' g (V.singleton $ V.head chInfos, V.empty, V.empty) $ V.tail chInfos
+
+        -- TermByMark
+        --    terminate previous line and current line, and pool them as a new block.
+        -- TermByOtherHeight
+        -- TermOtherFont
+        --    terminate previous line and current line, and pool them as a new block.
+        xs = V.tail chInfos
+        aaaa = V.scanl' g (V.singleton $ V.head chInfos, V.empty, V.empty) xs
+        forCheck = V.map (V.map chIChar) $ takeFstT aaaa
+        g y@(stackedChars, pooledLines, pooledBlocks) x
+          | isTerminateBlockPunct = (V.singleton xMutated,    V.empty,         nextPooledBlocksL)
+          | isCurrVoid          =   (nextStackedChars, pooledLines,     pooledBlocks)
+          | isTerminateOtherFont =  (V.singleton xMutated,    V.empty,         nextPooledBlocksL)
+          | isReturned    =         (V.singleton xMutated,    nextPooledLines, pooledBlocks)
+          | otherwise          =    (nextStackedChars, pooledLines,     pooledBlocks)
+          where
+            currCol = sqRight $ chISq x
+            currRow = sqBot $ chISq x
+            prevCol = sqRight $ chISq $ V.last stackedChars
+            prevRow = sqBot $ chISq $ V.last stackedChars
+            currFontName
+              | fontNames == [] = Nothing
+              | otherwise = head fontNames
+              where
+                fontNames = chIFontName x
+            currFontSize
+              | fontSizes == [] = 0.0
+              | otherwise = head fontSizes
+              where
+                fontSizes = chIFontSize x
+            prevFontName = snd $ Lis.maximumBy g $ getHistogram $ concat $ V.toList $ V.map chIFontName $ stackedChars
+              where
+                g x y = compare (fst x) (fst y)
+            prevFontSize = snd $ Lis.maximumBy g $ getHistogram $ concat $ V.toList $ V.map chIFontSize $ stackedChars
+              where
+                g x y = compare (fst x) (fst y)
+
+            isPrevVoid = (chIChar $ V.last stackedChars) == (Text.pack "")
+            isCurrVoid = (chIChar x) == (Text.pack "")
+            isReturned = 0.0001 < (abs (currRow - prevRow) / hei) -- maybe FontSize should refered.
+            isTerminateBlockPunct = isPrevLineHasTwoMoreChars && isReturned && isPunct && isNotIso && isPrevExists
+               where
+                  isPrevExists = 0 < V.length pooledLines
+                  isPrevLineHasTwoMoreChars = 3 < (V.length stackedChars)
+                  -- isReturnedNextCol = 0.001 < (prevRow - currRow) / hei -- maybe FontSize should refered.
+                  isPunct = V.elem (chIChar $ V.last $ V.init stackedChars) marks
+                  isNotIso = not $ (chIChar $ V.last $ V.init $ V.init stackedChars) == (Text.pack "")
+            isTerminateOtherFont = isReturned && ((abs $ currFontSize - prevFontSize) > 2.0) -- || (not $ currFontName == prevFontName)
+               where
+                  isPrevCharExists = 0 < V.length stackedChars
+
+            nextPooledBlocksL = (V.snoc pooledBlocks nextPooledLines)
+            nextPooledLines = V.snoc pooledLines $ (V.snoc stackedCharsInit mutatedLast)
+               where
+                stackedCharsInit = V.init stackedChars
+                stackedCharsLast = V.last stackedChars
+                mutatedLast = stackedCharsLast {chIChar = Text.pack "\n"}
+            nextStackedChars = (V.snoc stackedChars xMutated)
+            xMutated
+              | isCurrVoid = (V.last stackedChars) {chISq = currCharSq, chIChar = Text.pack " "}
+              | otherwise = x
+                 where
+                   currCharSq = chISq x
+
+            --isInitialCharStacked = not $ stackedChars == V.empty
+
+        -- ho = V.map (V.map (V.toList . takeFst)) folded
 
 getSExpsIOPoppy1 tokSqTruePrim page = do
   charSqV <- tesseractPartlyIOChar page tokSqTruePrim
@@ -467,6 +672,9 @@ data PopPRectangle = PopPRectangle Double Double Double Double
 
 pRectToSq :: Double -> PopPRectangle -> Sq Double
 pRectToSq hei (PopPRectangle smallX smallY bigX bigY) = CSq {sqTop =  hei - bigY, sqLeft = smallX, sqBot = hei - smallY, sqRight = bigX}
+
+pRectToSqNoSwap :: PopPRectangle -> Sq Double
+pRectToSqNoSwap (PopPRectangle smallX smallY bigX bigY) = CSq {sqTop =  smallY, sqLeft = smallX, sqBot = bigY, sqRight = bigX}
 
 -- docPathSuffix = "./pdfs/CTFP.pdf"
 getTokenPositions docPathSuffix = do

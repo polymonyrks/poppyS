@@ -833,7 +833,7 @@ initDoc docsRef = do
     docPathSuffix = "./pdfs/" ++ (pdfs !! currDocsId) ++ ".pdf"
   tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
   pdfPathPrefix <- (\currDir -> "file://" ++ currDir ++ "/pdfs/") <$> getCurrentDirectory
-  when (not isExistsConfig) $ oVecToFile (V.singleton $ show 20) configFilePath
+  when (not isExistsConfig) $ oVecToFile (V.singleton $ show 10) configFilePath
   doc <- GPop.documentNewFromFile (Text.pack $ pdfPathPrefix ++ (pdfs !! currDocsId) ++ ".pdf") Nothing
   nOfPage <- GPop.documentGetNPages doc
   configsPrim <- iVecFromFile configFilePath
@@ -943,7 +943,8 @@ stackStan window mvars docsRef docRef = do
           -- aa <- getSExpsIO pdfPath (fromIntegral n)
           let
             tokSqTruePrim = tokSqTrues V.! (fromIntegral n)
-          aa <- getSExpsIOPoppy1 tokSqTruePrim nP
+          aa <- getSExpsIOS nP
+          -- aa <- getSExpsIOPoppy1 tokSqTruePrim nP
           return (Just aa)
         Nothing -> return Nothing
       f = case nextForward of
@@ -955,7 +956,8 @@ stackStan window mvars docsRef docRef = do
             -- newSExp <- getSExpsIO pdfPath (fromIntegral m)
             let
               tokSqTruePrim = tokSqTrues V.! m
-            newSExp <- getSExpsIOPoppy1 tokSqTruePrim mP
+            -- newSExp <- getSExpsIOPoppy1 tokSqTruePrim mP
+            newSExp <- getSExpsIOS mP
             MV.write mvSexps m (Just newSExp)
             return mvSexps
         Just m2 -> case nextBackward of
@@ -965,7 +967,8 @@ stackStan window mvars docsRef docRef = do
             -- newSExp <- getSExpsIO pdfPath (fromIntegral m2)
             let
               tokSqTruePrim = tokSqTrues V.! m2
-            newSExp <- getSExpsIOPoppy1 tokSqTruePrim m2P
+            -- newSExp <- getSExpsIOPoppy1 tokSqTruePrim m2P
+            newSExp <- getSExpsIOS m2P
             MV.write mvSexps m2 (Just newSExp)
             return mvSexps
           Just m -> do
@@ -974,14 +977,16 @@ stackStan window mvars docsRef docRef = do
             -- newSExp <- getSExpsIO pdfPath (fromIntegral m)
             let
               tokSqTruePrim = tokSqTrues V.! m
-            newSExp  <- getSExpsIOPoppy1 tokSqTruePrim mP
+            -- newSExp  <- getSExpsIOPoppy1 tokSqTruePrim mP
+            newSExp  <- getSExpsIOS mP
             MV.write mvSexps m (Just newSExp)
             mP2 <- GPop.documentGetPage currDoc $ fromIntegral m2
             --newSExp2 <- getSExpsIONew pdfPath (fromIntegral m2) mvLayoutDefo mvLayoutModeDefo
             -- newSExp2 <- getSExpsIO pdfPath (fromIntegral m2)
             let
               tokSqTruePrim = tokSqTrues V.! m2
-            newSExp2  <- getSExpsIOPoppy1 tokSqTruePrim mP2
+            -- newSExp2  <- getSExpsIOPoppy1 tokSqTruePrim mP2
+            newSExp2  <- getSExpsIOS mP2
             MV.write mvSexps m2 (Just newSExp2)
             return mvSexps
      mvSexpsNeo <- f
