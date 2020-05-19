@@ -98,12 +98,15 @@ tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
 nPage = 21
 nPage = 24
 nPage = 289
-nPage = 0
+nPage = 9
 doc <- GPop.documentNewFromFile pdfPath Nothing
 page <- GPop.documentGetPage doc nPage
+nPages <- GPop.documentGetNPages doc
 
 ff n = getSExpsIOSCheck =<< GPop.documentGetPage doc n
-mapM ff [0 .. 0]
+ff2 n = getSExpsIOSCheck2 =<< GPop.documentGetPage doc n
+mapM ff2 [7 .. 9]
+mapM ff [0 .. nPages - 1]
 
 
 aa@(isExistsText, rects) <- GPop.pageGetTextLayout page
@@ -128,6 +131,58 @@ getSExpsIOSCheck page = do
   let
     forBlocksCheck = V.map (V.map (V.map chIChar)) blocks
   putStrLn $ show forBlocksCheck
+  putStrLn $ show n
+
+getSExpsIOSCheck2 page = do
+  n <- GPop.pageGetIndex page
+  (wid, hei) <- GPop.pageGetSize page
+  chInfos <- getChInfos page
+  blocks <- (\x -> getBlock x hei wid) <$> getChInfos page
+  -- charSqV <- tesseractPartlyIOChar page tokSqTruePrim
+  let
+    forBlocksCheck = V.map (V.map (V.map chIChar)) blocks
+    charSqVConcated = V.map (V.concatMap (V.map f)) blocks
+      where
+        f inf
+          | chText == "" = error "a square's chText is Void"
+          | otherwise = (head chText, V.singleton $ chISq inf)
+          where
+            chText = Text.unpack $ chIChar inf
+    stackedSens = blockLinesConcated
+      where
+        blockLineChars = V.map (V.map (V.map (head . Text.unpack . chIChar))) blocks -- :: V.Vector (V.Vector (V.Vector Char)) -- first is Block second is lines in Block last is Line in Lines
+        blockLinesConcated = V.map concatLines blockLineChars
+          where
+            concatLines bLines
+              | bLines == V.empty = ""
+              | otherwise = folddd
+             where
+                bLinesStr = V.map (fff . V.toList) bLines
+                 where
+                   fff strstr
+                    | strstr == "" = ""
+                    | last strstr == '\n' = init strstr
+                    | otherwise = strstr
+                folddd = V.foldl' g (V.head bLinesStr) $ V.tail bLinesStr
+                g y x
+                  | x == "" = y
+                  | (not isIsolated) && isLastBar = (init y) ++ x
+                  | isLastSpace = y ++ x
+                  | otherwise = y ++ " " ++ x
+                  where
+                    isIsolated = 1 < length y && ((last $ init y) == ' ')
+                    isLastBar = 0 < length y && last y == '-'
+                    isLastSpace = 0 < length y && last y == ' '
+    retrSexpS (sens, charSqs) = do
+      stanRess <- stanIOPoppy1 sens
+      let
+        sexps = stanAssign2Poppy1 charSqs stanRess
+      return sexps
+    zipped = V.zip stackedSens charSqVConcated
+  bb <- V.mapM retrSexpS zipped
+  let
+    cc = concatMap id bb
+  showSP $ last cc
   putStrLn $ show n
 
 
@@ -175,7 +230,7 @@ getSExpsIOS page = do
                   where
                     isIsolated = 1 < length y && ((last $ init y) == ' ')
                     isLastBar = 0 < length y && last y == '-'
-                    isLastSpace = 0 < length x && last y == ' '
+                    isLastSpace = 0 < length y && last y == ' '
     retrSexpS (sens, charSqs) = do
       stanRess <- stanIOPoppy1 sens
       let
