@@ -58,7 +58,7 @@ cd poppyS
 stack build
 ```
 # Execution of poppyS
-1. Put a PDF File into ./pdfs Directory. Only English and one Column Documents supported.  
+1. Put a PDF File into ./pdfs Directory. Only English Documents supported.  
 2. Run Stanford CoreNLP Server.
 3. Execute poppyS.
 ## PDF Examples
