@@ -12,6 +12,7 @@ import qualified Data.Vector as V
 import qualified Data.Vector.Unboxed as UV
 import qualified Data.Vector.Mutable as MV
 import qualified Network.HTTP.Simple as HT
+import System.Environment
 import Data.Aeson
 import Data.Time
 import System.Timeout
@@ -57,8 +58,8 @@ import Foreign.Ptr (castPtr)
 pdfFilesDir :: String
 pdfFilesDir = "./pdfs"
 
-configFilesDir :: String
-configFilesDir = "./configs"
+--configFilesDir :: String
+--configFilesDir = "./configs"
 
 stemEng = Text.unpack . (stem English) . Text.pack
 toLowers = map toLower
@@ -71,15 +72,32 @@ renderWithContext :: GI.Cairo.Context -> Render () -> IO ()
 renderWithContext ct r = withManagedPtr ct $ \p ->
                          runReaderT (runRender r) (Cairo (castPtr p))
 
-main = mainGtk
+-- ppp main = mainGtk
+main = do
+  homePath <- getEnv "HOME"
+  let
+    poppySPath = homePath ++ "/poppyS"
+  fpathPrim <- head <$> getArgs
+  cwd <- getCurrentDirectory
+  let
+    fpath
+     | isNotFull = "file://" ++ cwd ++ "/" ++ fpathPrim
+     | takeWhile (\c -> not $ c == ':') fpathPrim == "file" = fpathPrim
+     | (0 < length fpathPrim) && (take 1 fpathPrim == "/") = "file://" ++ fpathPrim
+     | otherwise = "file:///" ++ fpathPrim
+       where
+         isNotFull = not $ Lis.isPrefixOf cwd fpathPrim
 
-mainGtk :: IO ()
-mainGtk = do
+  -- oVecToFile (V.fromList hogeCheck) "/home/polymony/rks.txt"
+  mainGtk fpath poppySPath
+
+mainGtk :: String -> String -> IO ()
+mainGtk fpath poppySPath = do
   _ <- Gtk.init Nothing
-  (window, movePallete) <- initWidgets
-  docs <- initDocs
+  (window, movePallete) <- initWidgets poppySPath
+  docs <- initDocs poppySPath
   docsRef <- newIORef docs
-  doc <- initDoc docsRef
+  doc <- initDoc docsRef fpath
   docRef <- newIORef doc
   let
     currDoc = dkCurrDoc doc
@@ -98,7 +116,7 @@ mainGtk = do
       decl n nOfPage = mod (n - 2) nOfPage
       incl1 n nOfPage = mod (n + 1) nOfPage
       decl1 n nOfPage = mod (n - 1) nOfPage
-      registeredKeys = [["j"], ["k"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "0"], ["c", "1"], ["c", "2"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["space", "b", "n"], ["space", "b", "p"]]
+      registeredKeys = [["j"], ["k"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "0"], ["c", "1"], ["c", "2"], ["d", "d"], ["Escape"], ["colon", "w", "Return"]]
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
@@ -209,37 +227,15 @@ mainGtk = do
            where
              res = map (\x -> (fst x) ++ "," ++ (decodeConfig colors $ snd x)) $ dksGlobalConfig docs
         currPage = dkCurrPage doc
-        currDocName = (dksPDFs docs) !! (dksCurrId docs)
+        poppySPath = dksPoppySPath docs
+        configFilesDir = poppySPath ++ "/configs"
         outout = V.fromList $ (show currPage) : conf
+        currDocName = dkPDFDocName doc
         configFilePath = configFilesDir ++ "/" ++ currDocName ++ "_config.txt"
       oVecToFile outout configFilePath
       oVecToFile (V.fromList confGlobal) globalConfigFilePath
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window "Config Saved."
-      return ()
-    when (stKeys == ["space", "b", "n"]) $ do
-      docs <- readIORef docsRef
-      let
-        pdfs = dksPDFs docs
-      modifyIORef docsRef (\x -> x {dksCurrId = stopper id 0 (length pdfs - 1) (dksCurrId x + 1)})
-      mvNew <- initMVars docRef
-      putMVar mVars mvNew
-      docNext <- initDoc docsRef
-      writeIORef docRef docNext
-      Gtk.widgetQueueDraw window
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
-      return ()
-    when (stKeys == ["space", "b", "p"]) $ do
-      docs <- readIORef docsRef
-      let
-        pdfs = dksPDFs docs
-      modifyIORef docsRef (\x -> x {dksCurrId = stopper id 0 (length pdfs - 1) (dksCurrId x - 1)})
-      mvNew <- initMVars docRef
-      putMVar mVars mvNew
-      docNext <- initDoc docsRef
-      writeIORef docRef docNext
-      Gtk.widgetQueueDraw window
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (name == Just "Escape") $ do
       --modifyIORef docsRef (\x -> x {dksKeysStacked = []})
@@ -464,6 +460,7 @@ mainGtk = do
               g2 x = case x of
                 Nothing -> ("", [])
                 Just y -> y
+    let
       detachedsNext =
         case sexpsMaybeNext of
           Nothing -> []
@@ -579,8 +576,7 @@ data Mode = Hint | Adhoc | Gramatica | Primitive | Scout
 
 
 data Docs = CDocs {
-    dksPDFs :: [String]
-  , dksCurrId :: Int
+    dksPoppySPath :: String
   , dksOffSetDX :: Double
   , dksOffSetDY :: Double
   , dksOffSetNextTo :: Double
@@ -595,7 +591,9 @@ data Docs = CDocs {
   }
 
 data Doc = CDoc {
-    dkCurrDoc :: GPop.Document
+    dkPDFPath :: String
+  , dkPDFDocName :: String
+  , dkCurrDoc :: GPop.Document
   , dkConfig :: [(String, GPop.Color)]
   , dkConfigYank :: [(String, GPop.Color)]
   , dkCurrToken :: String
@@ -605,7 +603,7 @@ data Doc = CDoc {
   , dkIsJapanese :: Bool
   , dkClipSq :: Sq Double
   , dkClipSqNext :: Sq Double
-  , dkTokSqTrues :: V.Vector (V.Vector (String, PopPRectangle))
+-- ppp  , dkTokSqTrues :: V.Vector (V.Vector (String, PopPRectangle))
   }
 
 
@@ -726,13 +724,13 @@ pageGetPosTokenListPrim page tokens = do
 -}
 
 
-initWidgets = do
+initWidgets poppySPath = do
   vbox <- Gtk.boxNew Gtk.OrientationVertical 0
   window <- new Gtk.Window
             [ #decorated      := True
             , #resizable      := True
             , #appPaintable   := True
-            , #icon           :=> GP.pixbufNewFromFile "poppyS.png"
+            , #icon           :=> GP.pixbufNewFromFile $ poppySPath ++ "/" ++ "poppyS.png"
             , #title          := "poppyS - per altera ad ipsa"
             , #defaultWidth   := fromIntegral initialSize
             , #defaultHeight  := fromIntegral initialSize
@@ -792,18 +790,17 @@ decodeConfig colors y
   | otherwise = "Red"
 
 globalConfigFilePath = "global_config.txt"
+-- configFilesDir :: String
+-- configFilesDir = "./configs"
 
-initDocs :: IO Docs
-initDocs = do
-  configsPrim <- iVecFromFile globalConfigFilePath
+initDocs :: String -> IO Docs
+initDocs poppySPath = do
+  configsPrim <- iVecFromFile $ poppySPath ++ "/" ++ globalConfigFilePath
   colors <- setColors
-  files <- listDirectory pdfFilesDir
   let
     config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsPrim
-    pdfs = map (reverse . (drop 4) . reverse) $ filter (\x -> Lis.isSuffixOf ".pdf" x) files
     res = CDocs {
-        dksPDFs = pdfs
-      , dksCurrId = 0
+        dksPoppySPath = poppySPath
       , dksOffSetDX = 8.0
       , dksOffSetDY = 8.0
       , dksOffSetNextTo = 16.0
@@ -818,23 +815,24 @@ initDocs = do
       }
   return res
 
-initDoc :: IORef Docs -> IO Doc
-initDoc docsRef = do
+-- ppp initDoc :: IORef Docs -> IO Doc
+-- ppp initDoc docsRef = do
+initDoc :: IORef Docs -> String -> IO Doc
+initDoc docsRef fpath = do
   docs <- readIORef docsRef
+  let
+    poppySPath = dksPoppySPath docs
+    configFilesDir = poppySPath ++ "/configs"
   files <- listDirectory configFilesDir
   let
     colors = dksColors docs
     configs = map (takeWhile (\c -> not $ c == '_')) $ filter (\x -> Lis.isSuffixOf ".txt" x) files
-    pdfs = dksPDFs docs
-    currDocsId = stopper id 0 (length pdfs - 1) $ dksCurrId docs
-    currDocName = (pdfs !! currDocsId)
+    currDocName = reverse $ takeWhile (\c -> not $ c == '/') $ tail $ dropWhile (\c -> not $ c == '.') $ reverse fpath
     isExistsConfig = elem currDocName configs
     configFilePath = configFilesDir ++ "/" ++ currDocName ++ "_config.txt"
-    docPathSuffix = "./pdfs/" ++ (pdfs !! currDocsId) ++ ".pdf"
-  tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
-  pdfPathPrefix <- (\currDir -> "file://" ++ currDir ++ "/pdfs/") <$> getCurrentDirectory
   when (not isExistsConfig) $ oVecToFile (V.singleton $ show 10) configFilePath
-  doc <- GPop.documentNewFromFile (Text.pack $ pdfPathPrefix ++ (pdfs !! currDocsId) ++ ".pdf") Nothing
+
+  doc <- GPop.documentNewFromFile (Text.pack fpath) Nothing
   nOfPage <- GPop.documentGetNPages doc
   configsPrim <- iVecFromFile configFilePath
   let
@@ -858,7 +856,9 @@ initDoc docsRef = do
     clipSq = CSq {sqLeft = 0, sqTop = 0, sqRight = wid, sqBot = hei}
     clipSqNext = CSq {sqLeft = 0, sqTop = 0, sqRight = widNext, sqBot = heiNext}
     res = CDoc {
-      dkCurrDoc = doc
+      dkPDFPath = fpath
+    , dkPDFDocName = currDocName
+    , dkCurrDoc = doc
     , dkConfig = config
     , dkConfigYank = []
     , dkCurrToken = ""
@@ -868,7 +868,6 @@ initDoc docsRef = do
     , dkIsJapanese = False
     , dkClipSq = clipSq
     , dkClipSqNext = clipSqNext
-    , dkTokSqTrues = tokSqTrues
     }
   return res
 
@@ -905,15 +904,10 @@ stackStan window mvars docsRef docRef = do
     mvLayoutDefo = mVarDefaultLayout mvs
     mvLayoutModeDefo = mVarDefaultLayoutMode mvs
   docs <- readIORef docsRef
-  pdfPathPrefix <- (\currDir -> "file://" ++ currDir ++ "/pdfs/") <$> getCurrentDirectory
   let
-    currDocId = dksCurrId docs
-    pdfs = dksPDFs docs
-    docName = pdfs !! currDocId
-    pdfPath = Text.pack $ pdfPathPrefix ++ docName ++ ".pdf"
+    -- docName = pdfs !! currDocId
   doc <- readIORef docRef
   let
-    tokSqTrues = dkTokSqTrues doc
     currDoc = dkCurrDoc doc
     currPage = fromIntegral $ dkCurrPage doc
   maxPage <- fromIntegral <$> GPop.documentGetNPages currDoc
@@ -942,7 +936,7 @@ stackStan window mvars docsRef docRef = do
           -- aa <- getSExpsIONew pdfPath (fromIntegral n) mvLayoutDefo mvLayoutModeDefo
           -- aa <- getSExpsIO pdfPath (fromIntegral n)
           let
-            tokSqTruePrim = tokSqTrues V.! (fromIntegral n)
+            -- ppp tokSqTruePrim = tokSqTrues V.! (fromIntegral n)
           aa <- getSExpsIOS nP
           -- aa <- getSExpsIOPoppy1 tokSqTruePrim nP
           return (Just aa)
@@ -955,7 +949,7 @@ stackStan window mvars docsRef docRef = do
             -- newSExp <- getSExpsIONew pdfPath (fromIntegral m) mvLayoutDefo mvLayoutModeDefo
             -- newSExp <- getSExpsIO pdfPath (fromIntegral m)
             let
-              tokSqTruePrim = tokSqTrues V.! m
+              -- ppp tokSqTruePrim = tokSqTrues V.! m
             -- newSExp <- getSExpsIOPoppy1 tokSqTruePrim mP
             newSExp <- getSExpsIOS mP
             MV.write mvSexps m (Just newSExp)
@@ -966,7 +960,7 @@ stackStan window mvars docsRef docRef = do
             -- newSExp <- getSExpsIONew pdfPath (fromIntegral m2) mvLayoutDefo mvLayoutModeDefo
             -- newSExp <- getSExpsIO pdfPath (fromIntegral m2)
             let
-              tokSqTruePrim = tokSqTrues V.! m2
+              -- ppp tokSqTruePrim = tokSqTrues V.! m2
             -- newSExp <- getSExpsIOPoppy1 tokSqTruePrim m2P
             newSExp <- getSExpsIOS m2P
             MV.write mvSexps m2 (Just newSExp)
@@ -976,7 +970,7 @@ stackStan window mvars docsRef docRef = do
             --newSExp <- getSExpsIONew pdfPath (fromIntegral m) mvLayoutDefo mvLayoutModeDefo
             -- newSExp <- getSExpsIO pdfPath (fromIntegral m)
             let
-              tokSqTruePrim = tokSqTrues V.! m
+              -- ppp tokSqTruePrim = tokSqTrues V.! m
             -- newSExp  <- getSExpsIOPoppy1 tokSqTruePrim mP
             newSExp  <- getSExpsIOS mP
             MV.write mvSexps m (Just newSExp)
@@ -984,7 +978,7 @@ stackStan window mvars docsRef docRef = do
             --newSExp2 <- getSExpsIONew pdfPath (fromIntegral m2) mvLayoutDefo mvLayoutModeDefo
             -- newSExp2 <- getSExpsIO pdfPath (fromIntegral m2)
             let
-              tokSqTruePrim = tokSqTrues V.! m2
+              -- ppp  tokSqTruePrim = tokSqTrues V.! m2
             -- newSExp2  <- getSExpsIOPoppy1 tokSqTruePrim mP2
             newSExp2  <- getSExpsIOS mP2
             MV.write mvSexps m2 (Just newSExp2)
@@ -1145,3 +1139,4 @@ getTotalSquares currSExps (pHei', pWid') = totalSquares
           leftFrons = minimum $ map sqLeft squares
           botFrons = maximum $ map sqBot squares
           rightFrons = maximum $ map sqRight squares
+

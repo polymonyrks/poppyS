@@ -58,9 +58,9 @@ cd poppyS
 stack build
 ```
 # Execution of poppyS
-1. Put a PDF File into ./pdfs Directory. Only English Documents supported.  
 2. Run Stanford CoreNLP Server.
-3. Execute poppyS.
+3. Execute poppyS with args (target PDF File's path).
+1. Only English Documents supported.  
 ## PDF Examples
 This program poppyS is suitable for hard to read documents such as a bit greek or latin ones.  
 The documents below are such kind of examples.  
@@ -89,7 +89,15 @@ sudo docker run -p 9000:9000 nlpbox/corenlp
 ```
 ## Execute poppyS
 ```shell
-stack exec poppyS-exe
+stack exec poppyS-exe TARGETPDFPATH
+```
+(e.g.1) like below. 
+```shell
+stack exec poppyS-exe "/pdfs/SICP.pdf"
+```
+(e.g.2) Full Path also O.K.
+```shell
+stack exec poppyS-exe "/home/polymony/poppyS/pdfs/SICP.pdf"
 ```
 # How to read PDF
 ## Wait a few Seconds

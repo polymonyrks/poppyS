@@ -16,7 +16,7 @@ import qualified Control.Lens as LENS
 import qualified Data.Aeson.Lens as AL
 import Data.Text.ICU.Convert as ICU
 import qualified Data.ByteString.Lazy as BL
-import Lib (iVecFromFile, iVecFromFileJP, oVecToFile, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getHistogram, getDivideLine, vSortBy, fstT, sndT, thdT, takeFstT, takeSndT, takeThdT, fstQ, sndQ, thdQ, forQ, takeFstQ, takeSndQ, takeThdQ, takeForQ)
+import Lib (iVecFromFile, iVecFromFileJP, oVecToFile, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getHistogram, getDivideLine, vSortBy, fstT, sndT, thdT, takeFstT, takeSndT, takeThdT, fstQ, sndQ, thdQ, forQ, takeFstQ, takeSndQ, takeThdQ, takeForQ, indexingL)
 import PopSExp (indexingSP, forgetSExp, injectSExpI, reconsSExp, showSP, mapNode, isBottomBy, takeSpecTags)
 import ParserP (parse, pSExp)
 import SExp
@@ -83,6 +83,7 @@ pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/3331554.3342603.pdf"
 pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/Leinster.pdf"
 pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/CTFP.pdf"
 pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/The_CUDA_Handbook.pdf"
+prp
 pathPrefix = "file://"
 pathInfix1 = "/home/polymony/poppyS/"
 pathInfix2 = "pdfs/"
@@ -98,7 +99,7 @@ tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
 nPage = 21
 nPage = 24
 nPage = 289
-nPage = 9
+nPage = 118
 doc <- GPop.documentNewFromFile pdfPath Nothing
 page <- GPop.documentGetPage doc nPage
 nPages <- GPop.documentGetNPages doc
@@ -124,9 +125,9 @@ sexpG = mapNode snd fst sexp
 getSExpsIOSCheck page = do
   n <- GPop.pageGetIndex page
   (wid, hei) <- GPop.pageGetSize page
-  chInfos <- getChInfos page
+  chInfos <- getChInfosS page
   let
-    blocks = getBlock chInfos hei wid
+    blocks = getBlockS chInfos hei wid
   -- charSqV <- tesseractPartlyIOChar page tokSqTruePrim
   let
     forBlocksCheck = V.map (V.map (V.map chIChar)) blocks
@@ -136,8 +137,8 @@ getSExpsIOSCheck page = do
 getSExpsIOSCheck2 page = do
   n <- GPop.pageGetIndex page
   (wid, hei) <- GPop.pageGetSize page
-  chInfos <- getChInfos page
-  blocks <- (\x -> getBlock x hei wid) <$> getChInfos page
+  chInfos <- getChInfosS page
+  blocks <- (\x -> getBlockS x hei wid) <$> getChInfos page
   -- charSqV <- tesseractPartlyIOChar page tokSqTruePrim
   let
     forBlocksCheck = V.map (V.map (V.map chIChar)) blocks
@@ -185,13 +186,20 @@ getSExpsIOSCheck2 page = do
   showSP $ last cc
   putStrLn $ show n
 
-
+--prp
 getSExpsIOS page = do
   (wid, hei) <- GPop.pageGetSize page
-  chInfos <- getChInfos page
-  blocks <- (\x -> getBlock x hei wid) <$> getChInfos page
-  -- charSqV <- tesseractPartlyIOChar page tokSqTruePrim
+  blocksPrim <- (\x -> getBlock x hei wid) <$> getChInfos page -- stable, but not covers some PDFs which has character layout bugs.
+  -- blocksPrimS <- (\x -> getBlockS x hei wid) <$> getChInfosS page -- probably Unstable.
   let
+    blocks = V.map (V.map (V.map g)) blocksPrim
+      where
+        g info = info {chIChar = gg $ chIChar info}
+          where
+            gg str = V.foldl' ggg str replaceTable
+              where
+                replaceTable = V.fromList [("\8208", "-"), ("\8217", "'")]
+                ggg str2 (nd, ns) = Text.replace nd ns str2
     forBlocksCheck = V.map (V.map (V.map chIChar)) blocks
     charSqVConcated = V.map (V.concatMap (V.map f)) blocks
       where
@@ -200,11 +208,6 @@ getSExpsIOS page = do
           | otherwise = (head chText, V.singleton $ chISq inf)
           where
             chText = Text.unpack $ chIChar inf
-  {-
-    charSqVConcated = V.map (V.concatMap (V.map f)) charSqV
-      where
-        f (c, sqss) = (c, V.concatMap id sqss)
--}
     stackedSens = blockLinesConcated
       where
         -- blockLineChars = V.map (V.map (V.map fst)) charSqV -- :: V.Vector (V.Vector (V.Vector Char)) -- first is Block second is lines in Block last is Line in Lines
@@ -229,11 +232,13 @@ getSExpsIOS page = do
                   | otherwise = y ++ " " ++ x
                   where
                     isIsolated = 1 < length y && ((last $ init y) == ' ')
-                    isLastBar = 0 < length y && last y == '-'
+                    isLastBar = 0 < length y && (last y == '-' || last y == '\8208')
                     isLastSpace = 0 < length y && last y == ' '
-    retrSexpS (sens, charSqs) = do
+  -- prp
+    retrSexpS (sens, charSqsPrim) = do
       stanRess <- stanIOPoppy1 sens
       let
+        charSqs = V.filter (\x -> (not $ fst x == '\n')) charSqsPrim
         sexps = stanAssign2Poppy1 charSqs stanRess
       return sexps
     zipped = V.zip stackedSens charSqVConcated
@@ -247,6 +252,22 @@ data ChInfo = CChInfo {
   , chIFontSize :: [Double]
   }
     deriving (Eq, Ord, Show)
+
+fff2 doc = do
+  nmax <- GPop.documentGetNPages doc
+  ress <- filter (\x@(x1, x2) -> not $ x1 == x2) <$> mapM (\n -> fff doc n) [1 .. nmax - 1]
+  return ress
+
+fff doc nPage = do
+  page <- GPop.documentGetPage doc nPage
+  txttxt <- GPop.pageGetText page
+  if txttxt == ""
+    then return (-1, -1)
+    else do
+      (wid, hei) <- GPop.pageGetSize page
+      aa@(isExistsText, rects) <- GPop.pageGetTextLayout page
+      chars <- mapM (GPop.pageGetTextForArea page) rects
+      return (length chars, length $ Text.unpack txttxt)
 
 getChInfos page = do
   txttxt <- GPop.pageGetText page
@@ -272,6 +293,48 @@ getChInfos page = do
       -- mapM freeAttrs attrss
       let
         -- sqs = map (pRectToSq hei) rectsSwapped
+        sqs = map pRectToSqNoSwap rectsSwapped
+        charRects = zip chars rects
+        charSqs = zip chars sqs
+        fonts = zip fontNames fontSizes
+        chInfos = V.fromList $ map f $ zip charSqs fonts
+          where
+            f ((ch, sq), (fName, fSize)) = CChInfo {
+              chIChar = ch
+            , chISq = sq
+            , chIFontName = fName
+            , chIFontSize = fSize}
+      return chInfos
+
+--prp
+getChInfosS page = do
+  txttxt <- GPop.pageGetText page
+  if txttxt == ""
+    then return V.empty
+    else do
+      (wid, hei) <- GPop.pageGetSize page
+      aa@(isExistsText, rectsPrim) <- GPop.pageGetTextLayout page
+      let
+        charsPrim = map (\c -> Text.pack $ [c]) $ Text.unpack txttxt
+        zipzip = zip charsPrim rectsPrim
+        chars = takeFstL zipzip
+        rects = takeSndL zipzip
+      -- chars <- mapM (GPop.pageGetTextForArea page) rects
+      rectsSwapped <- mapM (gpopRectToPopPRect page) rects
+      attrss <- mapM (GPop.pageGetTextAttributesForArea page) rects
+      let
+        getFontNames attrsPrim = do
+          fontsPrim <- mapM GPop.getTextAttributesFontName attrsPrim
+          return fontsPrim
+        getFontSizes attrsPrim = do
+          fontsPrim <- mapM GPop.getTextAttributesFontSize attrsPrim
+          return fontsPrim
+        freeAttrs attrs = do
+          mapM GPop.textAttributesFree attrs
+      fontNames <- mapM getFontNames attrss
+      fontSizes <- mapM getFontSizes attrss
+      -- mapM freeAttrs attrss
+      let
         sqs = map pRectToSqNoSwap rectsSwapped
         charRects = zip chars rects
         charSqs = zip chars sqs
@@ -362,6 +425,68 @@ getBlock chInfos hei wid
 
             --isInitialCharStacked = not $ stackedChars == V.empty
 
+        -- ho = V.map (V.map (V.toList . takeFst)) folded
+
+
+getBlockS chInfos hei wid
+  | chInfos == V.empty = V.empty
+  | otherwise = folded
+  where
+    marks = V.map (Text.pack . (\x -> [x])) $ V.fromList ['.', ';', head ":", '!', '?']
+    folded
+      | otherwise = V.filter (\x -> not $ x == V.empty) $ V.snoc pooledBlocksF (V.snoc pooledLinesF stackedCharsF)
+      where
+        folddd@(stackedCharsF, pooledLinesF, pooledBlocksF)
+          | otherwise = V.foldl' g (V.singleton $ V.head chInfos, V.empty, V.empty) $ V.tail chInfos
+
+        -- TermByMark
+        --    terminate previous line and current line, and pool them as a new block.
+        -- TermByOtherHeight
+        -- TermOtherFont
+        --    terminate previous line and current line, and pool them as a new block.
+        xs = V.tail chInfos
+        aaaa = V.scanl' g (V.singleton $ V.head chInfos, V.empty, V.empty) xs
+        forCheck = V.map (V.map chIChar) $ takeFstT aaaa
+        g y@(stackedChars, pooledLines, pooledBlocks) x
+          | isTerminateBlockPunct = (V.singleton x,    V.empty,         nextPooledBlocksL)
+--          | isCurrVoid          =   (nextStackedChars, pooledLines,     pooledBlocks)
+          | isTerminateOtherFont =  (V.singleton x,    V.empty,         nextPooledBlocksL)
+          | isReturned    =         (V.singleton x,    nextPooledLines, pooledBlocks)
+          | otherwise          =    (nextStackedChars, pooledLines,     pooledBlocks)
+          where
+            isStackedCharsVoid = stackedChars == V.empty
+            currFontName
+              | fontNames == [] = Nothing
+              | otherwise = head fontNames
+              where
+                fontNames = chIFontName x
+            currFontSize
+              | fontSizes == [] = 0.0
+              | otherwise = head fontSizes
+              where
+                fontSizes = chIFontSize x
+            prevFontName = snd $ Lis.maximumBy g $ getHistogram $ concat $ V.toList $ V.map chIFontName $ stackedChars
+              where
+                g x y = compare (fst x) (fst y)
+            prevFontSize = snd $ Lis.maximumBy g $ getHistogram $ concat $ V.toList $ V.map chIFontSize $ stackedChars
+              where
+                g x y = compare (fst x) (fst y)
+
+            isCurrVoid = (chIChar x) == (Text.pack " ")
+            isReturned = (chIChar $ V.last stackedChars) == Text.pack "\n" -- maybe FontSize should refered.
+            isTerminateBlockPunct = isPrevLineHasTwoMoreChars && isReturned && isPunct && isNotIso && isPrevExists
+               where
+                  isPrevExists = 0 < V.length pooledLines
+                  isPrevLineHasTwoMoreChars = 3 < (V.length stackedChars)
+                  isPunct = V.elem (chIChar $ V.last $ V.init stackedChars) marks
+                  isNotIso = not $ (chIChar $ V.last $ V.init $ V.init stackedChars) == (Text.pack "")
+            isTerminateOtherFont = isReturned && ((abs $ currFontSize - prevFontSize) > 2.0)  -- || (not $ currFontName == prevFontName)
+               where
+                  isPrevCharExists = 0 < V.length stackedChars
+
+            nextPooledBlocksL = (V.snoc pooledBlocks nextPooledLines)
+            nextPooledLines = V.snoc pooledLines stackedChars
+            nextStackedChars = (V.snoc stackedChars x)
         -- ho = V.map (V.map (V.toList . takeFst)) folded
 
 getSExpsIOPoppy1 tokSqTruePrim page = do
