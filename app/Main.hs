@@ -116,18 +116,18 @@ mainGtk fpath poppySPath = do
       decl n nOfPage = mod (n - 2) nOfPage
       incl1 n nOfPage = mod (n + 1) nOfPage
       decl1 n nOfPage = mod (n - 1) nOfPage
-      registeredKeys = [["j"], ["k"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "0"], ["c", "1"], ["c", "2"], ["d", "d"], ["Escape"], ["colon", "w", "Return"]]
+      registeredKeys = [["j"], ["k"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "0"], ["c", "1"], ["c", "2"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"]]
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
       isSomethingMatched = or $ map (\keys -> Lis.isPrefixOf stKeys keys) registeredKeys
     Gtk.windowSetTitle window $ Text.pack $ show stKeys
     when (stKeys == ["j"]) $ do
-      goOtherPage window docRef incl
+      goOtherPage window docRef incl incl
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["k"]) $ do
-      goOtherPage window docRef decl
+      goOtherPage window docRef decl decl
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["Down"]) $ do
@@ -135,11 +135,15 @@ mainGtk fpath poppySPath = do
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["Left"]) $ do
-      goOtherPage window docRef decl1
+      goOtherPage window docRef decl1 decl1
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["Right"]) $ do
-      goOtherPage window docRef incl1
+      goOtherPage window docRef incl1 incl1
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      return ()
+    when (stKeys == ["g", "g"]) $ do
+      goOtherPage window docRef (\n -> \m -> 0) (\n -> \m -> 1)
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["p"]) $ do
@@ -830,7 +834,8 @@ initDoc docsRef fpath = do
     currDocName = reverse $ takeWhile (\c -> not $ c == '/') $ tail $ dropWhile (\c -> not $ c == '.') $ reverse fpath
     isExistsConfig = elem currDocName configs
     configFilePath = configFilesDir ++ "/" ++ currDocName ++ "_config.txt"
-  when (not isExistsConfig) $ oVecToFile (V.singleton $ show 10) configFilePath
+  -- when (not isExistsConfig) $ oVecToFile (V.singleton $ show 10) configFilePath
+  when (not isExistsConfig) $ oVecToFile (V.singleton $ show 0) configFilePath
 
   doc <- GPop.documentNewFromFile (Text.pack fpath) Nothing
   nOfPage <- GPop.documentGetNPages doc
@@ -1017,7 +1022,7 @@ getPrevNothing mv i = do
         else getPrevNothing mv (i - 1)
   f
 
-goOtherPage window docRef inclF = do
+goOtherPage window docRef inclF inclFNext = do
   doc <- readIORef docRef
   let
     currDoc = dkCurrDoc doc
@@ -1026,7 +1031,7 @@ goOtherPage window docRef inclF = do
     currPagePrev = dkCurrPage doc
     currPage = inclF currPagePrev nOfPage
     nextPagePrev = dkNextPage doc
-    nextPage = inclF nextPagePrev nOfPage
+    nextPage = inclFNext nextPagePrev nOfPage
   modifyIORef docRef (\x -> x {dkCurrPage = currPage, dkNextPage = nextPage})
   Gtk.widgetQueueDraw window
 
