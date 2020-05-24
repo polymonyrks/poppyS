@@ -109,10 +109,12 @@ Similar to [Vim Keybindings](https://www.vim.org/).
 | ---- | ---- |
 |  j  | increase page (2 pages) |
 |  k  | decrease page (2 pages) |
+|  f  | increase page (2 pages) |
+|  d  | decrease page (2 pages) |
 |  Right  | increase page (1 page) |
 |  Left  | decrease page (1 page) |
 |  Down  | crop merginal white zones and adjust page size|
-|  dd  | decolor all phrases |
+|  cc  | decolor all phrases |
 |  p  | paste(recover) Coloring |
 |  x  | cut coloring (enter in or leave of Deleting Mode) |
 |  gg  | goto first page |
@@ -120,13 +122,13 @@ Similar to [Vim Keybindings](https://www.vim.org/).
 ## Coloring
 Click some words, then some corresponding phrases are colored. When you click the same word multiple times, the coloring is toggled.  
 The toggle table is Red -> Blue -> Green -> Purple -> Orange -> Pink -> Aqua -> Cyan -> Red .. .  
-Pressing Key dd decolors all phrases. Some special words are remained yellowed.   
+Pressing Key cc decolors all phrases. Some special words are remained yellowed.   
 Yellowed words are special ones in respect to how much area to be colored when you select them.   
-After pressing dd, if you press key p then recover the previous state  
-(Caveat: If you click another word after dd then the previous state is updated(destroyed).).  
-Even you decolor(dd) all the phrases, the tuples (e.g. (Red, word1), (Green, word2), (Aqua, word3) ..) are memoried.  
+After pressing cc, if you press key p then recover the previous state  
+(Caveat: If you click another word after cc then the previous state is updated(destroyed).).  
+Even you decolor(cc) all the phrases, the tuples (e.g. (Red, word1), (Green, word2), (Aqua, word3) ..) are memoried.  
 Next time you click such words, you can start from the previous color.  
-This temporary decoloring(dd), recovering(p) and/or starting previous colors is effective.  
+This temporary decoloring(cc), recovering(p) and/or starting previous colors is effective.  
 Pressing Key x enters into Deleting Mode. Click some words, then the correspoinding phrases become decolored.  
 Pressing Key x again leaves Deleting Mode.
 # Tactics and Training

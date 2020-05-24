@@ -116,17 +116,17 @@ mainGtk fpath poppySPath = do
       decl n nOfPage = mod (n - 2) nOfPage
       incl1 n nOfPage = mod (n + 1) nOfPage
       decl1 n nOfPage = mod (n - 1) nOfPage
-      registeredKeys = [["j"], ["k"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"]]
+      registeredKeys = [["j"], ["k"], ["f"], ["d"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "c"], ["Escape"], ["colon", "w", "Return"], ["g","g"]]
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
       isSomethingMatched = or $ map (\keys -> Lis.isPrefixOf stKeys keys) registeredKeys
     Gtk.windowSetTitle window $ Text.pack $ show stKeys
-    when (stKeys == ["j"]) $ do
+    when (stKeys == ["j"] || stKeys == ["f"]) $ do
       goOtherPage window docRef incl incl
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
-    when (stKeys == ["k"]) $ do
+    when (stKeys == ["k"] || stKeys == ["d"]) $ do
       goOtherPage window docRef decl decl
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
@@ -162,7 +162,7 @@ mainGtk fpath poppySPath = do
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window windowRepr
       return ()
-    when (stKeys == ["d", "d"]) $ do
+    when (stKeys == ["c", "c"]) $ do
       modifyIORef docRef (\x -> x {dkConfigYank = dkConfig x, dkConfig = []})
       Gtk.widgetQueueDraw window
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
@@ -447,7 +447,7 @@ mainGtk fpath poppySPath = do
               g2 x = case x of
                 Nothing -> ("", [])
                 Just y -> y
-      ngStems = ["that", "this", "them", "their"]
+      ngStems = ["that", "this", "them", "their", "these", "those", "from"]
       stemmed = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $ map (\x -> (stemEng $ fst x, snd x)) detacheds
       stemmedNext = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $  map (\x -> (stemEng $ fst x, snd x)) detachedsNext
       stemmedOrdered = stemmed ++ stemmedNext
