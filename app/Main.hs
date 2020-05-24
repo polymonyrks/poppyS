@@ -21,7 +21,7 @@ import qualified Control.Lens as LENS
 import qualified Data.Aeson.Lens as AL
 import Data.Text.ICU.Convert as ICU
 import qualified Data.ByteString.Lazy as BL
-import Lib (iVecFromFile, oVecToFile, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getDivideLine)
+import Lib (iVecFromFile, oVecToFile, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getDivideLine, countPrefix, countSuffix)
 -- import PopSExp (indexingSP, forgetSExp, injectSExpI, reconsSExp, showSP)
 import PopSExp
 import ParserP (parse, pSExp)
@@ -116,7 +116,7 @@ mainGtk fpath poppySPath = do
       decl n nOfPage = mod (n - 2) nOfPage
       incl1 n nOfPage = mod (n + 1) nOfPage
       decl1 n nOfPage = mod (n - 1) nOfPage
-      registeredKeys = [["j"], ["k"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "0"], ["c", "1"], ["c", "2"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"]]
+      registeredKeys = [["j"], ["k"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"]]
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
@@ -162,58 +162,6 @@ mainGtk fpath poppySPath = do
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window windowRepr
       return ()
-
-    when (stKeys == ["c", "0"]) $ do
-      docs <- readIORef docsRef
-      doc <- readIORef docRef
-      mvs <- readMVar mVars
-      let
-        currPage = fromIntegral $ dkCurrPage doc
-        layoutsPrim = mVarLayouts mvs
-        sexps = mVarSExps mvs
-      layouts <- mapM (\n -> MV.read layoutsPrim n) $ [0 .. (MV.length layoutsPrim - 1)]
-      let
-        notSetIds = takeFstL $ filter (\x@(i, x1) -> x1 == []) $ indexing layouts
-      mapM (\n -> MV.modify sexps (\x -> Nothing) n) notSetIds
-      let
-        defaultLayout = [CSq{sqTop = 0.0, sqLeft = 0.0, sqBot = 1.0, sqRight = 1.0}]
-      MV.modify layoutsPrim (\x -> defaultLayout) currPage
-      modifyMVar_ mVars (\mvrs -> return $ mvrs {
-                            mVarSExps = sexps
-                          , mVarLayouts = layoutsPrim
-                          , mVarDefaultLayout = defaultLayout
-                          , mVarDefaultLayoutMode = OneTotal
-                          })
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
-      return ()
-
-    when (stKeys == ["c", "1"]) $ do
-      -- divide two columns.
-      docs <- readIORef docsRef
-      doc <- readIORef docRef
-      mvs <- readMVar mVars
-      let
-        currPage = fromIntegral $ dkCurrPage doc
-        layoutsPrim = mVarLayouts mvs
-        sexps = mVarSExps mvs
-      layouts <- mapM (\n -> MV.read layoutsPrim n) $ [0 .. (MV.length layoutsPrim - 1)]
-      let
-        notSetIds = takeFstL $ filter (\x@(i, x1) -> x1 == []) $ indexing layouts
-      mapM (\n -> MV.modify sexps (\x -> Nothing) n) notSetIds
-      let
-        layoutLeft = CSq{sqTop = 0.0, sqLeft = 0.0, sqBot = 1.0, sqRight = 0.5}
-        layoutRight = CSq{sqTop = 0.0, sqLeft = 0.5, sqBot = 1.0, sqRight = 1.0}
-        defaultLayout = [layoutLeft, layoutRight]
-      MV.modify layoutsPrim (\x -> defaultLayout) currPage
-      modifyMVar_ mVars (\mvrs -> return $ mvrs {
-                            mVarSExps = sexps
-                          , mVarLayouts = layoutsPrim
-                          , mVarDefaultLayout = defaultLayout
-                          , mVarDefaultLayoutMode = TwoCols
-                          })
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
-      return ()
-
     when (stKeys == ["d", "d"]) $ do
       modifyIORef docRef (\x -> x {dkConfigYank = dkConfig x, dkConfig = []})
       Gtk.widgetQueueDraw window
@@ -343,19 +291,42 @@ mainGtk fpath poppySPath = do
             | not isFail = head words
             | otherwise = head wordsNext
           currConfig = dkConfig doc
+          getAlrdConfigsSimilar globalConf
+            | filtered == [] = []
+            | otherwise = [mostSimilar]
+            where
+              mostSimilar = fst $ Lis.maximumBy g filtered
+              filtered = filter (\x@(x1, n) -> (4 < n ) || (n == lenOfWord)) $  map f2 globalConf
+              g x y = compare (snd x) (snd y)
+              lenOfWord = length word
+              f2 x@(tok, _)
+              --   | nCommPref < nCommSuf = (x, nCommSuf)
+                | otherwise = (x, nCommPref)
+                where
+                  nCommPref = length $ countPrefix tok word
+                  nCommSuf = length $ countSuffix tok word
+          -- to be fixed point.
           alrdGlobalConfigs = filter (\x -> (fst x) == word) globalConf
-          alrdLocalConfigs = filter (\x -> (fst x) == word) currConfig
+          alrdLocalConfigs  = filter (\x -> (fst x) == word) currConfig
+          alrdGlobalConfigsSimilar = getAlrdConfigsSimilar globalConf
+          alrdLocalConfigsSimilar  = getAlrdConfigsSimilar currConfig
           isAlreadyG = not $ alrdGlobalConfigs == []
           isAlreadyL = not $ alrdLocalConfigs == []
+          isAlreadyGSimilar = not $ alrdGlobalConfigsSimilar == []
+          isAlreadyLSimilar = not $ alrdLocalConfigsSimilar == []
           forWinTitle = (show word)
           colorIndex = dkTogColIndex doc
           (newInd, newColor)
             | isAlreadyL && button == 1 = (colorIndex, togging currCol)
             | isAlreadyL = (colorIndex, toggingRev currCol)
             | isAlreadyG = (colorIndex, currCol)
+            | isAlreadyLSimilar = (colorIndex, currColSimilarL)
+            | isAlreadyGSimilar = (colorIndex, currColSimilarG)
             | otherwise = (newIndex, color)
              where
               currCol = snd $ head alrdGlobalConfigs
+              currColSimilarL = snd $ head alrdLocalConfigsSimilar
+              currColSimilarG = snd $ head alrdGlobalConfigsSimilar
               newIndexTemp
                 | button == 1 = (colorIndex + 1)
                 | otherwise = (colorIndex - 1)

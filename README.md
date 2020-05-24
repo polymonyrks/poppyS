@@ -112,9 +112,10 @@ Similar to [Vim Keybindings](https://www.vim.org/).
 |  Right  | increase page (1 page) |
 |  Left  | decrease page (1 page) |
 |  Down  | crop merginal white zones and adjust page size|
-|  x  | cut coloring (enter in or leave of Deleting Mode) |
 |  dd  | decolor all phrases |
 |  p  | paste(recover) Coloring |
+|  x  | cut coloring (enter in or leave of Deleting Mode) |
+|  gg  | goto first page |
 |  :w Enter  | save the state |
 ## Coloring
 Click some words, then some corresponding phrases are colored. When you click the same word multiple times, the coloring is toggled.  

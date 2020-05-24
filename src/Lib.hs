@@ -233,4 +233,26 @@ takeSndQ = V.map sndQ
 takeThdQ = V.map thdQ
 takeForQ = V.map forQ
 
+countPrefix :: Eq a => [a] -> [a] -> [a]
+countPrefix [] _ = []
+countPrefix _ [] = []
+countPrefix (x:xs) (y:ys)
+  | x == y = [x] ++ (countPrefix xs ys)
+  | otherwise = []
+
+
+countSuffix :: Eq a => [a] -> [a] -> [a]
+countSuffix xs ys = reverse $ countPrefix (reverse xs) (reverse ys)
+
+
+
+
+
+
+
+
+
+
+
+
 
