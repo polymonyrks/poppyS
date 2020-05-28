@@ -6,8 +6,8 @@ Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-
 ![demo](./poppySMovie.gif)
 # Installation
 ## OS
-Recommended: [Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)  
-[lubuntu 20.04](https://lubuntu.me/downloads/) also works.  
+Recommended: [Ubuntu 20.04 LTS (Focal Fossa) Desktop](https://releases.ubuntu.com/20.04/)  
+[lubuntu 20.04 Desktop](https://lubuntu.me/downloads/) also works.  
 For other Distros, MacOS, or Windows etc., equivalent process may work (not checked).  
 ## Update Package List
 ```shell
@@ -41,11 +41,11 @@ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubun
 ```shell
 sudo apt install docker-ce
 ```
-### Stanford CoreNLP Parser
+### Stanford CoreNLP Server
 ```shell
 sudo docker pull graham3333/corenlp-complete
 ```
-See [stanford CoreNLP Parser](https://stanfordnlp.github.io/CoreNLP/other-languages.html) and [Graham MacDonald](https://hub.docker.com/r/graham3333/corenlp-complete)  
+See [Stanford CoreNLP](https://stanfordnlp.github.io/CoreNLP/other-languages.html) and [Graham MacDonald](https://hub.docker.com/r/graham3333/corenlp-complete)  
 ## poppyS(PDF Document Reader)
 ### git clone
 ```shell
@@ -57,10 +57,20 @@ git clone https://github.com/polymonyrks/poppyS.git
 cd poppyS
 stack build
 ```
+Assumes you have installed poppyS at $HOME/poppyS. Like below  
+```shell
+/home/username/poppyS
+```
+You can check your $HOME by the following command.
+```shell
+echo $HOME
+```
 # Execution of poppyS
-1. Run Stanford CoreNLP Server.  
-2. Execute poppyS with args (target PDF File's path. Only English Documents supported).  
-## PDF Examples
+1. Prepare some PDF Files.  
+2. Run Stanford CoreNLP Server.  
+3. Execute poppyS with args (target PDF File's path. Only English Documents supported).  
+for more details, see below.  
+## Prepare some PDF Files.
 This program poppyS is suitable for hard to read documents such as a bit greek or latin ones.  
 The documents below are such kind of examples.  
 Read them yourself with this poppyS.  
@@ -82,21 +92,22 @@ Read them yourself with this poppyS.
 4. User's Manual
 * [Camera Manual](https://1vision.co.il/pdfs/vieworks/manual/User_Manual_VA_GigE_EN.pdf)
 
-## Run Stanford CoreNLP Server
+## Run Stanford CoreNLP Server.
 ```
 sudo docker run -p 9000:9000 nlpbox/corenlp
 ```
-## Execute poppyS
+## Execute poppyS with Args.
 ```shell
 stack exec poppyS-exe TARGETPDFPATH
 ```
-(e.g.1) like below. 
+Like below.
+(e.g.1) When you are at $HOME/poppyS. 
 ```shell
 stack exec poppyS-exe "/pdfs/SICP.pdf"
 ```
 (e.g.2) Full Path also O.K.
 ```shell
-stack exec poppyS-exe "/home/polymony/poppyS/pdfs/SICP.pdf"
+stack exec poppyS-exe "/home/username/poppyS/pdfs/SICP.pdf"
 ```
 # How to read PDF
 ## Wait a few Seconds
