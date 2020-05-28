@@ -126,15 +126,15 @@ Pressing Key cc decolors all phrases. Some special words are remained yellowed.
 Yellowed words are special ones in respect to how much area to be colored when you select them.   
 After pressing cc, if you press key p then recover the previous state  
 (Caveat: If you click another word after cc then the previous state is updated(destroyed).).  
-Even you decolor(cc) all the phrases, the tuples (e.g. (Red, word1), (Green, word2), (Aqua, word3) ..) are memoried.  
+Even you decolor all the phrases, the tuples (e.g. (Red, word1), (Green, word2), (Aqua, word3) ..) are memoried.  
 Next time you click such words, you can start from the previous color.  
 This temporary decoloring(cc), recovering(p) and/or starting previous colors is effective.  
 Pressing Key x enters into Deleting Mode. Click some words, then the correspoinding phrases become decolored.  
 Pressing Key x again leaves Deleting Mode.
 # Tactics and Training
-Coloring words makes it easy to look clearly some phrases, but too-much-coloring increase entropy.  
-You should have some tactics and training (the latter is like a VR game). I'll show some examples soon.  
-The art of reading natural language with coloring is imcomplete and experimental yet, but someday will be very common I appreciate.  
+Coloring words makes it easy to look clearly some phrases, but too-much-coloring increase entropy(become chaotic).  
+Use some tactics and train yourself the use of multiple colors(the latter is like a VR game). I'll show some tactics soon.  
+The art of reading natural language with coloring is imcomplete and experimental yet (especially active adhoc coloring by readers (not by writer)), but someday will be a common art I appreciate.  
 # License
 (see also LICENSE file included with Haskell source.)  
 Modified BSD3. For personal use and/or educational purpose use are O.K.  
