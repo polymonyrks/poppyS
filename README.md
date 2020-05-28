@@ -27,7 +27,7 @@ sudo apt install libgirepository1.0-dev libwebkit2gtk-4.0-dev libgtksourceview-3
 ```shell
 sudo apt install libpoppler-dev libpoppler-glib-dev
 ```
-## Stanford CoreNLP Server with docker
+## Stanford CoreNLP Server with Docker
 ### Docker
 ```shell
 sudo apt install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
@@ -58,9 +58,8 @@ cd poppyS
 stack build
 ```
 # Execution of poppyS
-2. Run Stanford CoreNLP Server.
-3. Execute poppyS with args (target PDF File's path).
-1. Only English Documents supported.  
+1. Run Stanford CoreNLP Server.  
+2. Execute poppyS with args (target PDF File's path. Only English Documents supported).  
 ## PDF Examples
 This program poppyS is suitable for hard to read documents such as a bit greek or latin ones.  
 The documents below are such kind of examples.  
