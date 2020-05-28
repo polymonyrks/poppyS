@@ -31,7 +31,8 @@ import qualified Control.Foldl as Fold
 import Text.Show.Unicode
 import Data.GI.Base
 import qualified GI.Poppler as GPop
-import Foreign.Ptr (castPtr)
+import Foreign.Ptr (castPtr, nullPtr)
+import Foreign.ForeignPtr (withForeignPtr)
 
 type PageTrees = [[SExp (Posi, Tag) String]]
 data LayoutMode = OneTotal | TwoCols
@@ -72,17 +73,7 @@ synSqs sqs'@(sq:sqs) = stss ++ [residue]
           | otherwise = (tp1, lef1, bot1, x, stacked)
     residue = CSq {sqTop = tpp, sqLeft = leff, sqBot = bott, sqRight = sqRight fronn}
 
-checkPage nPage nSens = do
-  aa <- getSExpsIO pdfPathLoc nPage
-  let
-    ret = map (mapNode id fst) aa
-  putStrLn ""
-
 {-
-pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/3331554.3342603.pdf"
-pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/Leinster.pdf"
-pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/CTFP.pdf"
-pdfPath = Text.pack "file:///home/polymony/poppyS/pdfs/The_CUDA_Handbook.pdf"
 prp
 pathPrefix = "file://"
 pathInfix1 = "/home/polymony/poppyS/"
@@ -95,12 +86,43 @@ layoutMode = TwoCols
 docPathSuffix = "./pdfs/CTFP.pdf"
 docPathSuffix = "./pdfs/The_CUDA_Handbook.pdf"
 docPathSuffix = "./" ++ pathInfix2 ++ (head pdfs)
-tokSqTrues <- getTokenPositions docPathSuffix -- tokSqTrues,, left top right bot
 nPage = 21
 nPage = 24
 nPage = 289
 nPage = 118
 doc <- GPop.documentNewFromFile pdfPath Nothing
+iter <- GPop.indexIterNew doc
+curNum = 0
+next = 0
+dest <- GPop.newZeroDest
+title = ""
+last_tmp <- GPop.indexIterNew doc
+action <- GPop.indexIterGetAction(iter)
+hoge = GPop.getActionType action
+hogegeType <- hoge
+isGOTODEST = hogegeYype == GPop.ActionTypeGotoDest
+actionGotoType <- GPop.getActionGotoDestType =<< GPop.getActionGotoDest action
+destDestNameMaybe <- GPop.getActionGotoDestDest =<< GPop.getActionGotoDest action
+aa <- case destDestNameMaybe of
+   Nothing -> ""
+   Just typ -> if typ == GPop.getActionGotoDestDestNamed
+       then do
+          nam <- GPop.namedDest
+          destName <- GPop. doc
+          nDest <- GPop.documentFindDest doc
+
+isDESTNAMED = not $ destDestName == Nothing
+destN <- GPop.documentFindDest doc destDestName
+currNum <- GPop.getDestPageNum destN
+currNumOtherwise <- GPop.getDestPageNum =<< GPop.getActionGotoDest action
+GPop.actionFree action
+last_tmp <- GPop.indexIterCopy iter
+isNext <- GPop.indexIterNext iter
+isDesc = isNext == False || num < curNum
+
+
+
+
 page <- GPop.documentGetPage doc nPage
 nPages <- GPop.documentGetNPages doc
 
@@ -117,10 +139,18 @@ sqs = map (pRectToSq hei) rectsSwapped
 charRects = zip chars rects
 charSqs = zip chars sqs
 
-sexps <- getSExpsIOPoppy1 tokSqTruePrim page
 sexp = sexps !! 8
 sexpG = mapNode snd fst sexp
 -}
+
+walkIndex iter = do
+  child@(GPop.IndexIter chld) <- GPop.indexIterGetChild iter
+  isNull <- withForeignPtr (managedForeignPtr chld) (\p -> return $ p == nullPtr)
+  when (not isNull) $ walkIndex child
+  next <- GPop.indexIterNext iter
+  case next of
+    True -> return ()
+    False -> return ()
 
 getSExpsIOSCheck page = do
   n <- GPop.pageGetIndex page
@@ -128,63 +158,11 @@ getSExpsIOSCheck page = do
   chInfos <- getChInfosS page
   let
     blocks = getBlockS chInfos hei wid
-  -- charSqV <- tesseractPartlyIOChar page tokSqTruePrim
   let
     forBlocksCheck = V.map (V.map (V.map chIChar)) blocks
   putStrLn $ show forBlocksCheck
   putStrLn $ show n
 
-getSExpsIOSCheck2 page = do
-  n <- GPop.pageGetIndex page
-  (wid, hei) <- GPop.pageGetSize page
-  chInfos <- getChInfosS page
-  blocks <- (\x -> getBlockS x hei wid) <$> getChInfos page
-  -- charSqV <- tesseractPartlyIOChar page tokSqTruePrim
-  let
-    forBlocksCheck = V.map (V.map (V.map chIChar)) blocks
-    charSqVConcated = V.map (V.concatMap (V.map f)) blocks
-      where
-        f inf
-          | chText == "" = error "a square's chText is Void"
-          | otherwise = (head chText, V.singleton $ chISq inf)
-          where
-            chText = Text.unpack $ chIChar inf
-    stackedSens = blockLinesConcated
-      where
-        blockLineChars = V.map (V.map (V.map (head . Text.unpack . chIChar))) blocks -- :: V.Vector (V.Vector (V.Vector Char)) -- first is Block second is lines in Block last is Line in Lines
-        blockLinesConcated = V.map concatLines blockLineChars
-          where
-            concatLines bLines
-              | bLines == V.empty = ""
-              | otherwise = folddd
-             where
-                bLinesStr = V.map (fff . V.toList) bLines
-                 where
-                   fff strstr
-                    | strstr == "" = ""
-                    | last strstr == '\n' = init strstr
-                    | otherwise = strstr
-                folddd = V.foldl' g (V.head bLinesStr) $ V.tail bLinesStr
-                g y x
-                  | x == "" = y
-                  | (not isIsolated) && isLastBar = (init y) ++ x
-                  | isLastSpace = y ++ x
-                  | otherwise = y ++ " " ++ x
-                  where
-                    isIsolated = 1 < length y && ((last $ init y) == ' ')
-                    isLastBar = 0 < length y && last y == '-'
-                    isLastSpace = 0 < length y && last y == ' '
-    retrSexpS (sens, charSqs) = do
-      stanRess <- stanIOPoppy1 sens
-      let
-        sexps = stanAssign2Poppy1 charSqs stanRess
-      return sexps
-    zipped = V.zip stackedSens charSqVConcated
-  bb <- V.mapM retrSexpS zipped
-  let
-    cc = concatMap id bb
-  showSP $ last cc
-  putStrLn $ show n
 
 --prp
 getSExpsIOS page = do
@@ -252,22 +230,6 @@ data ChInfo = CChInfo {
   , chIFontSize :: [Double]
   }
     deriving (Eq, Ord, Show)
-
-fff2 doc = do
-  nmax <- GPop.documentGetNPages doc
-  ress <- filter (\x@(x1, x2) -> not $ x1 == x2) <$> mapM (\n -> fff doc n) [1 .. nmax - 1]
-  return ress
-
-fff doc nPage = do
-  page <- GPop.documentGetPage doc nPage
-  txttxt <- GPop.pageGetText page
-  if txttxt == ""
-    then return (-1, -1)
-    else do
-      (wid, hei) <- GPop.pageGetSize page
-      aa@(isExistsText, rects) <- GPop.pageGetTextLayout page
-      chars <- mapM (GPop.pageGetTextForArea page) rects
-      return (length chars, length $ Text.unpack txttxt)
 
 getChInfos page = do
   txttxt <- GPop.pageGetText page
@@ -489,48 +451,10 @@ getBlockS chInfos hei wid
             nextStackedChars = (V.snoc stackedChars x)
         -- ho = V.map (V.map (V.toList . takeFst)) folded
 
-getSExpsIOPoppy1 tokSqTruePrim page = do
-  charSqV <- tesseractPartlyIOChar page tokSqTruePrim
-  let
-    charSqVConcated = V.map (V.concatMap (V.map f)) charSqV
-      where
-        f (c, sqss) = (c, V.concatMap id sqss)
-    stackedSens = blockLinesConcated
-      where
-        blockLineChars = V.map (V.map (V.map fst)) charSqV -- :: V.Vector (V.Vector (V.Vector Char)) -- first is Block second is lines in Block last is Line in Lines
-        blockLinesConcated = V.map concatLines blockLineChars
-          where
-            concatLines bLines
-              | bLines == V.empty = ""
-              | otherwise = folddd
-             where
-                bLinesStr = V.map (fff . V.toList) bLines
-                 where
-                   fff strstr
-                    | strstr == "" = ""
-                    | last strstr == '\n' = init strstr
-                    | otherwise = strstr
-                folddd = V.foldl' g (V.head bLinesStr) $ V.tail bLinesStr
-                g y x
-                  | x == "" = y
-                  | (not isIsolated) && isLastBar = (init y) ++ x
-                  | isLastSpace = y ++ x
-                  | otherwise = y ++ " " ++ x
-                  where
-                    isIsolated = 1 < length y && ((last $ init y) == ' ')
-                    isLastBar = 0 < length y && last y == '-'
-                    isLastSpace = 0 < length x && last y == ' '
-    retrSexpS (sens, charSqs) = do
-      stanRess <- stanIOPoppy1 sens
-      let
-        sexps = stanAssign2Poppy1 charSqs stanRess
-      return sexps
-    zipped = V.zip stackedSens charSqVConcated
-  bb <- V.mapM retrSexpS zipped
-  return $ concatMap id bb
 
 replaceStanTable = [("-LRB-", "("), ("-RRB-", ")")]
 
+--kesuna
 stanAssign2Poppy1 charSqs stanRess = map reconsSExp resSExpForg
   where
     indexed = map (gg . forgetIndexed) stanRess
@@ -604,217 +528,11 @@ stanAssign2Poppy1 charSqs stanRess = map reconsSExp resSExpForg
         f y@(raw, stacked) n = (drop n raw, stacked ++ [take n raw])
 
 
-tesseractPartlyIOChar page tokSqTruePrim = do
-  (colPrim, rowPrim) <- GPop.pageGetSize page
-  charsPrimPrim <- getCharPositionFromPopplerPrim page tokSqTruePrim
-  let
-    tokSqsRatioPartlyChars = popplerTokenizePartlyS charsPrimPrim
-    stackedChars = tokSqsRatioPartlyChars
-    resS = V.map tokSqs stackedChars
-     where
-      tokSqs tokSqsRatio = V.map (V.map (\x@(c, sqs) -> (c, V.map (V.map (g. f)) sqs))) tokSqsRatio
-       where
-         row = rowPrim
-         col = colPrim
-         f ((r1, c1), (r2, c2)) = ((g1 r1 row, g1 c1 col), (g2 r2 row, g2 c2 col))
-              where
-                g1 :: Double -> Double -> Double
-                g1 ratio space
-                 | floored - 1 < 0 = floored
-                 --  | otherwise = floored - 1
-                 | otherwise = floored
-                    where
-                      floored = ratio * space
-                g2 :: Double -> Double -> Double
-                g2 ratio space
-                 | floored + 1 > space - 1 = floored
-                 --  | otherwise = floored + 1
-                 | otherwise = floored
-                    where
-                      floored = ratio * space
-         g ((row1, col1), (row2, col2)) = CSq {sqTop = rowPrim - row2, sqLeft = col1, sqBot = rowPrim - row1, sqRight = col2}
-  return resS
-
 
 type Square = ((Int, Int), (Int, Int))
 type SquareD = ((Double, Double), (Double, Double))
 
-popplerTokenizePartlyS charsPrimPrim = folded
-  where
-    charsPrim = V.filter ggg charsPrimPrim
-      where
-        ggg xs = not (snd xs == V.empty || snd xs == V.singleton V.empty)
 
-    marks = V.fromList [',', '.', ';', head ":", '!', '?']
-    folded
-      | charsPrim == V.empty = V.empty
-      | hChar == '\n' = V.empty
-      | hChar == ' ' = V.empty
-      | otherwise = V.filter (\x -> not $ x == V.empty) $ V.snoc pooledBlocksF (V.snoc pooledLinesF stackedCharsF)
-      where
-        folddd@(stackedCharsF, prevLineColF, pooledLinesF, pooledBlocksF)
-          | otherwise = V.foldl' g (V.singleton $ V.head charsPrim, iniRight, V.empty, V.empty) $ V.tail charsPrim
-        hChar = fst $ V.head charsPrim
-        -- iniRight = snd $ snd $ V.last $ V.last $ snd $ V.head charsPrim
-        iniRight = 0.0
-
-        -- TermAtRight
-        --    terminate previous line, and pool them as a new block.
-        -- TermAtLeft
-        --    terminate previous line and current line, and pool them as a new block.
-        -- TermByMark
-        --    terminate previous line and current line, and pool them as a new block.
-        g y@(stackedChars, prevLineCol, pooledLines, pooledBlocks) x@(c, sqss)
-          | isTerminateBlockRM = (V.empty,          currCol,     V.empty,              nextPooledBlocksRM)
-          | isTerminateBlockR  = (V.empty,          currCol,     nextPooledLineSingle, nextPooledBlocksR)
-          | isTerminateBlockL  = (V.empty,          currCol,     V.empty,              nextPooledBlocksL)
-          | isTerminateBlockM  = (V.empty,          currCol,     V.empty,              nextPooledBlocksL)
-          | isTerminateLine    = (V.empty,          currCol,     nextPooledLines,      pooledBlocks)
-          | otherwise          = (nextStackedChars, prevLineCol, pooledLines,          pooledBlocks)
-          where
-            currCol = snd $ snd $ V.head $ V.head sqss
-
-            nextPooledBlocksRM = V.snoc (V.snoc pooledBlocks pooledLines) nextPooledLineSingle
-            nextPooledBlocksR = (V.snoc pooledBlocks pooledLines)
-            nextPooledBlocksL = (V.snoc pooledBlocks nextPooledLines)
-            nextPooledLineSingle = V.singleton nextStackedChars
-            nextPooledLines = V.snoc pooledLines $ nextStackedChars
-            nextStackedChars = (V.snoc stackedChars x)
-
-            isInitialCharStacked = not $ stackedChars == V.empty
-            isReturned = c == '\n'
-            isNotPrevBlocked = not $ pooledLines == V.empty
-
-            isTerminateLine = isReturned
-            -- isTerminateBlockR = isReturned && (0.001 < (currCol - prevLineCol)) && isNotPrevBlocked
-           -- isTerminateBlockL = isReturned && (0.001 < (prevLineCol - currCol)) && isNotPrevBlocked
-            -- isTerminateBlockM = isReturned && isPrevMark && (not isIso) && isNotPrevBlocked
-            isTerminateBlockL = isReturned && (0.001 < (prevLineCol - currCol))
-            isTerminateBlockR = isReturned && (0.001 < (currCol - prevLineCol))
-            isTerminateBlockM = isReturned && isPrevMark && (not isIso)
-              where
-                isPrevMark = (not isInitialCharStacked) && (V.elem (fst $ V.last stackedChars) marks)
-                isIso = (1 < (V.length stackedChars)) && ((fst $ V.last $ V.init stackedChars) == ' ')
-            isTerminateBlockRM = isTerminateBlockR && isTerminateBlockM
-        ho = V.map (V.map (V.toList . takeFst)) folded
-
-getCharPositionFromPopplerPrim page tokSqTruePrim = do
-  pageStr <- GPop.pageGetText page
-  let
-    tokens = V.map (Text.pack . V.toList) $ V.concatMap (\x -> delimitAtV '\n' x) $ V.fromList $ map V.fromList $ delimitAtWO2 ' ' id  $ Text.unpack pageStr
-  posi <- V.mapM (popPPageFindText page) tokens
-  let
-    zippedToken = V.zip tokens posi
-    flattened = vNub $ V.concatMap (\x@(tok, sqs) -> V.fromList $ map (\y -> (tok, y)) sqs) zippedToken
-  pSize@(totWidth, totHeight) <- GPop.pageGetSize page
-  let
-    tokSqTrue = res
-      where
-        res
-          | tokSqTruePrim == V.empty = V.empty
-          | otherwise = pl V.++ st
-              where
-                resPrim@(st,pl,_,_,_) = V.foldl' h3 (V.singleton headVal, V.empty, (c1, r1, c2, r2), c2,r2) (V.tail tokSqTruePrim)
-                headVal@(tk, (PopPRectangle c1 r1 c2 r2)) = V.head tokSqTruePrim
-
-                h3 y@(stacked, pooled, (minC, minR, maxC, maxR), frons,fronsRow) x@(tktk, (PopPRectangle cc1 cr1 cc2 cr2))
-                  | isEntered = (V.singleton x, pooled V.++ revisedStacked, (neoMinC, neoMinR, neoMaxC, neoMaxR), cc2,cr2)
-                  | isReturned = (V.singleton x, pooled V.++ revisedStacked, (neoMinC, neoMinR, neoMaxC, neoMaxR), cc2,cr2)
-                  | otherwise = (V.snoc stacked x, pooled, (neoMinC, neoMinR, neoMaxC, neoMaxR), cc2,cr2)
-                  where
-                    isEntered = cc1 < frons
-                    isReturned = fronsRow < cr2
-                    neoMinC
-                     | isEntered || isReturned = cc1
-                     | cc1 < minC = cc1
-                     | otherwise = minC
-                    neoMinR
-                     | isEntered || isReturned = cr1
-                     | cr1 < minR = cr1
-                     | otherwise = minR
-                    neoMaxC
-                     | isEntered || isReturned = cc2
-                     | maxC < cc2 = cc2
-                     | otherwise = maxC
-                    neoMaxR
-                     | isEntered || isReturned = cr2
-                     | maxR < cr2 = cr2
-                     | otherwise = maxR
-                    revisedStacked = V.map h4 stacked
-                       where
-                         h4 (xtk, (PopPRectangle xc1 xr1 xc2 xr2)) = (xtk, (PopPRectangle xc1 minR xc2 maxR))
-    tokSqTrueWided = V.map (\x@(x1,x2) -> (x1, f x2)) tokSqTrue
-       where
-         f (PopPRectangle xc1 xr1 xc2 xr2) = (PopPRectangle (ashort xc1) (ashort xr1) (along xc2) (along xr2))
-            where
-              -- along r = fromIntegral (5 + floor r)
-              -- ashort r = fromIntegral ((floor r) - 5)
-              -- along r = fromIntegral (1 + floor r)
-              -- ashort r = fromIntegral ((floor r) - 1)
-              along r = r
-              ashort r = r
-    tokSqTrueFiltered = V.filter (\x@(tok, _) -> not $ tok == "\n") tokSqTrueWided
-    chars = extractChars $ Text.unpack pageStr :: [Char]
-  charPossRect <- getCharPossSqRect chars page V.empty
-  let
-    charPossRectFlattened :: V.Vector (Char, PopPRectangle)
-    charPossRectFlattened = V.concatMap (\x@(c, sqs) -> V.map (\sq -> (c, sq)) sqs) charPossRect
-    charPossRectFlattenedShrinked = V.map (\x@(x1,x2) -> (x1, g x2)) charPossRectFlattened
-       where
-         {-
-         f (PopPRectangle xc1 xr1 xc2 xr2) = (PopPRectangle (along xc1) (along xr1) (ashort xc2) (ashort xr2))
-            where
-              along r = fromIntegral (1 + floor r)
-              ashort r = fromIntegral ((floor r) - 1)
--}
-         g (PopPRectangle xc1 xr1 xc2 xr2) = (PopPRectangle centerX centerY centerX centerY)
-            where
-              centerX = 0.5 * (xc1 + xc2)
-              centerY = 0.5 * (xr1 + xr2)
-    salvaged2Prim = V.map f $ takeSnd tokSqTrueFiltered
-      where
-        f sq = includesSorted
-          where
-            includes = V.filter (\x@(c, sqn) -> isIncludedPopplerRect sq sqn) charPossRectFlattenedShrinked
-            includesSorted = vSortBy h2 includes
-               where
-                 h2 (_,ns@(PopPRectangle a b c d)) (_,nd@(PopPRectangle e f g h)) = compare c g
-    --zipped = V.zip (takeFst tokSqTrue) (V.map (V.toList . takeFst) salvaged2Prim)
-    --zippedAll = V.zip tokSqTrue (V.map takeSnd salvaged2Prim)
-    salvaged2 :: V.Vector (Char, PopPRectangle)
-    salvaged2 = V.concatMap id salvaged2Prim
-    salvagedRecovered = V.map (\x -> f x) salvaged2
-       where
-         f (ch, pRect) = including
-           where
-             -- sq which includes shrinked itself.
-             -- if it has one more squares which has that shrinked point, what can I do (head is not appro.).
-             -- maybe this recovering not needed since g function above can be applied at f in salvaged2Prim
-             including = V.head $ V.filter (\x@(c,sq) -> ch == c && isIncludedPopplerRect sq pRect) charPossRectFlattened
-
-    cSqsDivid :: V.Vector (Char, Sq Double)
-    cSqsDivid = V.map (\x@(c, sqRect) -> (c, pRectToSq totHeight sqRect)) $ salvagedRecovered
-    pageStrVec = V.fromList $ Text.unpack pageStr :: V.Vector Char
-
-    diffPrim = vGetDiffBy (==) pageStrVec $ takeFst cSqsDivid
-    diff2 = assignByDiff pageStrVec $ V.map (\x@(c, sq) -> (c, V.singleton sq)) cSqsDivid :: V.Vector (Char, V.Vector (V.Vector (Sq Double)))
-
-    diffDoubled = V.map (\x@(c, sqss) -> (c, V.map (\sqs -> V.map g sqs) sqss)) diff2
-       where
-         g sq = ((1.0 - neoRLow, neoCLeft), (1.0 - neoRHigh, neoCRight))
-            where
-              cLeft = sqLeft sq
-              rHigh = sqTop sq
-              cRight = sqRight sq
-              rLow = sqBot sq
-              neoCLeft = cLeft / totWidth
-              neoCRight = cRight / totWidth
-              neoRHigh = rHigh / totHeight
-              neoRLow = rLow / totHeight
-    diffDoubledDeEmpty = V.filter (\x@(tok, sqs) -> not $ g sqs) diffDoubled
-       where
-         g sqs = sqs == V.empty || sqs == V.singleton V.empty
-  return diffDoubled
 
 isIncludedPopplerRect ns@(PopPRectangle a b c d) nd@(PopPRectangle e f g h)
   = (a <= e) && (b <= f) && (g <= c) && (h <= d)
@@ -857,229 +575,9 @@ pRectToSqNoSwap :: PopPRectangle -> Sq Double
 pRectToSqNoSwap (PopPRectangle smallX smallY bigX bigY) = CSq {sqTop =  smallY, sqLeft = smallX, sqBot = bigY, sqRight = bigX}
 
 -- docPathSuffix = "./pdfs/CTFP.pdf"
-getTokenPositions docPathSuffix = do
-  let
-  execShell $ "pdftotext -bbox " ++ "\"" ++ docPathSuffix ++ "\""
-  let
-    inPath = (reverse $ dropWhile (\c -> not $ c == '.') $ reverse docPathSuffix) ++ "html"
-  res <- parsePDFHtml <$> iVecFromFileJP inPath
-  removeFile inPath
-  return res
-
 replaceStr nd ns str = Text.unpack $ Text.replace nd ns $ Text.pack str
 
--- pgsPrim = paged V.! 114
-parsePDFHtml :: V.Vector String -> V.Vector (V.Vector (String, PopPRectangle))
-parsePDFHtml xs = V.map (\x -> h x) paged
-  where
-    -- handi = 0.0 -- 0.000001
-    handi = 0.000001
-    paged = V.snoc pl st
-       where
-         res@(st, pl) = V.foldl' f (V.empty, V.empty) xs
-         f y@(stacked, pooled) x
-           | isTriggerred = (V.singleton x, pooled)
-           | isTermed = (V.empty, V.snoc pooled stacked)
-           | otherwise = (V.snoc stacked x, pooled)
-          where
-            deSpaced = replaceStr " " "" x
-            isTriggerred = Lis.isPrefixOf "<page" deSpaced
-            isTermed = Lis.isPrefixOf "</page" deSpaced
-    h pgsPrim = V.map (parseWord heit) wds
-      where
-        (heit, wds, widt) = g pgsPrim
-    g pgs = (heit, wds, widt)
-       where
-         (widt, heit) = (read wid :: Double, read hei :: Double)
-            where
-              sizeStrPrim = V.head pgs
-              delimited = delimitAtWO2 ' ' id sizeStrPrim
-              hei = takeWhile (\c -> not $ c == '\"') $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 4
-              wid = takeWhile (\c -> not $ c == '\"') $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 3
-         wds = V.filter (\x -> Lis.isPrefixOf "<word" (replaceStr " " "" x)) $ V.tail pgs
-    parseWord hei cs = (token, PopPRectangle (xMin -handi) (hei - yMax - handi) (xMax + handi) (hei - yMin + handi))
-       where
-         delimited = delimitAtWO2 ' ' id cs
-         toDouble str = read str :: Double
-         xMin = toDouble $ init $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 5
-         yMin = toDouble $ init $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 6
-         xMax = toDouble $ init $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 7
-         yMaxPrim = init $ tail $ dropWhile (\c -> not $ c == '\"') $ delimited !! 8
-         yMax = toDouble $ takeWhile (\c -> not $ c == '\"') yMaxPrim
-         token = tail $ dropWhile (\c -> not $ c == '>') $ takeWhile (\c -> not $ c == '<') yMaxPrim
 
-getSExpsIOOldNew pdfPath nPage = do
-  doc <- GPop.documentNewFromFile pdfPath Nothing
-  nOfPage <- GPop.documentGetNPages doc
-  pages <- mapM (\n -> GPop.documentGetPage doc n) [0 .. nOfPage - 1]
-  let
-    page = pages !! nPage
-  (linLibs, tokLibs, chLibs) <- pageGetTokSqLibs page
-  (wid, hei) <- GPop.pageGetSize page
-  let
-    (linResult, tokAssigneds, aaaa) = fillLibs linLibs tokLibs chLibs hei
-    charSq = filter (\x -> not $ x == []) $ map (rebuildCharSq2 tokAssigneds chLibs) linResult
-    groupedLines = groupLineWLastX $ map (map (\x -> (head $ Text.unpack $ fst x, snd x))) charSq
-    retrSexp chSqs = do
-      stanRess <- stanIO chSqs
-      let
-        sexps = stanAssign2 chSqs stanRess
-      return sexps
-  aa <- mapM retrSexp groupedLines
-  return $ concat aa
-
-getSExpsIONew pdfPath nPage layoutsPrim layoutMode = do
-  doc <- GPop.documentNewFromFile pdfPath Nothing
-  nOfPage <- GPop.documentGetNPages doc
-  pages <- mapM (\n -> GPop.documentGetPage doc n) [0 .. nOfPage - 1]
-  let
-    page = pages !! nPage
-  (wid, hei) <- GPop.pageGetSize page
-  let
-    layouts = map f layoutsPrim
-       where
-         f sq = CSq {sqTop = tp * hei, sqLeft = lef * wid, sqBot = bot * hei, sqRight = righ * wid}
-           where
-             tp = sqTop sq
-             bot = sqBot sq
-             lef = sqLeft sq
-             righ = sqRight sq
-  charSqs <- pageGetTokSqLibs3 page layouts layoutMode
-  let
-    getResEachLayout charSq = do
-      let
-        groupedLines = groupLineWLastX $ map (map (\x -> (head $ Text.unpack $ fst x, snd x))) charSq
-        retrSexp chSqs = do
-          stanRess <- stanIO chSqs
-          let
-            sexps = stanAssign2 chSqs stanRess
-          return sexps
-      aa <- mapM retrSexp groupedLines
-      return $ concat aa
-  resres <- mapM getResEachLayout charSqs
-  return $ concat resres
-
-getSExpsIO pdfPath nPage = do
-  doc <- GPop.documentNewFromFile pdfPath Nothing
-  nOfPage <- GPop.documentGetNPages doc
-  pages <- mapM (\n -> GPop.documentGetPage doc n) [0 .. nOfPage - 1]
-  let
-    page = pages !! nPage
-  charSq <- pageGetTokSqLibs2 page
-  let
-    groupedLines = groupLineWLastX $ map (map (\x -> (head $ Text.unpack $ fst x, snd x))) charSq
-    retrSexp chSqs = do
-      stanRess <- stanIO chSqs
-      let
-        sexps = stanAssign2 chSqs stanRess
-      return sexps
-  aa <- mapM retrSexp groupedLines
-  return $ concat aa
-
-getSExpsIOOld pdfPath nPage = do
-  doc <- GPop.documentNewFromFile pdfPath Nothing
-  nOfPage <- GPop.documentGetNPages doc
-  pages <- mapM (\n -> GPop.documentGetPage doc n) [0 .. nOfPage - 1]
-  let
-    page = pages !! nPage
-  (linLibs, tokLibs, chLibs) <- pageGetTokSqLibs page
-  (wid, hei) <- GPop.pageGetSize page
-  let
-    (linResult, tokAssigneds, aaaa) = fillLibs linLibs tokLibs chLibs hei
-    charSq = filter (\x -> not $ x == []) $ map (rebuildCharSq2 tokAssigneds chLibs) linResult
-    groupedLines = groupLineWLastX $ map (map (\x -> (head $ Text.unpack $ fst x, snd x))) charSq
-    retrSexp chSqs = do
-      stanRess <- stanIO chSqs
-      let
-        sexps = stanAssign2 chSqs stanRess
-      return sexps
-  aa <- mapM retrSexp groupedLines
-  return $ concat aa
-
-stanAssign2 chSqs stanRess = map reconsSExp resSExpForg
-  where
-    indexed = map forgetIndexed stanRess
-    lengths = map length indexed
-    indexedFlattened = concat indexed
-    tokens = V.map f $ V.filter (\val -> not $ val == Nothing) $ takeThdT $ V.fromList indexedFlattened
-       where
-         f x = case x of
-           Just x -> x
-           Nothing -> ""
-    interposedSpace
-      | tokens == V.empty = V.empty
-      | otherwise = V.fromList $  V.foldl' f (V.head tokens) $ V.tail tokens
-      where
-        f y x = y ++ " " ++ x
-    chSqsMute = V.fromList $ map (\x@(c, sq) -> (c, V.singleton sq)) $ concat chSqs
-    assigned = assignByDiff interposedSpace chSqsMute
-    assignedFlt = V.map (\x@(c, sqss) -> (c, V.concatMap id sqss)) assigned
-    forgottenIndexed = indexing indexedFlattened
-    onlyToken = map (\x@(i, (is, tg, tk)) -> (i, g tk)) $ filter (\x@(i, (is, tg, tk)) -> f tk) forgottenIndexed
-       where
-         f tk = case tk of
-           Nothing -> False
-           Just _ -> True
-         g tk = case tk of
-           Nothing -> ""
-           Just a -> a
-    justsIndices = takeFstL onlyToken
-    onlyTokenInterposed
-     | onlyToken == [] = []
-     | otherwise = foldl f [head onlyToken] $ tail onlyToken
-        where
-          f y x = y ++ [(-1, " ")] ++ [x]
-    onlyTokenFlt = concatMap (\x@(i,str) -> map (\y -> (i, y)) str) onlyTokenInterposed
-    index = takeFstL onlyTokenFlt
-    chars = V.fromList $ takeSndL onlyTokenFlt
-    assedSqs = map h2 $ Lis.groupBy (\x -> \y -> (fst x) == (fst y)) $ zip index $ V.toList $  V.map (\x@(c, sqss) -> (c, V.concatMap id sqss)) $ assignByDiff chars assignedFlt
-       where
-         h2 lis = (i, (tokens, sqs))
-           where
-             i = fst $ head lis
-             tokens = takeFstL $ takeSndL lis
-             sqs = concatMap V.toList $ takeSndL $ takeSndL lis
-    assedSqs2 = map h3 $ Lis.groupBy (\x -> \y -> (fst x) == (fst y)) $ filter (\x@(i,_) -> not $ i == -1) $ zip index $ V.toList $ takeSnd $ assignByDiff chars assignedFlt
-       where
-         h3 lis = (i, sqs)
-           where
-             i = fst $ head lis
-             sqs = concatMap (V.toList . (V.concatMap id)) $ takeSndL lis
-    resForgotten2 = map g3 forgottenIndexed
-      where
-        g3 (i, (is, tg, mbStr))
-         | isJust = (is, tg, Just (tk, tokSq))
-         | otherwise = (is, tg, Nothing)
-           where
-             tk = case mbStr of
-               Just tkk -> tkk
-               Nothing -> ""
-             isJust = not $ mbStr == Nothing
-             tokSq = snd $ head $ filter (\x -> (fst x) == i) assedSqs2
-    separated@(rawRes, resSExpForg) = foldl f (resForgotten2, []) lengths
-      where
-        f y@(raw, stacked) n = (drop n raw, stacked ++ [take n raw])
-
-stanIO chSqs = do
-  let
-    str = toSentences chSqs
-  conv <- open "UTF8" Nothing
-  let
-    text = fromUnicode conv $ Text.pack str
-  req <- HT.setRequestMethod "POST" <$> HT.parseRequest command
-  req2 <-buildRequest command $ RequestBodyBS text
-  jsonString <- responseBody <$> HT.httpLbs req2
-  let
-    bulkResult = ICU.toUnicode conv $ BL.toStrict jsonString
-    splitted = Text.split (== '\n') bulkResult
-    delimited = delimitAtWO2By (\a -> Text.take (Text.length initWord) a == initWord) id splitted
-      where
-        initWord = "      \"index\":"
-    render tarText = Text.replace "\\n" "\n" $ f $ Text.drop 3 $ Text.dropWhile (\c -> not $ c == ':') tarText
-      where
-        f bulk = Text.take (Text.length bulk - 2) bulk
-    stanRess = map (render . head) $ tail delimited
-  return  stanRess
 
 
 stanIOPoppy1 str = do
@@ -1101,248 +599,6 @@ stanIOPoppy1 str = do
     stanRess = map (render . head) $ tail delimited
   return  stanRess
 
-isTSFinalized :: Eq a => TokSq a b -> Bool
-isTSFinalized ts = isAllAssigned
-  where
-    isAllAssigned = filtered == []
-    filtered = (filter (\x -> (snd x) == []) $ tsValTable ts)
-
-isUnique :: Eq a => TokSq a b -> Bool
-isUnique ts = ([] == tsIncOrphs ts) || (not isSelfOrphs)
-  where
-    orphs = takeFstL $ tsIncOrphs ts
-    tok = tsRawVal ts
-    isSelfOrphs = and $ map (\orp -> orp == tok) orphs
-
-rebuildCharSq
-  :: Eq b1 =>
-     [TokSq Text.Text b2]
-     -> [TokSq a1 b1] -> TokSq a2 b3 -> [(Char, Sq b1)]
-rebuildCharSq tokAssigneds chLibs linRes = children
-  where
-    children = map (\x -> (fst x, head $ snd x)) $ filter (\x -> not $ snd x == []) $ map g $ concatMap tsValTable $ fetch tokAssigneds $ concat $ takeSndL $ tsValTable linRes
-       where
-         f = (\x@(c,ids) -> (head $ Text.unpack c, head $ concatMap tsRawSqs $ fetch chLibs ids))
-         g = (\x@(c,ids) -> (head $ Text.unpack c, concatMap tsRawSqs $ fetch chLibs ids))
-
-rebuildCharSq2
-  :: Eq b1 =>
-     [TokSq Text.Text b2]
-     -> [TokSq a1 b1] -> TokSq a2 b3 -> [(a1, Sq b1)]
-rebuildCharSq2 tokAssigneds chLibs linRes = chSqs
-  where
-    tokIds = concat $ takeSndL $ tsValTable linRes
-    toks = map f tokIds
-      where
-        f i = head $ filter (\tlib -> i == (tsId tlib)) tokAssigneds
-    charChars = map g toks
-      where
-        g tok = chrs
-          where
-            chIds = concat $ takeSndL $ tsValTable tok
-            chrs = map f chIds
-              where
-                f i = head $ filter (\tlib -> i == (tsId tlib)) chLibs
-    chSqs = concatMap (map g2) charChars
-      where
-        g2 chSq = (tsRawVal chSq, head $ tsRawSqs chSq)
-
-rebuildSquare
-  :: TokSq a1 b -> [TokSq a2 Double] -> (a1, [Sq Double])
-rebuildSquare tokLib chLibs = (token, charSqs)
-  where
-    token = tsRawVal tokLib
-    ids = concat $ takeSndL $ tsValTable tokLib
-    charSqs = synSqs $ Lis.sortBy g $ concatMap tsRawSqs $ filter (\l -> elem (tsId l) ids) chLibs
-      where
-        g x y = compare (sqLeft x) (sqLeft y)
-
-fillLibs linLibs tokLibs chLibs hei = (linResult, tokAssigneds, pureTokenSquares )
-  where
-    fAss tLibs1 lLib = lLib {tsValTable = res2, tsIncOrphs = orphs}
-        where
-          chldIds = map tsId $ filter g tLibs1
-            where
-              g tLib1 = or [isSqIncludeSq sq1 sq2 | sq1 <- (tsRawSqs lLib), sq2 <- (tsRawSqs tLib1)]
-          fChld = fetch tLibs1 chldIds
-          fChldSorted = map (\x -> (tsRawVal x, tsId x)) $ Lis.sortBy h fChld
-            where
-              h xTS yTS = compare (sqLeft $ head $ tsRawSqs xTS) (sqLeft $ head $ tsRawSqs yTS)
-          valT = tsValTable lLib
-          res = getDiffBy (\x -> \y -> (fst x) == (fst y)) valT $ map (\x -> (fst x, [snd x])) fChldSorted
-          res2 = map f3 $ filter (\x -> not $ isSecond x) res
-            where
-              f3 z = case z of
-                First x -> x
-                Second x -> x
-                Both x y -> y
-          assigned = concat $ takeSndL res2
-          orphs = filter (\x@(_,i) -> not $ elem i assigned) fChldSorted
-    tokAssigneds = map (fAss chLibs) tokLibs
-    linAssigneds = map (fAss tokLibs) linLibs
-    outerOrphToks = filter g tokLibs
-      where
-        g ts = not $ elem (tsId ts) inners
-        inners = concatMap f linAssigneds
-          where
-            f x = (concat $ takeSndL $ tsValTable x) ++ (takeSndL $ tsIncOrphs x)
-
-
-    fAssOrphs tLibs1 lLib
-      | anchors == [] = (0.0, [])
-      | otherwise = (score, res)
-        where
-          valT = takeFstL $ tsValTable lLib
-          assed = map f valT
-            where
-              f tok = filter (\x -> (tsRawVal x) == tok) tLibs1
-          anchors = filter (\x -> length x == 1) assed
-          centerY = average $ map (\sq -> 0.5 * (sqTop sq + sqBot sq)) $ concatMap (tsRawSqs . head) $ filter (\x -> length x == 1) assed
-          assed2 = map (filter f) assed
-            where
-              isIncY y sq = (sqTop sq) <= y && y <= (sqBot sq)
-              f sq = or $ map (isIncY centerY) $ tsRawSqs sq
-          applicSorted = Lis.sortBy g2 $ Lis.nub $ concat assed2
-            where
-                g2 x y = compare (sqsTakeLeft $ tsRawSqs x) (sqsTakeLeft $ tsRawSqs y)
-          forDiffAss = V.fromList $ map (\x -> (tsRawVal x, V.singleton x)) applicSorted
-          score = (fromIntegral nBoth) / (fromIntegral (length rawScore))
-            where
-              rawScore = getDiff valT $ map tsRawVal applicSorted
-              nBoth = length $ filter isBoth rawScore
-          res = V.toList $ V.map (\x@(tk,sqs) -> (tk, V.map tsId $ V.concatMap id sqs)) $ assignByDiff (V.fromList valT) forDiffAss
-
-    fAssOrphsEasy tLibs1 lLib = (score, res)
-        where
-          valT = takeFstL $ tsValTable lLib
-          rawScore = getDiff valT $ map tsRawVal tLibs1
-          forDiffAss = V.fromList $ map (\x -> (tsRawVal x, V.singleton x)) tLibs1
-          score = (fromIntegral nBoth) / (fromIntegral (length rawScore))
-            where
-              rawScore = getDiff valT $ map tsRawVal tLibs1
-              nBoth = length $ filter isBoth rawScore
-          res = V.toList $ V.map (\x@(tk,sqs) -> (tk, V.map tsId $ V.concatMap id sqs)) $ assignByDiff (V.fromList valT) forDiffAss
-
-    longLegs = map tsId $ filter (\tsq -> not $ (isTSFinalized tsq && isUnique tsq)) linAssigneds
-    suffed = nonFetch linAssigneds longLegs
-    llClusters = groupSucc longLegs
-    isl :: [([Int], Double, Double)]
-    isl = map h4 llClusters
-       where
-         h4 is = (is, topDec, botSucc)
-           where
-             decc = head is - 1
-             succ = last is + 1
-             isDeccLT0 = decc < 0
-             isSuccGT = length linAssigneds - 1 < succ
-             sqDecs = tsRawSqs $ linAssigneds !! decc
-             sqSuccs = tsRawSqs $ linAssigneds !! succ
-             topDec
-               | isDeccLT0 = 0.0
-               | otherwise = maximum $ map sqTop sqDecs
-             botSucc
-               | isSuccGT = hei
-               | otherwise = minimum $ map sqBot sqSuccs
-    islAssed = concatMap f isl
-      where
-        f x@(is, deccTop, succTop)
-          | tried2 == [] = []
-          | otherwise = map ff $ zip (map (\i -> linLibs !! i) is) tried2
-           where
-             ff (x1, x2) = x1 {tsValTable = x2}
-             lenOfIs = length is
-             applicants
-               | deccTop <= succTop = filter g outerOrphToks
-               | otherwise = outerOrphToks
-                where
-                  g y = deccTop <= sqTop1 && sqTop1 <= succTop
-                     where
-                       sqTop1 = sqsTakeTop $ tsRawSqs y
-             applClustered
-               | applicants == [] = []
-               | otherwise = map (g5 . g4) $ clusterSqs (map (sqsTakeTop . tsRawSqs) applicants) (lenOfIs - 1)
-                where
-                  g4 (rmin, rmax) = filter (\ts -> rmin <= (sqsTakeTop $ tsRawSqs ts) && (sqsTakeTop $ tsRawSqs ts) <= rmax) applicants
-                  g5 xs = Lis.sortBy h5 xs
-                    where
-                      h5 x y = compare (sqsTakeLeft $ tsRawSqs x) (sqsTakeLeft $ tsRawSqs y)
-             longLegs2 = map (\i -> linAssigneds !! i) is
-             pairs = zip applClustered longLegs2
-             tried1 = map (\x@(orphs, leg) -> fAssOrphs orphs leg) pairs
-             tried2
-               | applClustered == [] = []
-               | otherwise = map (map (\y -> (fst y, V.toList $ snd y))) $ snd $ foldl f1 ([], []) longLegs2
-               where
-                 f1 y2@(noId, st) ls = (noId ++ [resPrimIndex], st ++ [snd $ snd resPrim])
-                    where
-                      resPrimIndex = fst resPrim
-                      resPrim = Lis.maximumBy g3 scoreEtRes
-                      scoreEtRes = indexing $ map (\x -> fAssOrphsEasy x ls) $ nonFetch applClustered noId
-                      g3 x y = compare (fst $ snd x) (fst $ snd y)
-    linResult = Lis.sortBy gg $ suffed ++ islAssed2
-      where
-        islAssed2 = map f islAssed
-          where
-            f x = x {tsRawSqs = [resSq]}
-              where
-                resSq = CSq {sqTop = toptop, sqLeft = leftleft, sqBot = botbot, sqRight = rightright}
-                  where
-                    toptop = sqsTakeTop lineSqs
-                    botbot = sqsTakeBot lineSqs
-                    leftleft = sqsTakeLeft lineSqs
-                    rightright = sqsTakeRight lineSqs
-                    lineSqs = concatMap tsRawSqs $ fetch tokAssigneds $ concat $ takeSndL $ tsValTable x
-        gg x y = compare (tsId x) (tsId y)
-    pureTokenSquares = map (\n -> rebuildSquare (tokAssigneds !! n) chLibs) [0 .. (length tokAssigneds - 1)]
-
-
-
-nonFetch :: [a] -> [Int] -> [a]
-nonFetch as ns
-  | ns == [] = as
-  | otherwise = res
-  where
-    res = map (\m -> as !! m) $ filter (\n -> not $ elem n ns) [0 .. length as - 1]
-
-clusterSqs :: [Double] -> Int -> [(Double, Double)]
-clusterSqs tops n -- n is number of borderlines
-  | tops == [] = []
-  | n < 1 = [(minimum tops, maximum tops)]
-  | otherwise = res
-  where
-    minTop = minimum tops - 1.0
-    maxTop = maximum tops + 1.0
-    pitch = 1.0
-    nOfAppl = floor $ (maxTop - minTop) / pitch
-    appls = V.toList $ V.enumFromStepN minTop pitch (nOfAppl + 1)
-    getTotalDists elems r = sum $ map (\x -> (r - x) ^ 2) elems
-    zipped = zip appls $ map (getTotalDists tops) appls
-    res = foldl f [(minTop, maxTop)] $ [0 .. n - 1]
-      where
-        f yAreas _ = res
-          where
-            ns = [0 .. (length yAreas - 1)]
-            optR = fst $ Lis.maximumBy f3 $ map g ns
-              where
-                f3 x y = compare (snd x) (snd y)
-                g n
-                  | appls == [] = (mi, 0.0)
-                  | otherwise = res2
-                  where
-                    area@(mi, ma) = yAreas !! n
-                    elems = filter (\x -> mi <= x && x <= ma) tops
-                    nOfAppl = floor $ (ma - mi) / pitch
-                    appls = V.toList $ V.enumFromStepN minTop pitch (nOfAppl + 1)
-                    getTotalDists elems r = sum $ map (\x -> (r - x) ^ 2) elems
-                    zeroScore = getTotalDists elems mi
-                    zipped = zip appls $ map (\r -> zeroScore - (getTotalDists tops r)) appls
-                    res2 = (\x -> (fst x, (snd x) / (fromIntegral $ length appls) )) $ Lis.maximumBy f3 zipped
-            res = concatMap g2 yAreas
-              where
-                g2 area@(r1, r2)
-                 | r1 == optR && r2 == optR = [(r1, r2)]
-                 | r1 <= optR && optR <= r2 = [(r1, optR), (optR, r2)]
-                 | otherwise = [(r1, r2)]
 
 sqsTakeTop sqs = maximum $ map sqTop sqs
 sqsTakeLeft sqs = maximum $ map sqLeft sqs
@@ -1352,16 +608,6 @@ sqsTakeRight sqs = maximum $ map sqRight sqs
 average :: Fractional a => Num a => [a] -> a
 average ts = (sum ts) / (fromIntegral $ length ts)
 
-flattenNestL :: [[a]] -> [[a]]
-flattenNestL [] = []
-flattenNestL (xs : xss) = foldl f (map (\x -> [x]) xs) xss
-  where
-    f yss xs = [(ys ++ [x]) | x <- xs, ys <- yss]
-
-nmem :: (Foldable t, Eq a) => [a] -> t a -> [a]
-nmem lis ngLis = res
-  where
-    res = filter (\x -> not $ Lis.elem x ngLis) lis
 
 fetch :: [a] -> [Int] -> [a]
 fetch xs ns = map (\n -> xs !! n) ns
@@ -1384,9 +630,6 @@ data Sq a = CSq {
  , sqBot :: a
  , sqRight :: a}
   deriving (Show, Eq, Ord)
-
-pdfPathLoc :: Text.Text
-pdfPathLoc = "file:///home/polymony/poppyS/hott.pdf"
 
 sqToRect :: Sq Double -> IO (GPop.Rectangle)
 sqToRect sq = do
@@ -1477,40 +720,6 @@ buildRequest url body = do
   nakedRequest <- parseRequest url
   return (nakedRequest { method = "POST", requestBody = body })
 
-{-
-:set -XOverloadedStrings
--}
-nPage = 15
-
-
-
-groupLineWLastX :: Fractional a => Ord a => Num a => [[(Char, Sq a)]] -> [[[(Char, Sq a)]]]
-groupLineWLastX ls
-  | length ls == 0 = []
-  | s == [] = p
-  | otherwise = p ++ [s]
-  where
-    headLSLast@(c, sq) = last $ head ls
-    getRight chSq@(c, sq) = sqRight sq
-    res@(xr,s,p) = foldl f (sqRight sq, [head ls], []) $ tail ls
-    f y@(prevX, stacked, pooled) x
-     | th < abs dist && dist < 0 = (newX, [], pooled ++ [stacked ++ [x]])
-     | th < abs dist && 0 <= dist && (not $ stacked == []) = (newX, [x], pooled ++ [stacked])
-     | otherwise = (newX, stacked ++ [x], pooled)
-      where
-        newX = getRight $ last x
-        th = 1.0
-        dist = newX - prevX
-
-toSentences :: Num a => [[(Char, Sq a)]] -> String
-toSentences chls = init res
-  where
-    res = concat $ map f chls
-    f chl
-     | last strs == '-' = init strs
-     | otherwise = strs ++ [' ']
-      where
-        strs = takeFstL chl
 
 forgetIndexed res
   | parsed == [] = error errorMesse
@@ -1595,277 +804,7 @@ takeRight x = snd $ snd x
 flattenSnd :: Foldable t => t (a, [b]) -> [(a, b)]
 flattenSnd xs = concatMap (\x -> map (\y -> (fst x, y)) $ snd x) xs
 
-pageGetTokSqLibs3 page layouts layoutMode = do
-  rawText <- GPop.pageGetText page
-  let
-    nubbedChars = map (\c -> Text.pack [c]) $ (Lis.nub . Text.unpack) rawText
-  charSqs <- (Lis.nub . flattenSnd) <$> mapM (\x -> getRectSW page x [GPop.FindFlagsCaseSensitive]) nubbedChars
-  (wid1, hei1) <- GPop.pageGetSize page
-  let
-    sqs = takeSndL charSqs
-    lefts = map sqLeft sqs
-    tops = map sqLeft sqs
-    defaultLayout = [CSq {sqTop = 0.0, sqBot = hei1, sqLeft = 0.0, sqRight = wid1}]
-    layouts2 = case layoutMode of
-      OneTotal -> defaultLayout
-      TwoCols -> resTwoCols
-       where
-         dividCol = getDivideLine lefts
-         dividLines = getDivideLayout hei1 wid1 sqs
-         resTwoCols = case dividLines of
-           Nothing -> defaultLayout
-           Just ((resCol, resScore), resTop, resBot) -> [squareTop, squareMidLeft, squareMidRight, squareBot]
-             where
-               squareTop = CSq {sqTop = 0.0, sqBot = fromIntegral resTop, sqLeft = 0.0, sqRight = wid1}
-               squareMidLeft = CSq {sqTop = fromIntegral resTop, sqBot = fromIntegral resBot, sqLeft = 0.0, sqRight = fromIntegral resCol}
-               squareMidRight = CSq {sqTop = fromIntegral resTop, sqBot = fromIntegral resBot, sqLeft = fromIntegral resCol, sqRight = wid1}
-               squareBot = CSq {sqTop = fromIntegral resBot, sqBot = hei1, sqLeft = 0.0, sqRight = wid1}
-  let
-    charSqsDivided = map g layouts2
-      where
-        g sqLayout = filter g2 charSqs
-           where
-             g2 charSq@(_, sqc) = isSqIncludeSq sqLayout sqc
-    eachGetTokSqLib charSqs = clusteredRes
-      where
-          charSqsSorted = Lis.sortBy f charSqs
-            where
-              f x@(xTok, xSq) y@(yTok, ySq) = compare (sqBot xSq) (sqBot ySq)
-          clusteredOnce
-            | charSqsSorted == [] = []
-            | otherwise = snocL pl ((tpp, btt), st)
-              where
-                hed = head charSqsSorted
-                res@((tpp, btt), st, pl) = foldl g ((sqTop $ snd hed, sqBot $ snd hed), [hed], []) $ tail charSqsSorted
-                g y@((tp, bt), stacked, pooled) x@(tk, sq)
-                  | isOverlapped = ((revisedTop, revisedBot), snocL stacked x, pooled)
-                  | otherwise = ((sqTop sq, sqBot sq), [x], snocL pooled ((tp, bt), stacked))
-                      where
-                        isOverlapped = (tp <= (sqTop sq) && (sqTop sq) <= bt) || (tp <= (sqBot sq) && (sqBot sq) <= bt)
-                        revisedTop
-                          | tp < (sqTop sq) = tp
-                          | otherwise = (sqTop sq)
-                        revisedBot
-                          | bt < (sqBot sq) = sqBot sq
-                          | otherwise = bt
-          clusteredOnceSorted = Lis.sortBy g2 clusteredOnce
-            where
-              g2 x y = compare (snd $ fst x) (snd $ fst y)
-          clustering clust
-            | clust == [] = []
-            | clust == tempRes = clust
-            | otherwise = clustering tempRes
-            where
-              lenOfClus = length clust
-              hed@(range, stak) = head clust
-              foldRes@((tpp, btt), st, pl) = foldl g (range, stak, []) $ tail clust
-                where
-                  g y@(rangy@(yTop, yBot), stacked, pooled) x@(rangx@(xTop, xBot), xVal)
-                    | isOverlapped = ((revisedTop, revisedBot), stacked ++ xVal, pooled)
-                    | otherwise = ((xTop, xBot), xVal, snocL pooled ((yTop, yBot), stacked))
-                    where
-                      isOverlapped = (yTop <= xTop && xTop <= yBot) || (yTop <= xBot && xBot <= yBot)
-                      revisedTop
-                        | yTop < xTop = yTop
-                        | otherwise = xTop
-                      revisedBot
-                        | yBot < xBot = xBot
-                        | otherwise = yBot
-              tempRes = Lis.sortBy g2 $ snocL pl ((tpp, btt), st)
-                where
-                  g2 x y = compare (snd $ fst x) (snd $ fst y)
-          clusteredRes = map (\ys -> map g5 $ Lis.groupBy g4 $ Lis.sortBy g3 ys) $ takeSndL $ clustering clusteredOnceSorted
-            where
-              g3 x y = compare (sqLeft $ snd x) (sqLeft $ snd y)
-              g4 x y = (snd x) == (snd y)
-              g5 xs = head $ Lis.sortBy (\x -> \y -> compare (fst x) (fst y)) xs
-  return $ map eachGetTokSqLib charSqsDivided
 
-pageGetCharSqs page = do
-  charSq <- pageGetTokSqLibs2 page
-  rawText <- GPop.pageGetText page
-  let
-    nubbedChars = map (\c -> Text.pack [c]) $ (Lis.nub . Text.unpack) rawText
-    space = [Text.pack [' ']]
-
-  charSqs <- (Lis.nub . flattenSnd) <$> mapM (\x -> getRectSW page x [GPop.FindFlagsCaseSensitive]) nubbedChars
-  return charSqs
-
-pageGetTokSqLibs2 page = do
-  rawText <- GPop.pageGetText page
-  let
-    nubbedChars = map (\c -> Text.pack [c]) $ (Lis.nub . Text.unpack) rawText
-    space = [Text.pack [' ']]
-
-  charSqs <- (Lis.nub . flattenSnd) <$> mapM (\x -> getRectSW page x [GPop.FindFlagsCaseSensitive]) nubbedChars
-  let
-    charSqsSorted = Lis.sortBy f charSqs
-      where
-        f x@(xTok, xSq) y@(yTok, ySq) = compare (sqBot xSq) (sqBot ySq)
-    clusteredOnce
-      | charSqsSorted == [] = []
-      | otherwise = snocL pl ((tpp, btt), st)
-         where
-           hed = head charSqsSorted
-           res@((tpp, btt), st, pl) = foldl g ((sqTop $ snd hed, sqBot $ snd hed), [hed], []) $ tail charSqsSorted
-           g y@((tp, bt), stacked, pooled) x@(tk, sq)
-             | isOverlapped = ((revisedTop, revisedBot), snocL stacked x, pooled)
-             | otherwise = ((sqTop sq, sqBot sq), [x], snocL pooled ((tp, bt), stacked))
-                where
-                  isOverlapped = (tp <= (sqTop sq) && (sqTop sq) <= bt) || (tp <= (sqBot sq) && (sqBot sq) <= bt)
-                  revisedTop
-                   | tp < (sqTop sq) = tp
-                   | otherwise = (sqTop sq)
-                  revisedBot
-                   | bt < (sqBot sq) = sqBot sq
-                   | otherwise = bt
-    clusteredOnceSorted = Lis.sortBy g2 clusteredOnce
-       where
-         g2 x y = compare (snd $ fst x) (snd $ fst y)
-    clustering clust
-      | clust == [] = []
-      | clust == tempRes = clust
-      | otherwise = clustering tempRes
-      where
-        lenOfClus = length clust
-        hed@(range, stak) = head clust
-        foldRes@((tpp, btt), st, pl) = foldl g (range, stak, []) $ tail clust
-          where
-            g y@(rangy@(yTop, yBot), stacked, pooled) x@(rangx@(xTop, xBot), xVal)
-              | isOverlapped = ((revisedTop, revisedBot), stacked ++ xVal, pooled)
-              | otherwise = ((xTop, xBot), xVal, snocL pooled ((yTop, yBot), stacked))
-               where
-                isOverlapped = (yTop <= xTop && xTop <= yBot) || (yTop <= xBot && xBot <= yBot)
-                revisedTop
-                  | yTop < xTop = yTop
-                  | otherwise = xTop
-                revisedBot
-                  | yBot < xBot = xBot
-                  | otherwise = yBot
-        tempRes = Lis.sortBy g2 $ snocL pl ((tpp, btt), st)
-          where
-            g2 x y = compare (snd $ fst x) (snd $ fst y)
-    clusteredRes = map (Lis.nubBy g4 . Lis.sortBy g3 . Lis.sortBy g30) $ takeSndL $ clustering clusteredOnceSorted
-       where
-         g30 x y = compare (fst x) (fst y)
-         g3 x y = compare (sqLeft $ snd x) (sqLeft $ snd y)
-         g4 x y = snd x == snd y
-    clusterdResLastSpace = map ff clusteredRes
-       where
-         ff xs = snocL xs dummySpace
-           where
-             lastCharSq = snd $ last xs
-             tp = sqTop lastCharSq
-             bt = sqBot lastCharSq
-             rig = sqRight lastCharSq
-             dummySpace = (Text.pack " ", CSq {sqTop = tp, sqBot = bt, sqLeft = rig, sqRight = rig})
-    forCheck = map (concat . (map Text.unpack) . takeFstL) clusteredRes
-  return clusterdResLastSpace
-
-pageGetTokSqLibs :: GPop.Page -> IO
-          ([TokSq Text.Text Double], [TokSq Text.Text Double],
-           [TokSq Text.Text Double])
-pageGetTokSqLibs page = do
-  rawText <- GPop.pageGetText page
-  let
-    linesPrim = Text.lines rawText -- Don't nub.
-    histo = getHistogram linesPrim
-    specLargeChars
-      | histo == [] = []
-      | otherwise = map (\c -> Text.pack [c]) $ takeSndL $ filter (\x@(n,x2) -> 500 < n) charsHisto
-        where
-          charsHisto = getHistogram $ filter (\c -> not $ c == ' ' || c == '\n') $ Text.unpack rawText
-
-    isTooMany = (not $ [] == specLargeChars)
-    lines
-      | isTooMany = filter (\x -> not $ x == (Text.pack " ")) $ filter (\x -> not $ x == (Text.pack "")) $ map (deleteChars $ specLargeChars ++ [Text.pack "  "]) linesPrim
-      | otherwise = linesPrim
-    nubbedTokens = map (Text.pack) $ Lis.nub $ concatMap (\lin -> delimitAtWO2 ' ' id $ Text.unpack lin) lines
-    nubbedChars = filter (\c -> not $ elem c specLargeChars) $ map (\c -> Text.pack [c]) $ (Lis.nub . Text.unpack) rawText
-    space = [Text.pack [' ']]
-
-  lineSqs <- mapM (\x -> getRectSW page x [GPop.FindFlagsCaseSensitive, GPop.FindFlagsWholeWordsOnly]) lines
-  spaceSqs <- (Lis.nub . flattenSnd) <$> mapM (\x -> getRectSW page x [GPop.FindFlagsCaseSensitive]) space
-  tokenSqs <- (\y -> y ++ spaceSqs) <$> (Lis.nub . flattenSnd) <$> mapM (\x -> getRectSW page x [GPop.FindFlagsCaseSensitive, GPop.FindFlagsWholeWordsOnly]) nubbedTokens
-  charSqs <- (Lis.nub . flattenSnd) <$> mapM (\x -> getRectSW page x [GPop.FindFlagsCaseSensitive]) nubbedChars
-  let
-    lineLibs = map create2 $ indexing lineSqs
-      where
-        create2 (i, (tok, sqs)) = CTokSq { tsId = i, tsRawVal = tok, tsRawSqs = sqs, tsValTable = delimited, tsIncOrphs = []}
-          where
-            delimited = map (\tok -> (Text.pack tok, [])) $ delimitAtW2 ' ' id $ Text.unpack tok
-    tokenLibs = map create $ indexing tokenSqs
-      where
-        create (i, (tok, sq)) = CTokSq { tsId = i, tsRawVal = tok, tsRawSqs = [sq], tsValTable = delimited, tsIncOrphs = []}
-          where
-            delimited = map (\c -> (Text.pack [c], [])) $ Text.unpack tok
-    charLibs = map create $ indexing charSqs
-      where
-        create (i, (tok, sq)) = CTokSq { tsId = i, tsRawVal = tok, tsRawSqs = [sq], tsValTable = delimited, tsIncOrphs = []}
-          where
-            delimited = map (\c -> (c, [])) [tok]
-  return (lineLibs, tokenLibs, charLibs)
-
-deleteChars :: [Text.Text] -> Text.Text -> Text.Text
-deleteChars strs str = foldl (\y -> \x -> Text.replace x (Text.pack "") y) str strs
-
-groupSucc :: [Int] -> [[Int]]
-groupSucc [] = []
-groupSucc (i:is) = plp ++ [stp]
-  where
-    resPrim@(ip, stp, plp) = foldl f (i, [i], []) is
-    f y@(ind, st, pl) x
-     | ind + 1 == x = (x, st ++ [x], pl)
-     | otherwise = (x, [x], pl ++ [st])
-
-getDivideLayout :: Double -> Double -> [Sq Double] -> Maybe ((Int, Int), Int, Int)
-getDivideLayout hei1 wid1 sqs
-  | sqs == [] = Nothing
-  | otherwise = result
-  where
-    rowCentre = floor $ hei1 * 0.5
-    colCentre = floor $ wid1 * 0.5
-    minCol = floor $ minimum $ map sqLeft sqs :: Int
-    maxCol = floor $ maximum $ map sqRight sqs :: Int
-    spanCol = [minCol .. maxCol]
-    spanRowUpper = reverse [0 .. (rowCentre - 1)]
-    spanRowLower = [rowCentre .. ((floor hei1) - 1)]
-    caves = filter (\x@(n, c) -> not $ c == 0) $ map f spanCol
-      where
-        f c = (c, lenCaveUpper + lenCaveLower)
-          where
-            lenCaveUpper = length $ takeWhile g spanRowUpper
-            lenCaveLower = length $ takeWhile g spanRowLower
-            g r = [] == filter (isIncludePoint (fromIntegral r, fromIntegral c)) sqs
-    cavesConnected
-     | caves == [] = []
-     | otherwise = res3
-      where
-        res@(pN, stt, pll) = foldl ff (fst $ head caves, [head caves], []) $ tail caves
-           where
-             ff x@(prevN, st, pl) y@(n, coun)
-               | prevN + 1 == n = (n, snocL st y, pl)
-               | otherwise = (n, [y], snocL pl st)
-        res2 = snocL pll stt
-        res3 = map gg res2
-          where
-            gg :: [(Int, Int)] -> (Int, Int)
-            gg xs = (floor ressss, sum $ takeSndL xs)
-              where
-                expanded = concatMap (\xx@(xx1, xx2) -> replicate xx2 xx1) xs
-                ressss = (fromIntegral $ sum expanded) / (fromIntegral $ length expanded)
-    centerCol
-     | cavesConnected == [] = Nothing
-     | otherwise = Just (Lis.maximumBy (\x -> \y -> compare (snd x) (snd y)) cavesConnected)
-    result = case centerCol of
-      Nothing -> Nothing
-      Just (colRes, score) -> Just (f colRes)
-        where
-          f c = ((colRes, score), topRes, botRes)
-            where
-              topRes = last $ takeWhile g spanRowUpper
-              botRes = last $ takeWhile g spanRowLower
-              g r = [] == filter (isIncludePoint (fromIntegral r, fromIntegral c)) sqs
 
 
 

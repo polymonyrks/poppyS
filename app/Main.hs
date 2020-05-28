@@ -107,6 +107,7 @@ mainGtk fpath poppySPath = do
 
   on window #keyPressEvent $ \event -> do
     name <- event `get` #keyval >>= Gdk.keyvalName
+    nPage <- GPop.documentGetNPages currDoc
     let
       fff name = case name of
         Nothing -> return ()
@@ -116,7 +117,7 @@ mainGtk fpath poppySPath = do
       decl n nOfPage = mod (n - 2) nOfPage
       incl1 n nOfPage = mod (n + 1) nOfPage
       decl1 n nOfPage = mod (n - 1) nOfPage
-      registeredKeys = [["j"], ["k"], ["f"], ["d"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "c"], ["Escape"], ["colon", "w", "Return"], ["g","g"]]
+      registeredKeys = [["j"], ["k"], ["f"], ["d"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "c"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"]]
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
@@ -144,6 +145,10 @@ mainGtk fpath poppySPath = do
       return ()
     when (stKeys == ["g", "g"]) $ do
       goOtherPage window docRef (\n -> \m -> 0) (\n -> \m -> 1)
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      return ()
+    when (stKeys == ["G"]) $ do
+      goOtherPage window docRef (\n -> \m -> nPage - 1) (\n -> \m -> 0)
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["p"]) $ do
@@ -909,12 +914,7 @@ stackStan window mvars docsRef docRef = do
       f2 n2 = case n2 of
         Just n -> do
           nP <- GPop.documentGetPage currDoc n
-          -- aa <- getSExpsIONew pdfPath (fromIntegral n) mvLayoutDefo mvLayoutModeDefo
-          -- aa <- getSExpsIO pdfPath (fromIntegral n)
-          let
-            -- ppp tokSqTruePrim = tokSqTrues V.! (fromIntegral n)
           aa <- getSExpsIOS nP
-          -- aa <- getSExpsIOPoppy1 tokSqTruePrim nP
           return (Just aa)
         Nothing -> return Nothing
       f = case nextForward of
@@ -922,40 +922,20 @@ stackStan window mvars docsRef docRef = do
           Nothing -> return mvSexps
           Just m -> do
             mP <- GPop.documentGetPage currDoc $ fromIntegral m
-            -- newSExp <- getSExpsIONew pdfPath (fromIntegral m) mvLayoutDefo mvLayoutModeDefo
-            -- newSExp <- getSExpsIO pdfPath (fromIntegral m)
-            let
-              -- ppp tokSqTruePrim = tokSqTrues V.! m
-            -- newSExp <- getSExpsIOPoppy1 tokSqTruePrim mP
             newSExp <- getSExpsIOS mP
             MV.write mvSexps m (Just newSExp)
             return mvSexps
         Just m2 -> case nextBackward of
           Nothing -> do
             m2P <- GPop.documentGetPage currDoc $ fromIntegral m2
-            -- newSExp <- getSExpsIONew pdfPath (fromIntegral m2) mvLayoutDefo mvLayoutModeDefo
-            -- newSExp <- getSExpsIO pdfPath (fromIntegral m2)
-            let
-              -- ppp tokSqTruePrim = tokSqTrues V.! m2
-            -- newSExp <- getSExpsIOPoppy1 tokSqTruePrim m2P
             newSExp <- getSExpsIOS m2P
             MV.write mvSexps m2 (Just newSExp)
             return mvSexps
           Just m -> do
             mP <- GPop.documentGetPage currDoc $ fromIntegral m
-            --newSExp <- getSExpsIONew pdfPath (fromIntegral m) mvLayoutDefo mvLayoutModeDefo
-            -- newSExp <- getSExpsIO pdfPath (fromIntegral m)
-            let
-              -- ppp tokSqTruePrim = tokSqTrues V.! m
-            -- newSExp  <- getSExpsIOPoppy1 tokSqTruePrim mP
             newSExp  <- getSExpsIOS mP
             MV.write mvSexps m (Just newSExp)
             mP2 <- GPop.documentGetPage currDoc $ fromIntegral m2
-            --newSExp2 <- getSExpsIONew pdfPath (fromIntegral m2) mvLayoutDefo mvLayoutModeDefo
-            -- newSExp2 <- getSExpsIO pdfPath (fromIntegral m2)
-            let
-              -- ppp  tokSqTruePrim = tokSqTrues V.! m2
-            -- newSExp2  <- getSExpsIOPoppy1 tokSqTruePrim mP2
             newSExp2  <- getSExpsIOS mP2
             MV.write mvSexps m2 (Just newSExp2)
             return mvSexps
@@ -968,7 +948,6 @@ stackStan window mvars docsRef docRef = do
        else
         stackStan window mvars docsRef docRef
      --stackStan mvars docRef
-
 getNextNothing :: MV.MVector RealWorld (Maybe a) -> Int -> IO (Maybe Int)
 getNextNothing mv i = do
   hoge <- MV.read mv i
