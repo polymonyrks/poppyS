@@ -4,7 +4,6 @@
 module FromPDF where
 
 import Control.Monad (when)
-import Control.Monad.Trans.Reader (runReaderT)
 import qualified Data.Text as Text
 import qualified Data.List as Lis
 import qualified Data.Vector as V
@@ -12,8 +11,6 @@ import qualified Data.Vector.Unboxed as UV
 import qualified Network.HTTP.Simple as HT
 import Data.Aeson
 import Network.HTTP.Client
-import qualified Control.Lens as LENS
-import qualified Data.Aeson.Lens as AL
 import Data.Text.ICU.Convert as ICU
 import qualified Data.ByteString.Lazy as BL
 import Lib (iVecFromFile, iVecFromFileJP, oVecToFile, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getHistogram, getDivideLine, vSortBy, fstT, sndT, thdT, takeFstT, takeSndT, takeThdT, fstQ, sndQ, thdQ, forQ, takeFstQ, takeSndQ, takeThdQ, takeForQ, indexingL)
@@ -33,6 +30,105 @@ import Data.GI.Base
 import qualified GI.Poppler as GPop
 import Foreign.Ptr (castPtr, nullPtr)
 import Foreign.ForeignPtr (withForeignPtr)
+
+{-
+pairssPrim <- iVecFromFileJP "mecabed.txt"
+pairss = V.map (\x -> read x :: V.Vector MData) pairssPrim
+pairs = pairss  V.! 2
+--pairs = pairss  V.! 3
+sexp0 = toSExpsJP pairs
+sexp1 = foldPrefix sexp0
+sexp2 = foldSuffix sexp1
+sexp3 = foldSameTags sexp2
+showSP $ forgetSubs sexp3
+-}
+
+-- isSuffix
+-- isSuffixStacked
+
+forgetSubs :: SExp String String -> SExp String String
+forgetSubs Nil = Nil
+forgetSubs (Atom a b) = (Atom a b)
+forgetSubs (Opr tg sexps)
+  | tg == "root" = (Opr tg $ map forgetSubs sexps)
+  | otherwise = (Atom tg $ concatMap getSubTokens sexps)
+
+getSubTokens :: SExp String String -> String
+getSubTokens Nil = ""
+getSubTokens (Atom a b) = b
+getSubTokens (Opr tg sexps) = concat (map getSubTokens sexps)
+
+toSExpsJP :: V.Vector MData -> SExp String String
+toSExpsJP mData = Opr "root" atoms
+  where
+    atoms = V.toList $ V.map (\x -> Atom (mTag x) (mToken x)) mData
+
+foldSameTags :: SExp String String -> SExp String String
+foldSameTags Nil = Nil
+foldSameTags (Atom a b) = (Atom a b)
+foldSameTags (Opr tg sexps)
+  | sexps == [] = Nil
+  | otherwise = Opr tg (plEnd ++ stEnd)
+  where
+    res@(stEnd, plEnd)
+      | otherwise = foldl f ([head sexps], []) $ tail sexps
+       where
+         f y@(st, pl) x
+           | isNewTagSame = (snocL st x, pl) -- <- stack continue
+           | isSameStacked = ([x], snocL pl foldedOpr) -- stack terminated with Stacked Sames
+           | otherwise = ([x], snocL pl $ head st) -- stack terminated without Stacked Sames
+             where
+               isSameStacked = 1 < length st
+               purged = Opr (getTagJP x) $ snocL st x
+               prevTag = getTagJP $ head st
+               isNewTagSame = getTagJP x == prevTag
+               foldedOpr = Opr (getTagJP $ head st) st
+
+foldSuffix :: SExp String String -> SExp String String
+foldSuffix Nil = Nil
+foldSuffix (Atom a b) = (Atom a b)
+foldSuffix (Opr tg sexps)
+  | sexps == [] = Nil
+  | otherwise = Opr tg (plEnd ++ stEnd)
+  where
+    res@(stEnd, plEnd)
+      | otherwise = foldl f ([head sexps], []) $ tail sexps
+       where
+         f y@(st, pl) x
+           | isNewTagSuffix = (snocL st x, pl) -- <- stack continue
+           | isSuffixStacked = ([x], snocL pl foldedOpr) -- stack terminated with Suffix
+           | otherwise = ([x], snocL pl $ head st) -- stack terminated without Suffix
+             where
+               isSuffixStacked = 1 < length st
+               purged = Opr (getTagJP x) $ snocL st x
+               isNewTagSuffix = getTagJP x == "接尾辞"
+               foldedOpr = Opr (getTagJP $ head st) st
+
+foldPrefix :: SExp String String -> SExp String String
+foldPrefix Nil = Nil
+foldPrefix (Atom a b) = (Atom a b)
+foldPrefix (Opr tg sexps) = Opr tg (plEnd ++ stEnd)
+  where
+    res@(stEnd, plEnd) = foldl f ([], []) sexps
+       where
+         f y@(st, pl) x
+           | isNewTagPrefix = (snocL st x, pl) -- <- new Stack Start
+           | isNoStacked = ([], snocL pl x) -- determined prefixHead tag, and stacking terminated
+           | otherwise = ([], snocL pl purged) -- determined prefixHead tag, and stacking terminated
+             where
+               isNoStacked = st == []
+               purged = Opr (getTagJP x) $ snocL st x
+               isNewTagPrefix = getTagJP x == "接頭辞"
+
+getTagJP :: SExp String String -> String
+getTagJP Nil = "nil"
+getTagJP (Atom tag _) = tag
+getTagJP (Opr tag _) = tag
+
+
+foldlDebug f yInit xs n = (scanned !! n, xs !! n)
+   where
+     scanned = scanl f yInit xs
 
 type PageTrees = [[SExp (Posi, Tag) String]]
 data LayoutMode = OneTotal | TwoCols
@@ -86,11 +182,17 @@ layoutMode = TwoCols
 docPathSuffix = "./pdfs/CTFP.pdf"
 docPathSuffix = "./pdfs/The_CUDA_Handbook.pdf"
 docPathSuffix = "./" ++ pathInfix2 ++ (head pdfs)
-nPage = 21
-nPage = 24
-nPage = 289
-nPage = 118
+nPage = 10
 doc <- GPop.documentNewFromFile pdfPath Nothing
+page <- GPop.documentGetPage doc nPage
+nPages <- GPop.documentGetNPages doc
+
+
+
+
+
+
+
 iter <- GPop.indexIterNew doc
 curNum = 0
 next = 0
@@ -167,6 +269,7 @@ getSExpsIOSCheck page = do
 --prp
 getSExpsIOS page = do
   (wid, hei) <- GPop.pageGetSize page
+  chInfos <- getChInfos page
   blocksPrim <- (\x -> getBlock x hei wid) <$> getChInfos page -- stable, but not covers some PDFs which has character layout bugs.
   -- blocksPrimS <- (\x -> getBlockS x hei wid) <$> getChInfosS page -- probably Unstable.
   let
@@ -208,6 +311,28 @@ getSExpsIOS page = do
                   | (not isIsolated) && isLastBar = (init y) ++ x
                   | isLastSpace = y ++ x
                   | otherwise = y ++ " " ++ x
+                  where
+                    isIsolated = 1 < length y && ((last $ init y) == ' ')
+                    isLastBar = 0 < length y && (last y == '-' || last y == '\8208')
+                    isLastSpace = 0 < length y && last y == ' '
+        blockLinesConcatedJP = V.map concatLines blockLineChars
+          where
+            concatLines bLines
+              | bLines == V.empty = ""
+              | otherwise = folddd
+             where
+                bLinesStr = V.map (fff . V.toList) bLines
+                 where
+                   fff strstr
+                    | strstr == "" = ""
+                    | last strstr == '\n' = init strstr
+                    | otherwise = strstr
+                folddd = V.foldl' g (V.head bLinesStr) $ V.tail bLinesStr
+                g y x
+                  | x == "" = y
+                  | (not isIsolated) && isLastBar = (init y) ++ x
+                  | isLastSpace = y ++ x
+                  | otherwise = y ++ "" ++ x
                   where
                     isIsolated = 1 < length y && ((last $ init y) == ' ')
                     isLastBar = 0 < length y && (last y == '-' || last y == '\8208')
@@ -315,7 +440,7 @@ getBlock chInfos hei wid
   | chInfos == V.empty = V.empty
   | otherwise = folded
   where
-    marks = V.map (Text.pack . (\x -> [x])) $ V.fromList ['.', ';', head ":", '!', '?']
+    marks = V.map (Text.pack . (\x -> [x])) $ V.fromList ['.', ';', head ":", '!', '?', '。']
     folded
       | otherwise = V.filter (\x -> not $ x == V.empty) $ V.snoc pooledBlocksF (V.snoc pooledLinesF stackedCharsF)
       where
@@ -713,6 +838,7 @@ takeSndL :: [(a, b)] -> [b]
 takeSndL = map snd
 
 command = "http://localhost:9000/?annotators=parse&outputFormat=json&timeout=10000"
+-- command = "http://0.0.0.0:9000/?annotators=parse&outputFormat=json&timeout=10000"
 text = "The quick brown fox jumped over the lazy dog."
 
 buildRequest :: String -> RequestBody -> IO Request
@@ -852,6 +978,181 @@ get2 :: (Turtle.MonadIO m) => Text.Text -> m [Turtle.Line]
 get2 cmd = do
   Turtle.fold (Turtle.inshell cmd Turtle.empty) Fold.list
 
+tesseractPartlyIOJP :: String -> IO (V.Vector (V.Vector (String, V.Vector Square)))
+tesseractPartlyIOJP pathWithFileName = undefined
+{-
+  hoge =  do
+      img@(rawImg, (rowPrim, colPrim)) <- iCharColor pathWithFileName
+      let
+        woExt = P.takeWhile (\c -> not $ c == '.') $ P.reverse $ P.takeWhile (\c -> not $ c == '/') $ P.reverse pathWithFileName
+        docName = P.takeWhile (\c -> not $ c == '_') woExt
+        nPrim = read $ P.reverse $ P.takeWhile (\c -> not $ c == '_') $ P.reverse woExt :: Int
+        n = nPrim - 1
+      tokSqsRatios <- popplerTokenizePartlyIOJP docName n
+      let
+        tokSqs tokSqsRatio = V.map (\x@(str, sqs) -> (str, V.map f sqs)) tokSqsRatio
+          where
+            row = fromIntegral rowPrim
+            col = fromIntegral colPrim
+            f ((r1, c1), (r2, c2)) = ((floor $ r1 * row, floor $ c1 * col), (floor $ r2 * row, floor $ c2 * col))
+      return $ V.map tokSqs tokSqsRatios
+-}
+
+tessStanIOJP :: String -> Bool -> IO (V.Vector (V.Vector (String, (String, String))), V.Vector (V.Vector String), (V.Vector (V.Vector (String, V.Vector Square))))
+tessStanIOJP pathWithFileName isLinux = do
+  presNubPrim <- iVecFromFile "tessPresDiv.txt"
+  postNubPrim <- iVecFromFile "tessPostDiv.txt"
+  tessResPrim2Prim <- tesseractPartlyIOJP pathWithFileName
+  let
+    tessResPrim2 = V.concatMap f tessResPrim2Prim
+      where
+        f vs = res
+          where
+            sepIndices = V.findIndices (\x@(str, _) -> str == " ") vs
+            added
+              | vs == V.empty = V.empty
+              | otherwise = vNub $ V.snoc (V.cons (-1) sepIndices) (V.length vs)
+            spans
+              | added == V.empty = V.empty
+              | otherwise = V.zip (V.init added) (V.tail added)
+            res = V.map g spans
+              where
+                g (i, j) = V.map (\k -> vs V.! k) $ V.fromList [(i + 1) .. (j - 1)]
+    presNub = V.map (\x -> read x) presNubPrim :: V.Vector (String, String)
+    postNub = V.map (\x -> read x) postNubPrim :: V.Vector (String, String)
+    tessResPPrim = V.filter (\x@(c, sqs) -> not $ c == "\n") $ V.concatMap id tessResPrim2
+    f tessResPrimTemp = do
+      let
+        sens = Text.unpack $ Text.replace "\n" "" $ Text.pack $ fromTokensToSensJP $ takeFst tessResPrimTemp :: String
+      (rawST2Prim, stParsed2Prim) <- getNPStructureJP sens isLinux
+      return (rawST2Prim, stParsed2Prim)
+  resres <- V.mapM f tessResPrim2
+  let
+    rawST2Prim = V.filter (\x -> not $ mToken x == "EOS") $ V.concatMap id $ takeFst resres
+    stParsed2Prim = V.map (\x -> V.filter (\y -> not $ mToken y == "EOS") x) $ V.concatMap id $ takeSnd resres
+    rawST2 = V.map (\y -> V.map (\x -> (mToken x, (mTag x, mTag1 x))) y) stParsed2Prim -- forDummy
+    stParsed = V.map (\x -> V.map mToken x) stParsed2Prim
+
+    tessRes = replaceEtDivideHead presNub $ replaceEtDivideLast postNub tessResPPrim
+    stData = assSqsToPhraseNeoJP stParsed tessRes :: V.Vector (V.Vector (String, V.Vector Square))
+    stDataSyned = V.map (\xs -> V.singleton (f $ takeFst xs, V.concatMap id $ takeSnd xs)) stData
+      where
+        f ys = concat $ V.toList ys
+  return (rawST2, stParsed, stDataSyned)
+
+replaceEtDivideHead :: Eq a => V.Vector (String, String) -> V.Vector (String, a) -> V.Vector (String, a)
+replaceEtDivideHead replaceTable vs
+  | res == vs = vs
+  | otherwise = replaceEtDivideHead replaceTable res
+  where
+    res = V.concatMap f vs
+    f x@(str, sqs)
+     | not $ founds == V.empty = V.fromList [(fSnd, sqs), (drop lenOfFoundsHFst str, sqs)]
+     | otherwise = V.singleton (str, sqs)
+        where
+          founds = V.filter g replaceTable
+            where
+              g tabl@(hStr, replans)
+               | lenOfStr < lenOfHStr = False
+               | lenOfStr == lenOfHStr = False
+               | hStr == taken = True
+               | otherwise = False
+               where
+                 lenOfStr = length str
+                 lenOfHStr = length hStr
+                 taken = take lenOfHStr str
+          foundsHead@(fFst, fSnd) = V.head founds :: (String, String)
+          lenOfFoundsHFst = length fFst
+
+replaceEtDivideLast :: Eq a => V.Vector (String, String) -> V.Vector (String, a) -> V.Vector (String, a)
+replaceEtDivideLast replaceTable vs
+  | res == vs = vs
+  | otherwise = replaceEtDivideLast replaceTable res
+  where
+    res = V.concatMap f vs
+    f x@(str, sqs)
+     | not $ founds == V.empty = V.fromList [(reverse $ drop lenOfFoundsHFst $ reverse str, sqs), (fSnd, sqs)]
+     | otherwise = V.singleton (str, sqs)
+        where
+          founds = V.filter g replaceTable
+            where
+              g tabl@(lStr, replans)
+               | lenOfStr < lenOfHStr = False
+               | lenOfStr == lenOfHStr = False
+               | lStr == taken = True
+               | otherwise = False
+               where
+                 lenOfStr = length str
+                 lenOfHStr = length lStr
+                 taken = reverse $ take lenOfHStr $ reverse str
+          foundsHead@(fFst, fSnd) = V.head founds :: (String, String)
+          lenOfFoundsHFst = length fFst
+
+assSqsToPhraseNeoJP :: V.Vector (V.Vector String)
+  -> V.Vector (String, V.Vector Square)
+  -> V.Vector (V.Vector (String, V.Vector Square))
+assSqsToPhraseNeoJP stParsed tessRes = result3
+  where
+    eachLength = V.map V.length stParsed :: V.Vector Int -- For Strings
+    flattened = V.concatMap id stParsed :: V.Vector String
+    eachLength2 = V.map length flattened :: V.Vector Int -- For Chars
+    flattened2 = V.map (\x -> [x]) $ V.fromList $ concatMap id flattened :: V.Vector String
+    tessResFlattened = V.concatMap f tessRes :: V.Vector (String, V.Vector Square)
+      where
+        f :: (String, V.Vector Square) -> V.Vector (String, V.Vector Square)
+        f x@(str, sqs) = V.fromList $ map (\c -> ([c], sqs)) str
+    strs = flattened2
+    --tupsPrim = tessRes
+    tupsPrim = tessResFlattened
+    ass3Syned = V.map (\x@(x1, x2) -> (x1, V.concatMap id x2)) assBySlide3
+      where
+         assBySlide3 = assignByDiff strs tupsPrim
+    reformed@(pl, rs) = V.foldl' f (V.empty, ass3Syned) eachLength2
+      where
+        f y@(pooled, residue) lenOfJag = (pooled V.++ (V.singleton $ V.take lenOfJag residue), V.drop lenOfJag residue)
+    result = pl V.++ (V.singleton rs)
+    reformed2@(pl2, rs2) = V.foldl' f (V.empty, result) eachLength
+      where
+        f y@(pooled, residue) lenOfJag = (pooled V.++ (V.singleton $ V.take lenOfJag residue), V.drop lenOfJag residue)
+    result2 = pl2 V.++ (V.singleton rs2)
+    result3 = V.map (\xs -> V.map (\ys -> (concatMap id $ takeFst ys, V.concatMap id $ takeSnd ys) ) xs) result2
+
+-- this corresponds to stanIOJP(from poppy1)
+getNPStructureJP :: String -> Bool -> IO (V.Vector MData, (V.Vector (V.Vector MData)))
+getNPStructureJP sens isLinux = do
+  pairs <- getMecabed sens
+  let
+    parsed = parseNPsJP1 pairs
+    parsed2 = parseForPatent parsed
+  return (pairs, parsed2)
+
+parseForPatent :: V.Vector (V.Vector MData) -> V.Vector (V.Vector MData)
+parseForPatent parsed = anotherParsed
+  where
+    tokenAbstracted = V.map (\x -> (f x, x)) parsed
+       where
+         f mds = concat $ V.toList $ V.map mToken mds
+    anotherParsed = V.snoc pl (V.concatMap id st)
+       where
+         folded@(st,pl) = V.foldl' g (V.empty, V.empty) tokenAbstracted
+         g :: (V.Vector (V.Vector MData), V.Vector (V.Vector MData)) -> (String, V.Vector MData) -> (V.Vector (V.Vector MData), V.Vector (V.Vector MData))
+         g y@(stacked, pooled) x@(tok, dat) = res
+           where
+             res
+              | V.length stacked == 2 = (V.empty, V.snoc pooled (V.concatMap id $ V.snoc stacked (snd x)))
+              | V.length stacked == 1 && tok == "の" = (V.snoc stacked (snd x), pooled)
+              | stacked == V.empty && (not $ onlyNumberApplicant == "") && isApAllNums = (V.snoc stacked (snd x), pooled)
+              | otherwise = (V.empty, V.snoc pooled $ snd x)
+               where
+                onlyNumberApplicant :: String
+                onlyNumberApplicant
+                 | take 3 (Text.unpack $ Text.replace "\"" "" $ Text.pack tok) == "前記第" = drop 3 tok
+                 | take 1 (Text.unpack $ Text.replace "\"" "" $ Text.pack tok) == "第" = drop 1 tok
+                 | otherwise = ""
+                isApAllNums = V.and $ V.fromList $ map (\c -> elem [c] nums) onlyNumberApplicant
+                  where
+                    nums = (map show [0 .. 9]) ++ ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "百", "１", "２", "３", "４", "５", "６", "７", "８", "９", "０"]
+
 getMecabed :: String -> IO (V.Vector MData)
 getMecabed sens = do
   let
@@ -872,19 +1173,10 @@ getGinzameSh sens = do
   res2 <- fmap (Text.unpack . Turtle.lineToText) <$> get2 cmd
   return $ map (\x -> (mToken x, mTag x)) $ map getMData res2
 
-parseNPsJP :: [(String, String)] -> [[(String, String)]]
-parseNPsJP pairs
- | pairs == [] = []
- | otherwise = pooled ++ [stacked]
-    where
-      resPrim@(stacked, pooled) = foldl f ([head pairs], []) (tail pairs)
-         where
-           nouns = ["名詞", "形容詞", "接頭詞", "連体詞"]
-           f y@(stacked, pooled) x
-             | elem (snd x) nouns && (not $ stacked == []) && (elem lTag nouns) = (stacked ++ [x], pooled)
-             | otherwise = ([x], pooled ++ [stacked])
-                 where
-                   lTag = snd $ last stacked
+
+toRawSExpList :: V.Vector MData -> [([Int], String, Maybe String)]
+toRawSExpList mData = V.toList $ V.map (\md -> ([], mTag md, Just (mToken md))) mData
+
 
 parseNPsJP1 :: V.Vector MData -> V.Vector (V.Vector MData)
 parseNPsJP1 pairs
@@ -894,12 +1186,12 @@ parseNPsJP1 pairs
       resPrim@(stacked, pooled) = V.foldl' f (V.singleton $ V.head pairs, V.empty) (V.tail pairs)
          where
            nouns = V.fromList ["名詞", "形容詞", "接頭詞", "連体詞"]
+           postNounsNouns = V.fromList ["接尾辞"]
            f y@(stacked, pooled) x
              | V.elem (mTag x) nouns && (not $ stacked == V.empty) && (V.elem lTag nouns) = (V.snoc stacked x, pooled)
              | otherwise = (V.singleton x, V.snoc pooled stacked)
                  where
                    lTag = mTag $ V.last stacked
-
 
 mDataRoot = CMData {mToken = "Root"
                   , mTag = "ROOT"
@@ -922,11 +1214,6 @@ makeNode tok tag = CMData {mToken = tok
                   , mVoc1 = ""
                   , mVoc2 = ""
                   , mVoc3 = ""}
-
-makeInitialJPSExp :: [MData] -> [SExp (Bool, MData) String]
-makeInitialJPSExp mds = map f mds
-   where
-     f md = Atom (False, md) $ mToken md
 
 testestes22 = do
   res2 <- getGinzad "こちらも、トグル中にはGlobalConfigにその結果は常に返されているので、そちらのみ見ておけばいいことになるから。"

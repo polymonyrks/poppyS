@@ -8,7 +8,9 @@ Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-
 ## OS
 Recommended: [Ubuntu 20.04 LTS (Focal Fossa) Desktop](https://releases.ubuntu.com/20.04/)  
 [lubuntu 20.04 Desktop](https://lubuntu.me/downloads/) also works.  
-For other Distros, MacOS, or Windows etc., equivalent process may work (not checked).  
+For older versions, other Distros, MacOS, or Windows etc., equivalent process may work.  
+(Today I've checked Windows 10 Home also works. I'll show the process very soon.)  
+(I bought a new MacBook Pro(2020), so I'll also try MacOS soon.)  
 ## Update Package List
 ```shell
 sudo apt update
@@ -49,7 +51,6 @@ See [Stanford CoreNLP](https://stanfordnlp.github.io/CoreNLP/other-languages.htm
 ## poppyS(PDF Document Reader)
 ### git clone
 ```shell
-
 git clone https://github.com/polymonyrks/poppyS.git
 ```
 ### stack build
