@@ -444,8 +444,35 @@ getSExpsIOS page = do
         charSqs = V.filter (\x -> (not $ fst x == '\n')) charSqsPrim
         sexps = stanAssign2Poppy1 charSqs stanRess
       return sexps
+  -- prp2
+    retrSexpSJP (sens, charSqsPrim) = do
+      mecabRes <- getMecabed sens
+      let
+        sexp0 = toSExpsJP mecabRes
+        sexp = foldNPsJP sexp0
+        indexed0 = indexingSP sexp
+        forgotten = map (\x@((x1,x2),x3) -> (x1,x2,x3)) $ forgetSExp indexed0
+        indexed = [res]
+          where
+          res = map ggg resPrim
+            where
+              ggg (nums, tag, tok)
+               | (length nums == 1) && (tag == "名詞") = (nums, NP, tok)
+               | otherwise = (nums, TAGVOID, tok)
+          resPrim = gg forgotten
+          gg = map g
+          g (a, b, c) = (a, b, ff <$> c)
+          ff str = case found of
+            Nothing -> str
+            Just (_, e) -> e
+            where
+              found = Lis.find (\str2 -> (fst str2) == str) replaceStanTable
+        charSqs = V.filter (\x -> (not $ fst x == '\n')) charSqsPrim
+        sexps = stanAssign2Poppy1JP charSqs indexed
+      return sexps
     zipped = V.zip stackedSens charSqVConcated
   bb <- V.mapM retrSexpS zipped
+  -- bb <- V.mapM retrSexpSJP zipped
   return $ concatMap id bb
 
 data ChInfo = CChInfo {
@@ -678,6 +705,69 @@ getBlockS chInfos hei wid
 
 
 replaceStanTable = [("-LRB-", "("), ("-RRB-", ")")]
+
+stanAssign2Poppy1JP charSqs indexed = map reconsSExp resSExpForg
+  where
+    lengths = map length indexed
+    indexedFlattened = concat indexed
+    tokens = V.map f $ V.filter (\val -> not $ val == Nothing) $ takeThdT $ V.fromList indexedFlattened
+       where
+         f x = case x of
+           Just x -> x
+           Nothing -> ""
+    interposedSpace
+      | tokens == V.empty = V.empty
+      | otherwise = V.fromList $  V.foldl' f (V.head tokens) $ V.tail tokens
+      where
+        f y x = y ++ " " ++ x
+    chSqsMute = charSqs
+    assigned = assignByDiff interposedSpace chSqsMute
+    assignedFlt = V.map (\x@(c, sqss) -> (c, V.concatMap id sqss)) assigned
+    forgottenIndexed = indexing indexedFlattened
+    onlyToken = map (\x@(i, (is, tg, tk)) -> (i, g tk)) $ filter (\x@(i, (is, tg, tk)) -> f tk) forgottenIndexed
+       where
+         f tk = case tk of
+           Nothing -> False
+           Just _ -> True
+         g tk = case tk of
+           Nothing -> ""
+           Just a -> a
+    justsIndices = takeFstL onlyToken
+    onlyTokenInterposed
+     | onlyToken == [] = []
+     | otherwise = foldl f [head onlyToken] $ tail onlyToken
+        where
+          f y x = y ++ [(-1, " ")] ++ [x]
+    onlyTokenFlt = concatMap (\x@(i,str) -> map (\y -> (i, y)) str) onlyTokenInterposed
+    index = takeFstL onlyTokenFlt
+    chars = V.fromList $ takeSndL onlyTokenFlt
+    assedSqs = map h2 $ Lis.groupBy (\x -> \y -> (fst x) == (fst y)) $ zip index $ V.toList $  V.map (\x@(c, sqss) -> (c, V.concatMap id sqss)) $ assignByDiff chars assignedFlt
+       where
+         h2 lis = (i, (tokens, sqs))
+           where
+             i = fst $ head lis
+             tokens = takeFstL $ takeSndL lis
+             sqs = concatMap V.toList $ takeSndL $ takeSndL lis
+    assedSqs2 = map h3 $ Lis.groupBy (\x -> \y -> (fst x) == (fst y)) $ filter (\x@(i,_) -> not $ i == -1) $ zip index $ V.toList $ takeSnd $ assignByDiff chars assignedFlt
+       where
+         h3 lis = (i, sqs)
+           where
+             i = fst $ head lis
+             sqs = concatMap (V.toList . (V.concatMap id)) $ takeSndL lis
+    resForgotten2 = map g3 forgottenIndexed
+      where
+        g3 (i, (is, tg, mbStr))
+         | isJust = (is, tg, Just (tk, tokSq))
+         | otherwise = (is, tg, Nothing)
+           where
+             tk = case mbStr of
+               Just tkk -> tkk
+               Nothing -> ""
+             isJust = not $ mbStr == Nothing
+             tokSq = snd $ head $ filter (\x -> (fst x) == i) assedSqs2
+    separated@(rawRes, resSExpForg) = foldl f (resForgotten2, []) lengths
+      where
+        f y@(raw, stacked) n = (drop n raw, stacked ++ [take n raw])
 
 --kesuna
 stanAssign2Poppy1 charSqs stanRess = map reconsSExp resSExpForg
