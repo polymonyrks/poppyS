@@ -31,20 +31,122 @@ import qualified GI.Poppler as GPop
 import Foreign.Ptr (castPtr, nullPtr)
 import Foreign.ForeignPtr (withForeignPtr)
 
-{-
-pairssPrim <- iVecFromFileJP "mecabed.txt"
-pairss = V.map (\x -> read x :: V.Vector MData) pairssPrim
-pairs = pairss  V.! 2
---pairs = pairss  V.! 3
-sexp0 = toSExpsJP pairs
-sexp1 = foldPrefix sexp0
-sexp2 = foldSuffix sexp1
-sexp3 = foldSameTags sexp2
-showSP $ forgetSubs sexp3
--}
+tes n = do
+  pairssPrim <- iVecFromFileJP "mecabed.txt"
+  let
+    pairss = V.map (\x -> read x :: V.Vector MData) pairssPrim
+    --pairs = pairss  V.! 2
+    pairs = pairss  V.! n
+    sexp0 = toSExpsJP pairs
+    sexp12 = foldNPsJP sexp0
+  showSP $ forgetSubs sexp12
+
+foldNPsJP sexp0 = sexp12
+  where
+    sexp1 = foldPrefix sexp0
+    sexp2 = foldSuffix sexp1
+    sexp3 = foldSameTags sexp2
+    sexp4 = foldSuccTags ("名詞", 3, f) sexp3
+      where
+        f xs = isHeadNoun && isMidJoshiAndNo && isLastNoun
+          where
+            isHeadNoun = (getTagJP $ (head xs)) == "名詞" || (getTagJP $ (head xs)) == "代名詞"
+            isMidJoshiAndNo = (Atom "助詞" "の") == (forgetSubs $ xs !! 1)
+            isLastNoun = (getTagJP $ (last xs)) == "名詞" || (getTagJP $ (last xs)) == "代名詞"
+    sexp42 = foldSuccTags ("動詞", 2, f) sexp4
+      where
+        f xs = isHead && isLast
+          where
+            isHead = (getTagJP $ (head xs)) == "動詞"
+            isLast = (getTagJP $ (last xs)) == "助動詞"
+    sexp43 = foldSuccTags ("動詞", 3, f) sexp42
+      where
+        f xs = isHead && isMid && isLast
+          where
+            isHead = (getTagJP $ (head xs)) == "名詞"
+            isMid = (Atom "助詞" "と") == (forgetSubs $ (!! 1) xs)
+            isLast = (Atom "動詞" "する") == (forgetSubs $ last xs) || (Atom "動詞" "し") == (forgetSubs $ last xs)
+    sexp5 = foldSuccTags ("形容詞1", 2, f) sexp43
+      where
+        f xs = isHeadShape && isLastJoshiAndNo
+          where
+            isHeadShape = (getTagJP $ (head xs)) == "形状詞" || (getTagJP $ (head xs)) == "名詞"
+            isLastJoshiAndNo = (Atom "助動詞" "な") == (forgetSubs $ last xs)
+    sexp6 = foldSuccTags ("名詞", 2, f) sexp5
+      where
+        f xs = isHeadAdj && isLastNoun
+          where
+            isHeadAdj = (getTagJP $ (head xs)) == "形容詞1" || (getTagJP $ (head xs)) == "連体詞"
+            isLastNoun = (getTagJP $ (last xs)) == "名詞" || (getTagJP $ (last xs)) == "代名詞"
+    sexp7 = foldSameTags sexp6
+    sexp8 = foldSuccTags ("名詞", 3, f) sexp7
+      where
+        f xs = isHeadNoun && isMidJoshiAndNo && isLastNoun
+          where
+            isHeadNoun = (getTagJP $ (head xs)) == "名詞" || (getTagJP $ (head xs)) == "代名詞"
+            isMidJoshiAndNo = (Atom "助詞" "の") == (forgetSubs $ xs !! 1)
+            isLastNoun = (getTagJP $ (last xs)) == "名詞" || (getTagJP $ (last xs)) == "代名詞"
+    sexp9 = foldSuccTags ("動詞", 2, f) sexp8
+      where
+        f xs = isHeadAdj && (isSuru || isShi || isShita)
+          where
+            isHeadAdj = (getTagJP $ (head xs)) == "名詞"
+            isSuru = (Atom "動詞" "する") == (forgetSubs $ xs !! 1)
+            isShi = (Atom "動詞" "し") == (forgetSubs $ xs !! 1)
+            isShita = (Atom "動詞" "した") == (forgetSubs $ xs !! 1)
+    sexp91 = foldSuccTags ("副詞", 2, f) sexp9
+      where
+        f xs = isHeadShape && isLastJoshiAndNo
+          where
+            isHeadShape = (getTagJP $ (head xs)) == "形状詞"
+            isLastJoshiAndNo = (Atom "助動詞" "に") == (forgetSubs $ last xs)
+    sexp92 = foldSuccTags ("動詞", 2, f) sexp91
+      where
+        f xs = isHeadShape && isLast
+          where
+            isHeadShape = (getTagJP $ (head xs)) == "副詞"
+            isLast = (getTagJP $ (last xs)) == "動詞"
+    sexp10 = foldSuccTags ("動詞", 2, f) sexp92
+      where
+        f xs = isHead && isLast
+          where
+            isHead = (getTagJP $ (head xs)) == "形容詞"
+            isLast = (getTagJP $ (last xs)) == "動詞"
+    sexp11 = foldSuccTags ("名詞", 2, f) sexp10
+      where
+        f xs = isHeadAdj && (isSuru || isPossib || isSitu || isElem)
+          where
+            isHeadAdj = (getTagJP $ (head xs)) == "動詞"
+            isSuru = (Atom "名詞" "こと") == (forgetSubs $ xs !! 1)
+            isPossib = (Atom "名詞" "可能性") == (forgetSubs $ xs !! 1)
+            isSitu = (Atom "名詞" "場合") == (forgetSubs $ xs !! 1)
+            isElem = (Atom "名詞" "事項") == (forgetSubs $ xs !! 1)
+    sexp12 = foldSameTags sexp11
 
 -- isSuffix
 -- isSuffixStacked
+
+foldSuccTags :: (String, Int, [(SExp String String)] -> Bool) -> SExp String String -> SExp String String
+foldSuccTags _ Nil = Nil
+foldSuccTags _ (Atom a b) = (Atom a b)
+foldSuccTags (newTag, lenOfCond, tagsCond) (Opr tg sexps)
+  | length sexps < lenOfCond = Nil
+  | isNewTagOKEnd = Opr tg (snocL plEnd $ Opr newTag stEnd)
+  | otherwise = Opr tg (plEnd ++ stEnd)
+  where
+    isNewTagOKEnd = tagsCond stEnd
+    res@(stEnd, plEnd)
+      | otherwise = foldl f (take lenOfCond sexps, []) $ drop lenOfCond sexps
+       where
+         f y@(st, pl) x
+           | isNotYet = (stackedAdded, pl) -- <- stack continue
+           | isNewTagOK = ([x], snocL pl foldedOpr) -- <- stack terminated
+           | otherwise = (snocL (tail st) x, snocL pl $ head st) -- popped
+             where
+               isNotYet = length st < lenOfCond
+               stackedAdded = snocL st x
+               isNewTagOK = tagsCond st
+               foldedOpr = Opr newTag st
 
 forgetSubs :: SExp String String -> SExp String String
 forgetSubs Nil = Nil
@@ -79,7 +181,6 @@ foldSameTags (Opr tg sexps)
            | otherwise = ([x], snocL pl $ head st) -- stack terminated without Stacked Sames
              where
                isSameStacked = 1 < length st
-               purged = Opr (getTagJP x) $ snocL st x
                prevTag = getTagJP $ head st
                isNewTagSame = getTagJP x == prevTag
                foldedOpr = Opr (getTagJP $ head st) st
@@ -291,7 +392,6 @@ getSExpsIOS page = do
             chText = Text.unpack $ chIChar inf
     stackedSens = blockLinesConcated
       where
-        -- blockLineChars = V.map (V.map (V.map fst)) charSqV -- :: V.Vector (V.Vector (V.Vector Char)) -- first is Block second is lines in Block last is Line in Lines
         blockLineChars = V.map (V.map (V.map (head . Text.unpack . chIChar))) blocks -- :: V.Vector (V.Vector (V.Vector Char)) -- first is Block second is lines in Block last is Line in Lines
         blockLinesConcated = V.map concatLines blockLineChars
           where
@@ -837,8 +937,7 @@ takeFstL = map fst
 takeSndL :: [(a, b)] -> [b]
 takeSndL = map snd
 
-command = "http://localhost:9000/?annotators=parse&outputFormat=json&timeout=10000"
--- command = "http://0.0.0.0:9000/?annotators=parse&outputFormat=json&timeout=10000"
+command = "http://localhost:9000/?annotators=parse&outputFormat=json&timeout=50000"
 text = "The quick brown fox jumped over the lazy dog."
 
 buildRequest :: String -> RequestBody -> IO Request
