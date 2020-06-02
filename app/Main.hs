@@ -122,7 +122,7 @@ mainGtk fpath poppySPath = do
       decl n nOfPage = mod (n - 2) nOfPage
       incl1 n nOfPage = mod (n + 1) nOfPage
       decl1 n nOfPage = mod (n - 1) nOfPage
-      registeredKeys = [["j"], ["k"], ["f"], ["d"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "c"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"]]
+      registeredKeys = [["j"], ["k"], ["f"], ["d"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "c"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["Space", "l", "t"]]
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
@@ -199,6 +199,17 @@ mainGtk fpath poppySPath = do
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window "Config Saved."
       return ()
+    when (stKeys == ["Space", "l", "t"]) $ do
+      modifyIORef docRef (\x -> x {dkIsJapanese = not $ dkIsJapanese x})
+      Gtk.widgetQueueDraw window
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      doc <- readIORef docRef
+      let
+        cdoc = dkCurrDoc doc
+      nOfPage <- GPop.documentGetNPages cdoc
+      sexps  <- MV.replicate (fromIntegral nOfPage) Nothing
+      modifyMVar_ mVars (\mvrs -> return $ mvrs {mVarSExps = sexps})
+      return ()
     when (name == Just "Escape") $ do
       --modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       --modifyIORef docsRef (\x -> x {dksIsDeleting = False})
@@ -239,6 +250,7 @@ mainGtk fpath poppySPath = do
           currDoc = dkCurrDoc doc
           currPage = dkCurrPage doc
           nextPage = dkNextPage doc
+          isJapanese = dkIsJapanese doc
         page <- GPop.documentGetPage currDoc currPage
         pageNext <- GPop.documentGetPage currDoc currPage
         (pWid', pHei') <- GPop.pageGetSize page
@@ -282,8 +294,12 @@ mainGtk fpath poppySPath = do
           offSetXAllNext = (pWid' - pageLeftNext - (pWid' - pageRight) - pageLeft)
           offSetYAllNext = - pageTopNext
           pointNext = CPos {posX = colReal / ratio -offSetXAllNext , posY = rowReal / ratio - offSetYAllNext}
-          stemmed = map (\x -> (stemEng $ fst x, snd x)) detacheds
-          stemmedNext = map (\x -> (stemEng $ fst x, snd x)) detachedsNext
+          (stemmed, stemmedNext)
+           | isJapanese = (detacheds, detachedsNext)
+           | otherwise = (stemmedPrim, stemmedNextPrim)
+            where
+              stemmedPrim = map (\x -> (stemEng $ fst x, snd x)) detacheds
+              stemmedNextPrim = map (\x -> (stemEng $ fst x, snd x)) detachedsNext
           wordSq = filter f stemmed
             where
               f x@(str, sqs) = or $ map (\sq -> isSqIncludePoint sq point) sqs
@@ -324,7 +340,7 @@ mainGtk fpath poppySPath = do
           isAlreadyL = not $ alrdLocalConfigs == []
           isAlreadyGSimilar = not $ alrdGlobalConfigsSimilar == []
           isAlreadyLSimilar = not $ alrdLocalConfigsSimilar == []
-          forWinTitle = (show word)
+          forWinTitle = (ushow word)
           colorIndex = dkTogColIndex doc
           (newInd, newColor)
             | isAlreadyL && button == 1 = (colorIndex, togging currCol)
@@ -419,6 +435,7 @@ mainGtk fpath poppySPath = do
       currPage = dkCurrPage doc
       nextPage = dkNextPage doc
       colors = dksColors docs
+      isJapanese = dkIsJapanese doc
     page <- GPop.documentGetPage currDoc currPage
     nOfPage <- GPop.documentGetNPages currDoc
     pageNext <- GPop.documentGetPage currDoc currPage
@@ -458,10 +475,13 @@ mainGtk fpath poppySPath = do
                 Nothing -> ("", [])
                 Just y -> y
       ngStems = ["that", "this", "them", "their", "these", "those", "from"]
-      stemmed = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $ map (\x -> (stemEng $ fst x, snd x)) detacheds
-      stemmedNext = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $  map (\x -> (stemEng $ fst x, snd x)) detachedsNext
-      stemmedOrdered = stemmed ++ stemmedNext
-      specials = takeFstL $ filter (\x -> not $ elem (fst x) $ alreadies) $ take 5 $ reverse $ Lis.sortBy f $ V.toList $ getHistogram $ V.fromList $ takeFstL stemmedOrdered
+      (stemmed, stemmedNext)
+       | isJapanese = (detacheds, detachedsNext)
+       | otherwise = (stemmedPrim, stemmedNextPrim)
+         where
+            stemmedPrim = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $ map (\x -> (stemEng $ fst x, snd x)) detacheds
+            stemmedNextPrim = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $  map (\x -> (stemEng $ fst x, snd x)) detachedsNext
+      specials = takeFstL $ filter (\x -> not $ elem (fst x) $ alreadies) $ take 5 $ reverse $ Lis.sortBy f $ V.toList $ getHistogram $ V.fromList $ takeFstL $ stemmed ++ stemmedNext
          where
            f x y = compare (snd x) (snd y)
       specialsPrius = map g specials
@@ -482,12 +502,19 @@ mainGtk fpath poppySPath = do
       sexps = case sexpsMaybe of
         Just sexpsPrim -> sexpsPrim
         Nothing -> []
+    {-
+    when (not $ sexps == []) $ do
+      showSP $ mapNode snd fst $ head sexps
+      putStrLn ""
+-}
+    let
       nextSexps = case sexpsMaybeNext of
         Just sexpsPrim -> sexpsPrim
         Nothing -> []
-      electeds = getColundRectangles sexps configs
-      electedsNext = getColundRectangles nextSexps configs
+      electeds = getColundRectangles sexps configs isJapanese
+      electedsNext = getColundRectangles nextSexps configs isJapanese
     rects <- sequence electeds
+    putStrLn $ "tracted: " ++ (show $ length rects)
     rectsNext <- sequence electedsNext
     rectsSpec <- sequence special0
     rectsSpecNext <- sequence special1
@@ -550,10 +577,6 @@ data Colors = CColors
 
 data MVars = CMVars{
     mVarSExps :: (MV.MVector RealWorld (Maybe [(SExp (Posi, Tag) (String, [Sq Double]))]))
-  , mVarLayouts :: (MV.MVector RealWorld [Sq Double])
-  , mVarWordRootHisto :: (MV.MVector RealWorld (Maybe (String, Int)))
-  , mVarDefaultLayout :: [Sq Double]
-  , mVarDefaultLayoutMode :: LayoutMode
   }
 
 data Mode = Hint | Adhoc | Gramatica | Primitive | Scout
@@ -852,6 +875,7 @@ initDoc docsRef fpath = do
     , dkNextPage = nextPage -- -negative if not 2 pages
     , dkTogColIndex = 0
     , dkIsJapanese = False
+    -- , dkIsJapanese = True
     , dkClipSq = clipSq
     , dkClipSqNext = clipSqNext
     }
@@ -866,19 +890,11 @@ initMVars docRef = do
     currPage = dkCurrPage doc
 
   page <- GPop.documentGetPage currDoc currPage
-  let
-    defaultLayout = [CSq{sqTop = 0.0, sqLeft = 0.0, sqBot = 1.0, sqRight = 1.0}]
   nOfPage <- GPop.documentGetNPages currDoc
   sexps  <- MV.replicate (fromIntegral nOfPage) Nothing
-  layouts  <- MV.replicate (fromIntegral nOfPage) []
-  histo  <- MV.replicate (fromIntegral nOfPage) Nothing
   let
     res = CMVars {
       mVarSExps = sexps
-    , mVarWordRootHisto = histo
-    , mVarLayouts = layouts
-    , mVarDefaultLayout = defaultLayout
-    , mVarDefaultLayoutMode = OneTotal
     }
   return res
 
@@ -886,9 +902,6 @@ stackStan window mvars docsRef docRef = do
   mvs <- readMVar mvars
   let
     mvSexps = mVarSExps mvs
-    mvLayouts = mVarLayouts mvs
-    mvLayoutDefo = mVarDefaultLayout mvs
-    mvLayoutModeDefo = mVarDefaultLayoutMode mvs
   docs <- readIORef docsRef
   let
     -- docName = pdfs !! currDocId
@@ -896,6 +909,7 @@ stackStan window mvars docsRef docRef = do
   let
     currDoc = dkCurrDoc doc
     currPage = fromIntegral $ dkCurrPage doc
+    isJapanese = dkIsJapanese doc
   maxPage <- fromIntegral <$> GPop.documentGetNPages currDoc
   let
     forwardNums
@@ -919,7 +933,7 @@ stackStan window mvars docsRef docRef = do
       f2 n2 = case n2 of
         Just n -> do
           nP <- GPop.documentGetPage currDoc n
-          aa <- getSExpsIOS nP
+          aa <- getSExpsIOS nP isJapanese
           return (Just aa)
         Nothing -> return Nothing
       f = case nextForward of
@@ -927,21 +941,21 @@ stackStan window mvars docsRef docRef = do
           Nothing -> return mvSexps
           Just m -> do
             mP <- GPop.documentGetPage currDoc $ fromIntegral m
-            newSExp <- getSExpsIOS mP
+            newSExp <- getSExpsIOS mP isJapanese
             MV.write mvSexps m (Just newSExp)
             return mvSexps
         Just m2 -> case nextBackward of
           Nothing -> do
             m2P <- GPop.documentGetPage currDoc $ fromIntegral m2
-            newSExp <- getSExpsIOS m2P
+            newSExp <- getSExpsIOS m2P isJapanese
             MV.write mvSexps m2 (Just newSExp)
             return mvSexps
           Just m -> do
             mP <- GPop.documentGetPage currDoc $ fromIntegral m
-            newSExp  <- getSExpsIOS mP
+            newSExp  <- getSExpsIOS mP isJapanese
             MV.write mvSexps m (Just newSExp)
             mP2 <- GPop.documentGetPage currDoc $ fromIntegral m2
-            newSExp2  <- getSExpsIOS mP2
+            newSExp2  <- getSExpsIOS mP2 isJapanese
             MV.write mvSexps m2 (Just newSExp2)
             return mvSexps
      mvSexpsNeo <- f
@@ -1058,7 +1072,7 @@ stopper f minm maxm n
   | maxm < f n = maxm
   | otherwise = f n
 
-getColundRectangles sexps configs = electeds
+getColundRectangles sexps configs isJapanese = electeds
   where
       detacheds = map (map g2) $ map (filter g) $ map takeSndL $ map forgetSExp $ concatMap ((filter (\y -> isBottomBy id y)) . (takeSpecTags (\x -> x == NP))) $  map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
         where
@@ -1074,7 +1088,9 @@ getColundRectangles sexps configs = electeds
            g y x@(stemX, color) = y ++ filtered
               where
                 filtered = [(color, sqs) | stem@(stems, sqs) <- stemmeds, elem (toLowers stemX) stems]
-           stemmeds = map (\xs -> (map (toLowers . stemEng) $ takeFstL xs, takeSndL xs)) detacheds
+           stemmeds
+             | isJapanese = map (\xs -> (takeFstL xs, takeSndL xs)) detacheds
+             | otherwise = map (\xs -> (map (toLowers . stemEng) $ takeFstL xs, takeSndL xs)) detacheds
       electeds = map f3 $ concatMap (\x@(col, sqss) -> map (\x -> (col, x)) $ concat sqss) detachedAssigneds
         where
           f3 (color, sq) = do

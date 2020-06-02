@@ -368,7 +368,7 @@ getSExpsIOSCheck page = do
 
 
 --prp
-getSExpsIOS page = do
+getSExpsIOS page isJapanese = do
   (wid, hei) <- GPop.pageGetSize page
   chInfos <- getChInfos page
   blocksPrim <- (\x -> getBlock x hei wid) <$> getChInfos page -- stable, but not covers some PDFs which has character layout bugs.
@@ -471,7 +471,10 @@ getSExpsIOS page = do
         sexps = stanAssign2Poppy1JP charSqs indexed
       return sexps
     zipped = V.zip stackedSens charSqVConcated
-  bb <- V.mapM retrSexpS zipped
+    isJPBifurk zipped
+     | isJapanese = V.mapM retrSexpSJP zipped
+     | otherwise  = V.mapM retrSexpS zipped
+  bb <- isJPBifurk zipped
   -- bb <- V.mapM retrSexpSJP zipped
   return $ concatMap id bb
 
@@ -1345,7 +1348,7 @@ parseForPatent parsed = anotherParsed
 getMecabed :: String -> IO (V.Vector MData)
 getMecabed sens = do
   let
-    cmd = Turtle.fromString $ "echo " ++ "\""  ++ sens ++ "\"" ++ " | ginzame"
+    cmd = Turtle.fromString $ "echo " ++ "\""  ++ sens ++ "\"" ++ " | mecab"
   res2 <- fmap (Text.unpack . Turtle.lineToText) <$> get2 cmd
   return $ V.fromList $ map getMData res2
 
