@@ -126,6 +126,28 @@ foldNPsJP sexp0 = sexp12
 -- isSuffix
 -- isSuffixStacked
 
+foldSuccTags2 :: ((String, String), Int, [(SExp (String, String) String)] -> Bool) -> SExp (String, String) String -> SExp (String, String) String
+foldSuccTags2 _ Nil = Nil
+foldSuccTags2 _ (Atom a b) = (Atom a b)
+foldSuccTags2 (newTag, lenOfCond, tagsCond) (Opr tg sexps)
+  | length sexps < lenOfCond = Nil
+  | isNewTagOKEnd = Opr tg (snocL plEnd $ Opr newTag stEnd)
+  | otherwise = Opr tg (plEnd ++ stEnd)
+  where
+    isNewTagOKEnd = tagsCond stEnd
+    res@(stEnd, plEnd)
+      | otherwise = foldl f (take lenOfCond sexps, []) $ drop lenOfCond sexps
+       where
+         f y@(st, pl) x
+           | isNotYet = (stackedAdded, pl) -- <- stack continue
+           | isNewTagOK = ([x], snocL pl foldedOpr) -- <- stack terminated
+           | otherwise = (snocL (tail st) x, snocL pl $ head st) -- popped
+             where
+               isNotYet = length st < lenOfCond
+               stackedAdded = snocL st x
+               isNewTagOK = tagsCond st
+               foldedOpr = Opr newTag st
+
 foldSuccTags :: (String, Int, [(SExp String String)] -> Bool) -> SExp String String -> SExp String String
 foldSuccTags _ Nil = Nil
 foldSuccTags _ (Atom a b) = (Atom a b)
@@ -288,7 +310,8 @@ doc <- GPop.documentNewFromFile pdfPath Nothing
 page <- GPop.documentGetPage doc nPage
 nPages <- GPop.documentGetNPages doc
 
-
+res <- mapM (\n -> extractSExpsJP =<< GPop.documentGetPage doc n) [0 .. nPages - 1]
+res2 = V.concatMap id $ V.fromList res
 
 
 
@@ -366,6 +389,95 @@ getSExpsIOSCheck page = do
   putStrLn $ show forBlocksCheck
   putStrLn $ show n
 
+
+extractSExpsJP page = do
+  (wid, hei) <- GPop.pageGetSize page
+  chInfos <- getChInfos page
+  blocksPrim <- (\x -> getBlock x hei wid) <$> getChInfos page -- stable, but not covers some PDFs which has character layout bugs.
+  -- blocksPrimS <- (\x -> getBlockS x hei wid) <$> getChInfosS page -- probably Unstable.
+  let
+    blocks = V.map (V.map (V.map g)) blocksPrim
+      where
+        g info = info {chIChar = gg $ chIChar info}
+          where
+            gg str = V.foldl' ggg str replaceTable
+              where
+                replaceTable = V.fromList [("\8208", "-"), ("\8217", "'")]
+                ggg str2 (nd, ns) = Text.replace nd ns str2
+    forBlocksCheck = V.map (V.map (V.map chIChar)) blocks
+    charSqVConcated = V.map (V.concatMap (V.map f)) blocks
+      where
+        f inf
+          | chText == "" = error "a square's chText is Void"
+          | otherwise = (head chText, V.singleton $ chISq inf)
+          where
+            chText = Text.unpack $ chIChar inf
+    stackedSens = blockLinesConcated
+      where
+        blockLineChars = V.map (V.map (V.map (head . Text.unpack . chIChar))) blocks -- :: V.Vector (V.Vector (V.Vector Char)) -- first is Block second is lines in Block last is Line in Lines
+        blockLinesConcated = V.map concatLines blockLineChars
+          where
+            concatLines bLines
+              | bLines == V.empty = ""
+              | otherwise = folddd
+             where
+                bLinesStr = V.map (fff . V.toList) bLines
+                 where
+                   fff strstr
+                    | strstr == "" = ""
+                    | last strstr == '\n' = init strstr
+                    | otherwise = strstr
+                folddd = V.foldl' g (V.head bLinesStr) $ V.tail bLinesStr
+                g y x
+                  | x == "" = y
+                  | (not isIsolated) && isLastBar = (init y) ++ x
+                  | isLastSpace = y ++ x
+                  | otherwise = y ++ " " ++ x
+                  where
+                    isIsolated = 1 < length y && ((last $ init y) == ' ')
+                    isLastBar = 0 < length y && (last y == '-' || last y == '\8208')
+                    isLastSpace = 0 < length y && last y == ' '
+        blockLinesConcatedJP = V.map concatLines blockLineChars
+          where
+            concatLines bLines
+              | bLines == V.empty = ""
+              | otherwise = folddd
+             where
+                bLinesStr = V.map (fff . V.toList) bLines
+                 where
+                   fff strstr
+                    | strstr == "" = ""
+                    | last strstr == '\n' = init strstr
+                    | otherwise = strstr
+                folddd = V.foldl' g (V.head bLinesStr) $ V.tail bLinesStr
+                g y x
+                  | x == "" = y
+                  | (not isIsolated) && isLastBar = (init y) ++ x
+                  | isLastSpace = y ++ x
+                  | otherwise = y ++ "" ++ x
+                  where
+                    isIsolated = 1 < length y && ((last $ init y) == ' ')
+                    isLastBar = 0 < length y && (last y == '-' || last y == '\8208')
+                    isLastSpace = 0 < length y && last y == ' '
+  -- prp
+    retrSexpS (sens, charSqsPrim) = do
+      stanRess <- stanIOPoppy1 sens
+      let
+        charSqs = V.filter (\x -> (not $ fst x == '\n')) charSqsPrim
+        sexps = stanAssign2Poppy1 charSqs stanRess
+      return sexps
+  -- prp2
+    retrSexpSJP (sens, charSqsPrim) = do
+      mecabRes <- getMecabed sens
+      let
+        tokenOnly = V.map mToken mecabRes
+        folded = V.foldl' f "" tokenOnly
+          where
+            f y x = y ++ " " ++ x
+      return folded
+    zipped = V.zip stackedSens charSqVConcated
+  bb <- V.mapM retrSexpSJP zipped
+  return bb
 
 --prp
 getSExpsIOS page isJapanese = do

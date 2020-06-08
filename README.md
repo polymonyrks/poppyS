@@ -10,7 +10,7 @@ Recommended: [Ubuntu 20.04 LTS (Focal Fossa) Desktop](https://releases.ubuntu.co
 [lubuntu 20.04 Desktop](https://lubuntu.me/downloads/) also works.  
 For older versions, other Distros, MacOS, or Windows etc., equivalent process may work.  
 (Today I've checked Windows 10 Home also works. I'll show the process very soon.)  
-(I bought a new MacBook Pro(2020), so I'll also try MacOS soon.)  
+(I recently bought a new MacBook, so I'll also try MacOS soon.)  
 ## Update Package List
 ```shell
 sudo apt update
@@ -151,7 +151,7 @@ The art of reading natural language with coloring is imcomplete and experimental
 Modified BSD3. For personal use and/or educational purpose use are O.K.  
 
 I also have some patent applications relating to this source files and technology used therein.  
-If you comply with the LICENSE Terms, then I never assert the mentioned usage in LICENSE Terms by such intellectual properties.  
+If you comply with the LICENSE Terms, then I never assert the mentioned usage described in LICENSE Terms by such intellectual properties.  
 
 If you are interested in commercial use, then please contact me.  
   * Functional Toy Manufactureing (Japanese Homepage) (https://www.polymony.net)  

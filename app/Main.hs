@@ -4,7 +4,7 @@
 
 import Control.Monad (when, void)
 import Control.Monad.Trans.Reader (runReaderT)
-import Control.Concurrent (forkIO, killThread)
+import Control.Concurrent (forkIO)
 import Control.Concurrent.MVar
 import qualified Data.Text as Text
 import qualified Data.List as Lis
@@ -21,7 +21,7 @@ import qualified Control.Lens as LENS
 import qualified Data.Aeson.Lens as AL
 import Data.Text.ICU.Convert as ICU
 import qualified Data.ByteString.Lazy as BL
-import Lib (iVecFromFile, oVecToFile, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getDivideLine, countPrefix, countSuffix)
+import Lib (iVecFromFile, oVecToFile, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getDivideLine, countPrefix, countSuffix, indexingL)
 -- import PopSExp (indexingSP, forgetSExp, injectSExpI, reconsSExp, showSP)
 import PopSExp
 import ParserP (parse, pSExp)
@@ -52,14 +52,8 @@ import Graphics.Rendering.Cairo.Types (Cairo(Cairo))
 import Foreign.Ptr (castPtr)
 
 
---pdfPathPrefix :: String
---pdfPathPrefix = "file:///home/polymony/poppyS/pdfs/"
-
 pdfFilesDir :: String
 pdfFilesDir = "./pdfs"
-
---configFilesDir :: String
---configFilesDir = "./configs"
 
 stemEng = Text.unpack . (stem English) . Text.pack
 toLowers = map toLower
@@ -72,7 +66,6 @@ renderWithContext :: GI.Cairo.Context -> Render () -> IO ()
 renderWithContext ct r = withManagedPtr ct $ \p ->
                          runReaderT (runRender r) (Cairo (castPtr p))
 
--- ppp main = mainGtk
 main = do
   homePath <- getEnv "HOME"
   let
@@ -122,7 +115,7 @@ mainGtk fpath poppySPath = do
       decl n nOfPage = mod (n - 2) nOfPage
       incl1 n nOfPage = mod (n + 1) nOfPage
       decl1 n nOfPage = mod (n - 1) nOfPage
-      registeredKeys = [["j"], ["k"], ["f"], ["d"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "c"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["Space", "l", "t"]]
+      registeredKeys = [["j"], ["k"], ["f"], ["d"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "c"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"]]
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
@@ -130,10 +123,12 @@ mainGtk fpath poppySPath = do
     Gtk.windowSetTitle window $ Text.pack $ show stKeys
     when (stKeys == ["j"] || stKeys == ["f"]) $ do
       goOtherPage window docRef incl incl
+      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["k"] || stKeys == ["d"]) $ do
       goOtherPage window docRef decl decl
+      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["Down"]) $ do
@@ -142,18 +137,22 @@ mainGtk fpath poppySPath = do
       return ()
     when (stKeys == ["Left"]) $ do
       goOtherPage window docRef decl1 decl1
+      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["Right"]) $ do
       goOtherPage window docRef incl1 incl1
+      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["g", "g"]) $ do
       goOtherPage window docRef (\n -> \m -> 0) (\n -> \m -> 1)
+      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["G"]) $ do
       goOtherPage window docRef (\n -> \m -> nPage - 1) (\n -> \m -> 0)
+      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["p"]) $ do
@@ -174,6 +173,7 @@ mainGtk fpath poppySPath = do
       return ()
     when (stKeys == ["c", "c"]) $ do
       modifyIORef docRef (\x -> x {dkConfigYank = dkConfig x, dkConfig = []})
+      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       Gtk.widgetQueueDraw window
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
@@ -199,16 +199,19 @@ mainGtk fpath poppySPath = do
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window "Config Saved."
       return ()
-    when (stKeys == ["Space", "l", "t"]) $ do
+    when (stKeys == ["space", "l", "t"]) $ do
       modifyIORef docRef (\x -> x {dkIsJapanese = not $ dkIsJapanese x})
       Gtk.widgetQueueDraw window
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       doc <- readIORef docRef
+      mvs <- readMVar mVars
       let
         cdoc = dkCurrDoc doc
+        mvSexps = mVarSExps mvs
       nOfPage <- GPop.documentGetNPages cdoc
-      sexps  <- MV.replicate (fromIntegral nOfPage) Nothing
-      modifyMVar_ mVars (\mvrs -> return $ mvrs {mVarSExps = sexps})
+      mapM (\m -> MV.write mvSexps m Nothing) [0 .. (fromIntegral nOfPage) - 1]
+      modifyMVar_ mVars (\mvrs -> return $ mvrs {mVarSExps = mvSexps})
+      Gtk.windowSetTitle window "lang toggled."
       return ()
     when (name == Just "Escape") $ do
       --modifyIORef docsRef (\x -> x {dksKeysStacked = []})
@@ -306,16 +309,18 @@ mainGtk fpath poppySPath = do
           wordSqNext = filter f stemmedNext
             where
               f x@(str, sqs) = or $ map (\sq -> isSqIncludePoint sq pointNext) sqs
-          words = takeFstL wordSq
-          wordsNext = takeFstL wordSqNext
+          words =  wordSq
+          wordsNext = wordSqNext
 
           colors = dksColors docs
           isFail = words == []
           isFailNext = wordsNext == []
-          word
-            | isFail && isFailNext = ""
-            | not isFail = head words
-            | otherwise = head wordsNext
+          iword@(isLeft, (word, tarSqs)) -- prp63
+            | isFail && isFailNext = (-1, ("", []))
+            | not isFail = (0, head words)
+            | otherwise = (1, head wordsNext)
+        modifyIORef docRef (\dk -> dk {dkClickedSquare = (isLeft, tarSqs)})
+        let
           currConfig = dkConfig doc
           getAlrdConfigsSimilar globalConf
             | filtered == [] = []
@@ -331,7 +336,6 @@ mainGtk fpath poppySPath = do
                 where
                   nCommPref = length $ countPrefix tok word
                   nCommSuf = length $ countSuffix tok word
-          -- to be fixed point.
           alrdGlobalConfigs = filter (\x -> (fst x) == word) globalConf
           alrdLocalConfigs  = filter (\x -> (fst x) == word) currConfig
           alrdGlobalConfigsSimilar = getAlrdConfigsSimilar globalConf
@@ -401,7 +405,6 @@ mainGtk fpath poppySPath = do
                let
                  dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
                modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = dropped, dkTogColIndex = newIndex})
-               -- modifyIORef docsRef (\docs -> docs {dksIsDeleting = False})
                Gtk.widgetQueueDraw window
           else return ()
         Gtk.windowSetTitle window $ Text.pack forWinTitle
@@ -481,13 +484,37 @@ mainGtk fpath poppySPath = do
          where
             stemmedPrim = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $ map (\x -> (stemEng $ fst x, snd x)) detacheds
             stemmedNextPrim = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $  map (\x -> (stemEng $ fst x, snd x)) detachedsNext
-      specials = takeFstL $ filter (\x -> not $ elem (fst x) $ alreadies) $ take 5 $ reverse $ Lis.sortBy f $ V.toList $ getHistogram $ V.fromList $ takeFstL $ stemmed ++ stemmedNext
+      clickedSq@(isLeft, sqssqs) = dkClickedSquare doc
+    putStrLn $ show sqssqs
+    cshowIL stemmed
+    cshowIL stemmedNext
+    putStrLn "uchidomedayo"
+    let
+      specials = takeFstL $ filter (\x -> not $ elem (fst x) $ alreadies) $ take 5 $ reverse $ Lis.sortBy f $ V.toList $ getHistogram $ V.fromList $ takeFstL applicant
          where
            f x y = compare (snd x) (snd y)
-      specialsPrius = map g specials
+           applicant
+            | (isLeft == -1) = stemmed ++ stemmedNext
+            | (isLeft == 0) = (dropWhile (\x@(_, sqs) -> not $ sqs == sqssqs) stemmed) ++ stemmedNext
+            | (isLeft == 1) = dropWhile (\x@(_, sqs) -> not $ sqs == sqssqs) stemmedNext
+            | otherwise = error "unexpected condition (leftPage clicked or right one or nothing)"
+      specialsPrius = concatMap g specials
          where
-           stemmedOrderedTagged = (map (\x -> (0, x)) stemmed) ++ (map (\x -> (1, x)) stemmedNext)
-           g tok = head $ filter (\y -> tok == (fst $ snd y)) stemmedOrderedTagged
+           stemmedOrderedTagged
+            | (isLeft == -1) = stemmedNormal ++ stemmedNormalNext
+            | (isLeft == 0) = stemmedSelected ++ stemmedNormalNext
+            | (isLeft == 1) = stemmedSelectedNext
+            | otherwise = error "unexpected condition (leftPage clicked or right one or nothing)"
+               where
+                 stemmedSelected = map (\x -> (0, x)) $ dropWhile (\x@(_, sqs) -> not $ sqs == sqssqs) stemmed
+                 stemmedSelectedNext = map (\x -> (1, x)) $ dropWhile (\x@(_, sqs) -> not $ sqs == sqssqs) stemmedNext
+                 stemmedNormal = (map (\x -> (0, x)) stemmed)
+                 stemmedNormalNext = (map (\x -> (1, x)) stemmedNext)
+           g tok
+             | filtered == [] = []
+             | otherwise = [head $ filter (\y -> tok == (fst $ snd y)) stemmedOrderedTagged]
+             where
+               filtered = filter (\y -> tok == (fst $ snd y)) stemmedOrderedTagged
       rectsSpecial@(special0, special1) =
         let
           concated = map (\x@(i, (tk, sq)) -> (i, sq)) $ specialsPrius
@@ -502,19 +529,12 @@ mainGtk fpath poppySPath = do
       sexps = case sexpsMaybe of
         Just sexpsPrim -> sexpsPrim
         Nothing -> []
-    {-
-    when (not $ sexps == []) $ do
-      showSP $ mapNode snd fst $ head sexps
-      putStrLn ""
--}
-    let
       nextSexps = case sexpsMaybeNext of
         Just sexpsPrim -> sexpsPrim
         Nothing -> []
       electeds = getColundRectangles sexps configs isJapanese
       electedsNext = getColundRectangles nextSexps configs isJapanese
     rects <- sequence electeds
-    putStrLn $ "tracted: " ++ (show $ length rects)
     rectsNext <- sequence electedsNext
     rectsSpec <- sequence special0
     rectsSpecNext <- sequence special1
@@ -611,6 +631,7 @@ data Doc = CDoc {
   , dkIsJapanese :: Bool
   , dkClipSq :: Sq Double
   , dkClipSqNext :: Sq Double
+  , dkClickedSquare :: (Int, [Sq Double]) -- fst is which of these, i.e. (-1: no clicked, 0: leftPage, 1:rightPage)
 -- ppp  , dkTokSqTrues :: V.Vector (V.Vector (String, PopPRectangle))
   }
 
@@ -687,51 +708,6 @@ retrTextFromPoint posTokens pos = satisfied
 
 command = "http://localhost:9000/?annotators=parse&outputFormat=json"
 
-{-
-pageGetPosCharList :: GPop.Page -> IO [(Text.Text, [Sq Double])]
-pageGetPosCharList page = do
-  chars <- (map (\c -> Text.pack [c]) . Lis.nub . Lis.sort . head) <$> ((\c -> [c])  . Text.unpack) <$> GPop.pageGetText page
-  res <- pageGetPosCharListPrim page chars
-  return res
-
-pageGetPosTokenList :: GPop.Page -> IO [(Sq Double, Text.Text)]
-pageGetPosTokenList page = do
-  tokens <- Text.words <$> GPop.pageGetText page
-  res <- pageGetPosTokenListPrim page tokens
-  return $ Lis.nub $ Lis.sort res
-
-pageGetPosCharListPrim :: GPop.Page -> [Text.Text] -> IO [(Text.Text, [Sq Double])]
-pageGetPosCharListPrim page chars = do
-  let
-    retrieveRect cStr = do
-      let
-        findOptions = [GPop.FindFlagsCaseSensitive]
-      rectsPrim <- GPop.pageFindTextWithOptions page cStr findOptions
-      rects <- sequence $ map (swapRectAns page) rectsPrim
-      recrec <- sequence $ map showRect rects
-      return (cStr, recrec)
-  res <- mapM retrieveRect chars
-  return res
-
-pageGetPosCharListFlattened :: GPop.Page -> [Text.Text]-> IO [(Sq Double, Text.Text)]
-pageGetPosCharListFlattened page chars = do
-  res <- swapEtFlatten <$> pageGetPosCharListPrim page chars
-  return $ Lis.nub res
-pageGetPosTokenListPrim :: GPop.Page -> [Text.Text]-> IO [(Sq Double, Text.Text)]
-pageGetPosTokenListPrim page tokens = do
-  let
-    retrieveRect cStr = do
-      let
-        findOptions = [GPop.FindFlagsCaseSensitive, GPop.FindFlagsWholeWordsOnly]
-      rectsPrim <- GPop.pageFindTextWithOptions page cStr findOptions
-      rects <- sequence $ map (swapRectAns page) rectsPrim
-      recrec <- sequence $ map showRect rects
-      return (cStr, recrec)
-  res <- swapEtFlatten <$> mapM retrieveRect tokens
-  return $ Lis.nub res
--}
-
-
 initWidgets poppySPath = do
   vbox <- Gtk.boxNew Gtk.OrientationVertical 0
   window <- new Gtk.Window
@@ -798,8 +774,6 @@ decodeConfig colors y
   | otherwise = "Red"
 
 globalConfigFilePath = "global_config.txt"
--- configFilesDir :: String
--- configFilesDir = "./configs"
 
 initDocs :: String -> IO Docs
 initDocs poppySPath = do
@@ -823,8 +797,6 @@ initDocs poppySPath = do
       }
   return res
 
--- ppp initDoc :: IORef Docs -> IO Doc
--- ppp initDoc docsRef = do
 initDoc :: IORef Docs -> String -> IO Doc
 initDoc docsRef fpath = do
   docs <- readIORef docsRef
@@ -838,7 +810,6 @@ initDoc docsRef fpath = do
     currDocName = reverse $ takeWhile (\c -> not $ c == '/') $ tail $ dropWhile (\c -> not $ c == '.') $ reverse fpath
     isExistsConfig = elem currDocName configs
     configFilePath = configFilesDir ++ "/" ++ currDocName ++ "_config.txt"
-  -- when (not isExistsConfig) $ oVecToFile (V.singleton $ show 10) configFilePath
   when (not isExistsConfig) $ oVecToFile (V.singleton $ show 0) configFilePath
 
   doc <- GPop.documentNewFromFile (Text.pack fpath) Nothing
@@ -875,9 +846,9 @@ initDoc docsRef fpath = do
     , dkNextPage = nextPage -- -negative if not 2 pages
     , dkTogColIndex = 0
     , dkIsJapanese = False
-    -- , dkIsJapanese = True
     , dkClipSq = clipSq
     , dkClipSqNext = clipSqNext
+    , dkClickedSquare = (-1, [])
     }
   return res
 
@@ -903,8 +874,6 @@ stackStan window mvars docsRef docRef = do
   let
     mvSexps = mVarSExps mvs
   docs <- readIORef docsRef
-  let
-    -- docName = pdfs !! currDocId
   doc <- readIORef docRef
   let
     currDoc = dkCurrDoc doc
