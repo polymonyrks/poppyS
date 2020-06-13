@@ -41,8 +41,13 @@ tes n = do
     sexp12 = foldNPsJP sexp0
   showSP $ forgetSubs sexp12
 
-foldNPsJP sexp0 = sexp12
+rootJTag = CJTag {jTag = "root", jTag1 = "root"}
+nilJTag = CJTag {jTag = "nil", jTag1 = "nil"}
+
+foldNPsJP sexp0 = undefined -- sexp12
   where
+    {-
+    
     sexp1 = foldPrefix sexp0
     sexp2 = foldSuffix sexp1
     sexp3 = foldSameTags sexp2
@@ -122,33 +127,12 @@ foldNPsJP sexp0 = sexp12
             isSitu = (Atom "名詞" "場合") == (forgetSubs $ xs !! 1)
             isElem = (Atom "名詞" "事項") == (forgetSubs $ xs !! 1)
     sexp12 = foldSameTags sexp11
+    -}
 
 -- isSuffix
 -- isSuffixStacked
 
-foldSuccTags2 :: ((String, String), Int, [(SExp (String, String) String)] -> Bool) -> SExp (String, String) String -> SExp (String, String) String
-foldSuccTags2 _ Nil = Nil
-foldSuccTags2 _ (Atom a b) = (Atom a b)
-foldSuccTags2 (newTag, lenOfCond, tagsCond) (Opr tg sexps)
-  | length sexps < lenOfCond = Nil
-  | isNewTagOKEnd = Opr tg (snocL plEnd $ Opr newTag stEnd)
-  | otherwise = Opr tg (plEnd ++ stEnd)
-  where
-    isNewTagOKEnd = tagsCond stEnd
-    res@(stEnd, plEnd)
-      | otherwise = foldl f (take lenOfCond sexps, []) $ drop lenOfCond sexps
-       where
-         f y@(st, pl) x
-           | isNotYet = (stackedAdded, pl) -- <- stack continue
-           | isNewTagOK = ([x], snocL pl foldedOpr) -- <- stack terminated
-           | otherwise = (snocL (tail st) x, snocL pl $ head st) -- popped
-             where
-               isNotYet = length st < lenOfCond
-               stackedAdded = snocL st x
-               isNewTagOK = tagsCond st
-               foldedOpr = Opr newTag st
-
-foldSuccTags :: (String, Int, [(SExp String String)] -> Bool) -> SExp String String -> SExp String String
+foldSuccTags :: (JTag, Int, [(SExp JTag String)] -> Bool) -> SExp JTag String -> SExp JTag String
 foldSuccTags _ Nil = Nil
 foldSuccTags _ (Atom a b) = (Atom a b)
 foldSuccTags (newTag, lenOfCond, tagsCond) (Opr tg sexps)
@@ -170,24 +154,26 @@ foldSuccTags (newTag, lenOfCond, tagsCond) (Opr tg sexps)
                isNewTagOK = tagsCond st
                foldedOpr = Opr newTag st
 
-forgetSubs :: SExp String String -> SExp String String
+forgetSubs :: SExp JTag String -> SExp JTag String
 forgetSubs Nil = Nil
 forgetSubs (Atom a b) = (Atom a b)
 forgetSubs (Opr tg sexps)
-  | tg == "root" = (Opr tg $ map forgetSubs sexps)
+  | tg == rootJTag = (Opr tg $ map forgetSubs sexps)
   | otherwise = (Atom tg $ concatMap getSubTokens sexps)
 
-getSubTokens :: SExp String String -> String
+getSubTokens :: SExp JTag String -> String
 getSubTokens Nil = ""
 getSubTokens (Atom a b) = b
 getSubTokens (Opr tg sexps) = concat (map getSubTokens sexps)
 
-toSExpsJP :: V.Vector MData -> SExp String String
-toSExpsJP mData = Opr "root" atoms
+toSExpsJP :: V.Vector MData -> SExp JTag String
+toSExpsJP mData = Opr rootJTag atoms
   where
-    atoms = V.toList $ V.map (\x -> Atom (mTag x) (mToken x)) mData
+    atoms = V.toList $ V.map (\x -> Atom (cNewTag x) (mToken x)) mData
+       where
+           cNewTag x = CJTag {jTag = mTag x, jTag1 = mTag1 x}
 
-foldSameTags :: SExp String String -> SExp String String
+foldSameTags :: SExp JTag String -> SExp JTag String
 foldSameTags Nil = Nil
 foldSameTags (Atom a b) = (Atom a b)
 foldSameTags (Opr tg sexps)
@@ -207,7 +193,7 @@ foldSameTags (Opr tg sexps)
                isNewTagSame = getTagJP x == prevTag
                foldedOpr = Opr (getTagJP $ head st) st
 
-foldSuffix :: SExp String String -> SExp String String
+foldSuffix :: SExp JTag String -> SExp JTag String
 foldSuffix Nil = Nil
 foldSuffix (Atom a b) = (Atom a b)
 foldSuffix (Opr tg sexps)
@@ -224,10 +210,10 @@ foldSuffix (Opr tg sexps)
              where
                isSuffixStacked = 1 < length st
                purged = Opr (getTagJP x) $ snocL st x
-               isNewTagSuffix = getTagJP x == "接尾辞"
+               isNewTagSuffix = ((jTag $ getTagJP x) == "接尾辞") ||  ((jTag1 $ getTagJP x) == "接尾")
                foldedOpr = Opr (getTagJP $ head st) st
 
-foldPrefix :: SExp String String -> SExp String String
+foldPrefix :: SExp JTag String -> SExp JTag String
 foldPrefix Nil = Nil
 foldPrefix (Atom a b) = (Atom a b)
 foldPrefix (Opr tg sexps) = Opr tg (plEnd ++ stEnd)
@@ -241,10 +227,10 @@ foldPrefix (Opr tg sexps) = Opr tg (plEnd ++ stEnd)
              where
                isNoStacked = st == []
                purged = Opr (getTagJP x) $ snocL st x
-               isNewTagPrefix = getTagJP x == "接頭辞"
+               isNewTagPrefix = ((jTag $ getTagJP x) == "接頭辞") || ((jTag1 $ getTagJP x) == "接頭")
 
-getTagJP :: SExp String String -> String
-getTagJP Nil = "nil"
+getTagJP :: SExp JTag String -> JTag
+getTagJP Nil = nilJTag
 getTagJP (Atom tag _) = tag
 getTagJP (Opr tag _) = tag
 
@@ -267,6 +253,13 @@ data MData = CMData {
   , mVoc1 :: String
   , mVoc2 :: String
   , mVoc3 :: String
+ }
+  deriving (Show, Eq, Ord, Read)
+
+
+data JTag = CJTag {
+    jTag :: String
+  , jTag1 :: String
  }
   deriving (Show, Eq, Ord, Read)
 
@@ -470,14 +463,15 @@ extractSExpsJP page = do
     retrSexpSJP (sens, charSqsPrim) = do
       mecabRes <- getMecabed sens
       let
+        resLimited = V.map (\x -> (mToken x, mTag x, mTag1 x)) mecabRes
         tokenOnly = V.map mToken mecabRes
         folded = V.foldl' f "" tokenOnly
           where
             f y x = y ++ " " ++ x
-      return folded
+      return resLimited
     zipped = V.zip stackedSens charSqVConcated
   bb <- V.mapM retrSexpSJP zipped
-  return bb
+  return $ V.concatMap id bb
 
 --prp
 getSExpsIOS page isJapanese = do

@@ -102,6 +102,7 @@ mainGtk fpath poppySPath = do
     currPage = dkCurrPage doc
   mvarsPrim <- initMVars docRef
   mVars <- newMVar mvarsPrim
+  zeroRect <- GPop.rectangleNew
 
   on window #keyPressEvent $ \event -> do
     name <- event `get` #keyval >>= Gdk.keyvalName
@@ -541,7 +542,6 @@ mainGtk fpath poppySPath = do
     page <- GPop.documentGetPage currDoc currPage
     hw@(width, height) <- Gtk.windowGetSize window
     (pWid', pHei') <- GPop.pageGetSize page
-    let
     renderWithContext context $ do
       save
       setOperator OperatorSource
@@ -552,7 +552,7 @@ mainGtk fpath poppySPath = do
        save
        scale ratio ratio
        translate (- pageLeft) (- pageTop)
-       zeroRect <- GPop.rectangleNew
+       -- zeroRect <- GPop.rectangleNew
        GPop.pageRender page context
        _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection page context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) $ rectsSpec ++ rects
        restore
@@ -564,7 +564,7 @@ mainGtk fpath poppySPath = do
           save
           scale ratioNext ratioNext
           translate (pWid' - pageLeftNext - (pWid' - pageRight) - pageLeft) (- pageTopNext)
-          zeroRect <- GPop.rectangleNew
+          -- zeroRect <- GPop.rectangleNew
           GPop.pageRender pageNext context
           _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection pageNext context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) $ rectsSpecNext ++ rectsNext
           restore
