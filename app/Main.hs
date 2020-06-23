@@ -73,18 +73,12 @@ main = do
   fpathPrim <- head <$> getArgs
   cwdPrimPrim <- getCurrentDirectory
   let
-    cwdPrim = Text.unpack $ Text.replace "\\" "/" $ Text.pack cwdPrimPrim
-    cwd
-     | head cwdPrim == '/' = tail cwdPrim
-     | otherwise = cwdPrim
+    cwd = Text.unpack $ Text.replace "\\" "/" $ Text.pack cwdPrimPrim
     fpath
-     | isNotFull = "file:///" ++ cwd ++ "" ++ fpathPrim
-     -- | isNotFull = "file://" ++ cwd ++ "/" ++ fpathPrim
-     | takeWhile (\c -> not $ c == ':') fpathPrim == "file" = fpathPrim
-     | (0 < length fpathPrim) && (take 1 fpathPrim == "/") = "file://" ++ fpathPrim
-     | otherwise = "file:///" ++ fpathPrim
+     | isNotFull = "file://" ++ cwd ++ "/" ++ fpathPrim
+     | otherwise = "file://" ++ fpathPrim
        where
-         isNotFull = not $ Lis.isPrefixOf cwd $ tail fpathPrim
+         isNotFull = not $ head fpathPrim == '/'
 
   -- oVecToFile (V.fromList hogeCheck) "/home/polymony/rks.txt"
   mainGtk fpath poppySPath
