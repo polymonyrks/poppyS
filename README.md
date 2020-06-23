@@ -129,6 +129,13 @@ Similar to [Vim Keybindings](https://www.vim.org/).
 |  x  | cut coloring (enter in or leave of Deleting Mode) |
 |  gg  | goto first page |
 |  :w Enter  | save the state |
+## Mouse Click
+|  action  |  effect  |
+| ---- | ---- |
+|  left  click a word  | coloring corresponding phrases (toggle forward) |
+|  right click a word  | coloring corresponding phrases (toggle backword) |
+|  left  click no word  | increase page (2 pages) |
+|  right click no word  | decrease page (2 pages) |
 ## Coloring
 Click some words, then some corresponding phrases are colored. When you click the same word multiple times, the coloring is toggled.  
 The toggle table is Red -> Blue -> Green -> Purple -> Orange -> Pink -> Aqua -> Cyan -> Red .. .  

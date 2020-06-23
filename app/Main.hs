@@ -384,6 +384,8 @@ mainGtk fpath poppySPath = do
                | col == colLime colors = colAqua colors
                | otherwise = colLime colors
           newIndex = mod newInd 8
+          incl n nOfPage = mod (n + 2) nOfPage
+          decl n nOfPage = mod (n - 2) nOfPage
         if not (isFail && isFailNext)
           then
            if not isDeleting
@@ -401,7 +403,12 @@ mainGtk fpath poppySPath = do
                  dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
                modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = dropped, dkTogColIndex = newIndex})
                Gtk.widgetQueueDraw window
-          else return ()
+          else
+           if button == 1
+            then
+              goOtherPage window docRef incl incl
+            else
+              goOtherPage window docRef decl decl
         Gtk.windowSetTitle window $ Text.pack forWinTitle
         return False
 
