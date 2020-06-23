@@ -110,22 +110,12 @@ mainGtk fpath poppySPath = do
       decl n nOfPage = mod (n - 2) nOfPage
       incl1 n nOfPage = mod (n + 1) nOfPage
       decl1 n nOfPage = mod (n - 1) nOfPage
-      registeredKeys = [["j"], ["k"], ["f"], ["d"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["c", "c"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"]]
+      registeredKeys = [["j"], ["k"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"]]
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
       isSomethingMatched = or $ map (\keys -> Lis.isPrefixOf stKeys keys) registeredKeys
     Gtk.windowSetTitle window $ Text.pack $ show stKeys
-    when (stKeys == ["j"] || stKeys == ["f"]) $ do
-      goOtherPage window docRef incl incl
-      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
-      return ()
-    when (stKeys == ["k"] || stKeys == ["d"]) $ do
-      goOtherPage window docRef decl decl
-      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
-      return ()
     when (stKeys == ["Down"]) $ do
       resizeFromCurrPageSqs window docsRef docRef mVars
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
@@ -166,7 +156,7 @@ mainGtk fpath poppySPath = do
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window windowRepr
       return ()
-    when (stKeys == ["c", "c"]) $ do
+    when (stKeys == ["d", "d"]) $ do
       modifyIORef docRef (\x -> x {dkConfigYank = dkConfig x, dkConfig = []})
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       Gtk.widgetQueueDraw window
