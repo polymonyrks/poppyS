@@ -9,8 +9,7 @@ Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-
 Recommended: [Ubuntu 20.04 LTS (Focal Fossa) Desktop](https://releases.ubuntu.com/20.04/)  
 [lubuntu 20.04 Desktop](https://lubuntu.me/downloads/) also works.  
 For older versions, other Distros, MacOS, or Windows etc., equivalent process may work.  
-(Today I've checked Windows 10 Home also works. I'll show the process very soon.)  
-(I recently bought a new MacBook, so I'll also try MacOS soon.)  
+(I've checked Windows 10 Home also works. I'll show the process very soon.)  
 ## Update Package List
 ```shell
 sudo apt update
