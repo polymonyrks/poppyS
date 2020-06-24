@@ -6,7 +6,7 @@ Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-
 ![demo](./poppySMovie.gif)
 # Installation
 ## OS
-Recommended: [Ubuntu 20.04 LTS (Focal Fossa) Desktop](https://releases.ubuntu.com/20.04/)  
+Recommended: [Ubuntu 20.04 LTS (Focal Fossa) Desktop](https://releases.ubuntu.com/20.04/) or [Ubuntu 18.04 LTS (Bionic Beaver) Desktop](https://releases.ubuntu.com/18.04/)  
 [lubuntu 20.04 Desktop](https://lubuntu.me/downloads/) also works.  
 For older versions, other Distros, MacOS, or Windows etc., equivalent process may work.  
 (I've checked Windows 10 Home also works. I'll show the process very soon.)  
