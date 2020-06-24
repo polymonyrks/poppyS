@@ -120,6 +120,16 @@ mainGtk fpath poppySPath = do
       resizeFromCurrPageSqs window docsRef docRef mVars
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
+    when (stKeys == ["j"]) $ do
+      goOtherPage window docRef incl incl
+      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      return ()
+    when (stKeys == ["k"]) $ do
+      goOtherPage window docRef decl decl
+      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      return ()
     when (stKeys == ["Left"]) $ do
       goOtherPage window docRef decl1 decl1
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
