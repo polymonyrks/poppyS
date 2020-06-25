@@ -6,10 +6,10 @@ Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-
 ![demo](./poppySMovie.gif)
 # Installation
 ## OS
-Recommended: [Ubuntu 20.04 LTS (Focal Fossa) Desktop](https://releases.ubuntu.com/20.04/) or [Ubuntu 18.04 LTS (Bionic Beaver) Desktop](https://releases.ubuntu.com/18.04/)  
+Recommended: [Ubuntu 20.04 LTS (Focal Fossa) Desktop](https://releases.ubuntu.com/20.04/) or [Ubuntu 18.04 LTS (Bionic Beaver) Desktop](https://releases.ubuntu.com/18.04/).  
 [lubuntu 20.04 Desktop](https://lubuntu.me/downloads/) also works.  
 For older versions, other Distros, MacOS, or Windows etc., equivalent process may work.  
-(I've checked Windows 10 Home also works. I'll show the process very soon.)  
+(I've checked Windows 10 Pro/Home also works. I'll show the process very soon.)  
 ## Update Package List
 ```shell
 sudo apt update
@@ -72,7 +72,7 @@ echo $HOME
 for more details, see below.  
 ## Prepare some PDF Files.
 This program poppyS is suitable for hard to read documents such as a bit greek or latin ones.  
-The documents below are such kind of examples.  
+Such kind of examples are below.  
 Read them yourself with this poppyS.  
 1. Computer Science
 * [Haskell Wikibooks](https://en.wikibooks.org/wiki/Haskell)
@@ -103,7 +103,7 @@ stack exec poppyS-exe TARGETPDFPATH
 Like below.
 (e.g.1) When you are at $HOME/poppyS. 
 ```shell
-stack exec poppyS-exe "/pdfs/SICP.pdf"
+stack exec poppyS-exe "pdfs/SICP.pdf"
 ```
 (e.g.2) Full Path also O.K.
 ```shell
@@ -132,18 +132,18 @@ Similar to [Vim Keybindings](https://www.vim.org/).
 | ---- | ---- |
 |  left  click a word  | coloring corresponding phrases (toggle forward) |
 |  right click a word  | coloring corresponding phrases (toggle backword) |
-|  left  click no word  | increase page (2 pages) |
-|  right click no word  | decrease page (2 pages) |
+|  left  click blank space  | increase page (2 pages) |
+|  right click blank space  | decrease page (2 pages) |
 ## Coloring
 Click some words, then some corresponding phrases are colored. When you click the same word multiple times, the coloring is toggled.  
-The toggle table is Red -> Blue -> Green -> Purple -> Orange -> Pink -> Aqua -> Cyan -> Red .. .  
+The toggle schedule is Red -> Blue -> Green -> Purple -> Orange -> Pink -> Aqua -> Cyan -> Red .. .  
 Pressing Key dd decolors all phrases. Some special words are remained yellowed.   
 Yellowed words are special ones in respect to how much area to be colored when you select them.   
-After pressing dd, if you press key p then recover the previous state  
+After pressing dd, press key p then it recovers the previous state  
 (Caveat: If you click another word after dd then the previous state is updated(destroyed).).  
 Even you decolor all the phrases, the tuples (e.g. (Red, word1), (Green, word2), (Aqua, word3) ..) are memoried.  
 Next time you click such words, you can start from the previous color.  
-This temporary decoloring(dd), recovering(p) and/or starting previous colors is effective.  
+This temporary decoloring(dd), recovering(p) and/or starting previous colors is effective for keeping visibility levels.  
 Pressing Key x enters into Deleting Mode. Click some words, then the correspoinding phrases become decolored.  
 Pressing Key x again leaves Deleting Mode.
 # Tactics and Training
