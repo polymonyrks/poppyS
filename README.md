@@ -122,6 +122,7 @@ Similar to [Vim Keybindings](https://www.vim.org/).
 |  Right  | increase page (1 page) |
 |  Left  | decrease page (1 page) |
 |  Down  | crop merginal white zones and adjust page size|
+|  w  | toggle number of pages displayed (2 pages(maximized) to 1 page and vice versa)|
 |  dd  | decolor all phrases |
 |  p  | paste(recover) Coloring |
 |  x  | cut coloring (enter in or leave of Deleting Mode) |
