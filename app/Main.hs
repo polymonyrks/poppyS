@@ -110,7 +110,7 @@ mainGtk fpath poppySPath = do
       decl n nOfPage = mod (n - 2) nOfPage
       incl1 n nOfPage = mod (n + 1) nOfPage
       decl1 n nOfPage = mod (n - 1) nOfPage
-      registeredKeys = [["j"], ["k"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"]]
+      registeredKeys = [["j"], ["k"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"]]
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
@@ -148,6 +148,19 @@ mainGtk fpath poppySPath = do
     when (stKeys == ["G"]) $ do
       goOtherPage window docRef (\n -> \m -> nPage - 1) (\n -> \m -> 0)
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      return ()
+    when (stKeys == ["w"]) $ do
+      docs <- readIORef docsRef
+      hw@(wWid, wHei) <- Gtk.windowGetSize window
+      let
+        nextIsDual = not $ dksIsDualPage docs
+      modifyIORef docsRef (\x -> x {dksIsDualPage = nextIsDual})
+      if nextIsDual == True
+        then Gtk.windowMaximize window
+        else do
+          Gtk.windowUnmaximize window
+          -- Gtk.windowResize window (floor $ (fromIntegral wHei) / 2.0) (floor $ (fromIntegral wWid) / 2.0)
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["p"]) $ do
@@ -233,6 +246,7 @@ mainGtk fpath poppySPath = do
         doc <- readIORef docRef
         mvs <- readMVar mVars
         let
+          nextIsDual = dksIsDualPage docs
           globalConf = dksGlobalConfig docs
           isDeleting = dksIsDeleting docs
           clipSq = dkClipSq doc
@@ -386,6 +400,9 @@ mainGtk fpath poppySPath = do
           newIndex = mod newInd 8
           incl n nOfPage = mod (n + 2) nOfPage
           decl n nOfPage = mod (n - 2) nOfPage
+          incl1 n nOfPage = mod (n + 1) nOfPage
+          decl1 n nOfPage = mod (n - 1) nOfPage
+
         if not (isFail && isFailNext)
           then
            if not isDeleting
@@ -406,9 +423,13 @@ mainGtk fpath poppySPath = do
           else
            if button == 1
             then
-              goOtherPage window docRef incl incl
+             if nextIsDual
+               then goOtherPage window docRef incl incl
+               else goOtherPage window docRef incl1 incl1
             else
-              goOtherPage window docRef decl decl
+             if nextIsDual
+               then goOtherPage window docRef decl decl
+               else goOtherPage window docRef decl1 decl1
         Gtk.windowSetTitle window $ Text.pack forWinTitle
         return False
 
@@ -559,7 +580,7 @@ mainGtk fpath poppySPath = do
        restore
 
     -- for NextPage(If exists)
-    if (0 < nextPage) && (nextPage < (fromIntegral nOfPage) - 1) then
+    if (0 < nextPage) && (nextPage < (fromIntegral nOfPage) - 1) && (dksIsDualPage docs)then
       renderWithContext context $ do
           pageNext <- GPop.documentGetPage currDoc nextPage
           save
@@ -617,6 +638,7 @@ data Docs = CDocs {
   , dksForMisDoublePress :: Bool
   , dksGlobalConfig :: [(String, GPop.Color)]
   , dksIsDeleting :: Bool
+  , dksIsDualPage :: Bool
   }
 
 data Doc = CDoc {
@@ -795,6 +817,7 @@ initDocs poppySPath = do
       , dksForMisDoublePress = False
       , dksGlobalConfig = config
       , dksIsDeleting = False
+      , dksIsDualPage = True
       }
   return res
 

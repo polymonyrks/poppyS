@@ -47,7 +47,6 @@ nilJTag = CJTag {jTag = "nil", jTag1 = "nil"}
 foldNPsJP sexp0 = undefined -- sexp12
   where
     {-
-    
     sexp1 = foldPrefix sexp0
     sexp2 = foldSuffix sexp1
     sexp3 = foldSameTags sexp2
