@@ -51,6 +51,8 @@ import Graphics.Rendering.Cairo.Internal (Render(runRender))
 import Graphics.Rendering.Cairo.Types (Cairo(Cairo))
 import Foreign.Ptr (castPtr)
 
+import GHC.IO.Encoding
+
 
 pdfFilesDir :: String
 pdfFilesDir = "./pdfs"
@@ -67,18 +69,24 @@ renderWithContext ct r = withManagedPtr ct $ \p ->
                          runReaderT (runRender r) (Cairo (castPtr p))
 
 main = do
-  homePath <- getEnv "HOME"
+  setLocaleEncoding utf8
+  let
+    toSlush = (Text.unpack) . (Text.replace "\\" "/") . Text.pack
+  homePath <- toSlush <$> getEnv "HOME"
   let
     poppySPath = homePath ++ "/poppyS"
-  fpathPrim <- head <$> getArgs
-  cwdPrimPrim <- getCurrentDirectory
+  fpathPrim <- (toSlush . head) <$> getArgs
+  cwd <- toSlush <$> getCurrentDirectory
   let
-    cwd = Text.unpack $ Text.replace "\\" "/" $ Text.pack cwdPrimPrim
     fpath
-     | isNotFull = "file://" ++ cwd ++ "/" ++ fpathPrim
-     | otherwise = "file://" ++ fpathPrim
+     | isFullWindows = "file:///" ++ fpathPrim
+     | isWindows = "file:///" ++ cwd ++ "/" ++ fpathPrim
+     | isFullLinux = "file://" ++ fpathPrim
+     | otherwise = "file://" ++ cwd ++ "/" ++ fpathPrim
        where
-         isNotFull = not $ head fpathPrim == '/'
+         isFullLinux = head fpathPrim == '/'
+         isWindows = elem ':' $ takeWhile (\c -> not $ c == '/') homePath
+         isFullWindows = elem ':' $ takeWhile (\c -> not $ c == '/') fpathPrim
 
   -- oVecToFile (V.fromList hogeCheck) "/home/polymony/rks.txt"
   mainGtk fpath poppySPath
@@ -509,9 +517,9 @@ mainGtk fpath poppySPath = do
             stemmedNextPrim = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $  map (\x -> (stemEng $ fst x, snd x)) detachedsNext
       clickedSq@(isLeft, sqssqs) = dkClickedSquare doc
     putStrLn $ show sqssqs
-    cshowIL stemmed
-    cshowIL stemmedNext
-    putStrLn "uchidomedayo"
+    --cshowIL stemmed
+    --cshowIL stemmedNext
+    --putStrLn "uchidomedayo"
     let
       specials = takeFstL $ filter (\x -> not $ elem (fst x) $ alreadies) $ take 5 $ reverse $ Lis.sortBy f $ V.toList $ getHistogram $ V.fromList $ takeFstL applicant
          where
