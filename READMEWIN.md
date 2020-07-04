@@ -78,11 +78,11 @@ reboot system here.
 stack update
 chcp 65001
 cd poppyS
-stack install --extra-lib-dirs="c://Users/opt/local/lib" --extra-include-dirs="c://Users/opt/local/lib"
+stack install --extra-lib-dirs=c:\msys64\mingw64\lib --extra-include-dirs=c:\msys64\mingw64\include
 ```
 Assumes you have installed poppyS at $HOME/poppyS. Like below  
 ```shell
-C://Users/username/poppyS
+C:\Users\username\poppyS
 ```
 ### replace "zlib1.dll"
 Perhaps you encounter a dll error. You have to copy "C:\msys64\mingw64\bin\zlib1.dll" to "C:\Users\yourUsersName\AppData\Local\Programs\stack\x86_64-windows\ghc8.6.5\mingw\bin".
@@ -93,7 +93,7 @@ Perhaps you encounter a dll error. You have to copy "C:\msys64\mingw64\bin\zlib1
 3. Drag and Drop the PDF File to the Symbolic link.  
 for more details, see below.  
 ## Create Symbolic link of poppyS.
-poppyS's exe File is installed at "C://Users/yourUsersName/AppData/Roaming/local/bin/poppyS-exe.exe". Create Symbolic link of "poppyS-exe.exe" to Some place(e.g. Desktop).
+poppyS's exe File is installed at "C:\Users\yourUsersName\AppData\Roaming\local\bin\poppyS-exe.exe". Create Symbolic link of "poppyS-exe.exe" to Some place(e.g. Desktop).
 ## Prepare some PDF Files.
 This program poppyS is suitable for hard to read documents such as a bit greek or latin ones.  
 Such kind of examples are below.  
