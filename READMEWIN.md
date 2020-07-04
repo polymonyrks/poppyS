@@ -12,11 +12,11 @@ Instruction for Ubuntu is [here](./README.md).
 [stack](https://docs.haskellstack.org/en/stable/README/)  
 Download and execute win64bitInstaller.  
 ## gi-gtk
-add some modification to [https://github.com/haskell-gi/haskell-gi/wiki/Using-haskell-gi-in-Windows](using haskell gi in windows).
+add some modification to [this manual](https://github.com/haskell-gi/haskell-gi/wiki/Using-haskell-gi-in-Windows).
 ### Msys2
-[https://msys2.github.io/](msys2)
+[msys2](https://msys2.github.io/)
 ### Haskell Platform
-[https://www.haskell.org/platform/download/8.0.2/HaskellPlatform-8.0.2-a-minimal-x86_64-setup.exe](Haskell Platform)
+[Haskell Platform](https://www.haskell.org/platform/download/8.0.2/HaskellPlatform-8.0.2-a-minimal-x86_64-setup.exe)
 ### Set Environment Variables(System Variables).
 Set four environment variables(PATH, PKG_CONFIG_PATH, XDG_DATA_DIRS, HOME).  
 ```shell
@@ -55,8 +55,8 @@ pacman -S mingw-w64-x86_64-poppler mingw-w64-x86_64-poppler-data
 ```
 ## stanford CoreNLP Server with Docker
 ### docker
-[https://docs.docker.com/docker-for-windows/install/](Windows10 Pro)
-[https://docs.docker.com/docker-for-windows/install-windows-home/](Windows10 Home)
+[Windows10 Pro](https://docs.docker.com/docker-for-windows/install/)
+[Windows10 Home](https://docs.docker.com/docker-for-windows/install-windows-home/)
 ### stanford CoreNLP Parser
 ```shell
 docker pull graham3333/corenlp-complete
