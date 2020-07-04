@@ -5,71 +5,95 @@ This is a Functional Toy Programming. Experimental yet.
 Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-gtk))
 ![demo](./poppySMovie.gif)
 # Installation
-## OS
-Recommended: [Ubuntu 20.04 LTS (Focal Fossa) Desktop](https://releases.ubuntu.com/20.04/) or [Ubuntu 18.04 LTS (Bionic Beaver) Desktop](https://releases.ubuntu.com/18.04/).  
-[lubuntu 20.04 Desktop](https://lubuntu.me/downloads/) also works.  
-Insruction for Windows 10 (home / pro) is [here](./READMEWIN.md)
-For older versions, other Distros, or other OS, equivalent process may work.  
-## Update Package List
-```shell
-sudo apt update
-```
+## Windows 10
+This ReadMe is for Windows 10 (pro / home). Instruction for Ubuntu is [here](./README.md).  
 ## Haskell Stack
-[stack](https://docs.haskellstack.org/en/stable/README/)
-```shell
-wget -qO- https://get.haskellstack.org/ | sh
-```
+[stack](https://docs.haskellstack.org/en/stable/README/)  
+Download and execute win64bitInstaller.  
 ## gi-gtk
-[https://github.com/haskell-gi/haskell-gi](https://github.com/haskell-gi/haskell-gi)
+see also [https://github.com/haskell-gi/haskell-gi/wiki/Using-haskell-gi-in-Windows](using haskell gi in windows)
+### Msys2
+[https://msys2.github.io/](msys2)
+### Haskell Platform
+[https://www.haskell.org/platform/download/8.0.2/HaskellPlatform-8.0.2-a-minimal-x86_64-setup.exe](Haskell Platform)
+### Set Environment Variables(System Variables).
+Set four environment variables(PATH, PKG_CONFIG_PATH, XDG_DATA_DIRS, HOME).  
 ```shell
-sudo apt install libgirepository1.0-dev libwebkit2gtk-4.0-dev libgtksourceview-3.0-dev
-```
-## poppler
-```shell
-sudo apt install libpoppler-dev libpoppler-glib-dev
-```
-## Stanford CoreNLP Server with Docker
-### Docker
-```shell
-sudo apt install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
-```
-```shell
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key  add -
+PATH
+C:\msys64\mingw64\bin
+C:\msys64\usr\bin
+%PATH%
 ```
 ```shell
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+PKG_CONFIG_PATH
+C:\msys64\mingw64\lib\pkgconfig
+C:\msys64\mingw64\share\pkgconfig
 ```
 ```shell
-sudo apt install docker-ce
+XDG_DATA_DIRS
+C:\msys64\mingw64\share
 ```
-### Stanford CoreNLP Server
 ```shell
-sudo docker pull graham3333/corenlp-complete
+HOME
+C:\Users\yourUsersName
+```
+yourUserName is your Home Folder. Assumes git clone below is done at this folder.  
+
+### Gtk系
+execute below in msys2 terminal.
+```shell
+pacman -S -q --noconfirm mingw64/mingw-w64-x86_64-pkg-config mingw64/mingw-w64-x86_64-gobject-introspection mingw64/mingw-w64-x86_64-gtksourceview3
+```
+### icu
+```shell
+pacman -S mingw-w64-x86_64-icu
+```
+### poppler
+```shell
+pacman -S mingw-w64-x86_64-poppler mingw-w64-x86_64-poppler-data
+```
+## stanford CoreNLP Server with Docker
+### docker
+[https://docs.docker.com/docker-for-windows/install/](Windows10 Pro)
+[https://docs.docker.com/docker-for-windows/install-windows-home/](Windows10 Home)
+### stanford CoreNLP Parser
+```shell
+docker pull graham3333/corenlp-complete
 ```
 See [Stanford CoreNLP](https://stanfordnlp.github.io/CoreNLP/other-languages.html) and [Graham MacDonald](https://hub.docker.com/r/graham3333/corenlp-complete)  
+
+
+
 ## poppyS(PDF Document Reader)
+### git
+[https://gitforwindows.org/](https://gitforwindows.org/)  
 ### git clone
 ```shell
 git clone https://github.com/polymonyrks/poppyS.git
 ```
-### stack build
+### reboot system
+reboot system here.
+### stack install
 ```shell
+stack update
+chcp 65001
 cd poppyS
-stack build
+stack install --extra-lib-dirs="c://Users/opt/local/lib" --extra-include-dirs="c://Users/opt/local/lib"
 ```
 Assumes you have installed poppyS at $HOME/poppyS. Like below  
 ```shell
-/home/username/poppyS
+C://Users/username/poppyS
 ```
-You can check your $HOME by the following command.
-```shell
-echo $HOME
-```
+### replace "zlib1.dll"
+Perhaps you encounter a dll error. You have to copy "C:\msys64\mingw64\bin\zlib1.dll" to "C:\Users\yourUsersName\AppData\Local\Programs\stack\x86_64-windows\ghc8.6.5\mingw\bin".
 # Execution of poppyS
+0. Create Symbolic link of poppyS.
 1. Prepare some PDF Files.  
 2. Run Stanford CoreNLP Server.  
-3. Execute poppyS with args (target PDF File's path. Only English Documents supported).  
+3. Drag and Drop the PDF File to the Symbolic link.  
 for more details, see below.  
+## Create Symbolic link of poppyS.
+poppyS's exe File is installed at "C://Users/yourUsersName/AppData/Roaming/local/bin/poppyS-exe.exe". Create Symbolic link of "poppyS-exe.exe" to Some place(e.g. Desktop).
 ## Prepare some PDF Files.
 This program poppyS is suitable for hard to read documents such as a bit greek or latin ones.  
 Such kind of examples are below.  
@@ -94,21 +118,10 @@ Read them yourself with this poppyS.
 
 ## Run Stanford CoreNLP Server.
 ```
-sudo docker run -p 9000:9000 nlpbox/corenlp
+docker run -p 9000:9000 nlpbox/corenlp
 ```
-## Execute poppyS with Args.
-```shell
-stack exec poppyS-exe TARGETPDFPATH
-```
-Like below.
-(e.g.1) When you are at $HOME/poppyS. 
-```shell
-stack exec poppyS-exe "pdfs/SICP.pdf"
-```
-(e.g.2) Full Path also O.K.
-```shell
-stack exec poppyS-exe "/home/username/poppyS/pdfs/SICP.pdf"
-```
+## Drag and Drop a PDF File to the Symbolic link Icon. 
+Drag and Drop works. This executes the poppyS with args automatically.  
 # How to read PDF
 ## Wait a few Seconds
 Once execute poppyS, wait a few seconds. Some words will be colored by yellow.  
