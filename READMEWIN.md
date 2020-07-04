@@ -6,12 +6,13 @@ Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-
 ![demo](./poppySMovie.gif)
 # Installation
 ## Windows 10
-This ReadMe is for Windows 10 (pro / home). Instruction for Ubuntu is [here](./README.md).  
+This ReadMe is for Windows 10 (pro / home).  
+Instruction for Ubuntu is [here](./README.md).  
 ## Haskell Stack
 [stack](https://docs.haskellstack.org/en/stable/README/)  
 Download and execute win64bitInstaller.  
 ## gi-gtk
-see also [https://github.com/haskell-gi/haskell-gi/wiki/Using-haskell-gi-in-Windows](using haskell gi in windows)
+add some modification to [https://github.com/haskell-gi/haskell-gi/wiki/Using-haskell-gi-in-Windows](using haskell gi in windows).
 ### Msys2
 [https://msys2.github.io/](msys2)
 ### Haskell Platform
@@ -39,7 +40,7 @@ C:\Users\yourUsersName
 ```
 yourUserName is your Home Folder. Assumes git clone below is done at this folder.  
 
-### Gtk系
+### Gtk
 execute below in msys2 terminal.
 ```shell
 pacman -S -q --noconfirm mingw64/mingw-w64-x86_64-pkg-config mingw64/mingw-w64-x86_64-gobject-introspection mingw64/mingw-w64-x86_64-gtksourceview3
