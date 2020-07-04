@@ -6,7 +6,7 @@ Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-
 ![demo](./poppySMovie.gif)
 # Installation
 ## Windows 10
-This ReadMe is for Windows 10 (pro / home).  
+This ReadMe is for Windows 10 64bit (pro / home).  
 Instruction for Ubuntu is [here](./README.md).  
 ## Haskell Stack
 [stack](https://docs.haskellstack.org/en/stable/README/)  
