@@ -1,4 +1,4 @@
-# poppyS - Syntactical Highlighting for Natural Language in Haskell
+# poppyS - Syntactical Highlighting for Natural Language in Haskell (Windows Edition)
 # Preamble
 Syntactically highlighting PDF Documents in Haskell.  
 This is a Functional Toy Programming. Experimental yet.  
@@ -6,13 +6,12 @@ Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-
 ![demo](./poppySMovie.gif)
 # Installation
 ## Windows 10
-This ReadMe is for Windows 10 64bit (pro / home).  
+This ReadMe is for [Windows 10 64bit (pro / home)](https://www.microsoft.com/).  
 Instruction for Ubuntu is [here](./README.md).  
 ## Haskell Stack
 [stack](https://docs.haskellstack.org/en/stable/README/)  
 Download and execute win64bitInstaller.  
-## gi-gtk
-add some modification to [this manual](https://github.com/haskell-gi/haskell-gi/wiki/Using-haskell-gi-in-Windows).
+## gi-gtk and others
 ### Msys2
 [msys2](https://msys2.github.io/)
 ### Haskell Platform
@@ -62,7 +61,6 @@ pacman -S mingw-w64-x86_64-poppler mingw-w64-x86_64-poppler-data
 docker pull graham3333/corenlp-complete
 ```
 See [Stanford CoreNLP](https://stanfordnlp.github.io/CoreNLP/other-languages.html) and [Graham MacDonald](https://hub.docker.com/r/graham3333/corenlp-complete)  
-
 
 
 ## poppyS(PDF Document Reader)
