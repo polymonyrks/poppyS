@@ -74,6 +74,7 @@ git clone https://github.com/polymonyrks/poppyS.git
 reboot system here.
 ### stack install
 ```shell
+stack upgrade
 stack update
 chcp 65001
 cd poppyS
