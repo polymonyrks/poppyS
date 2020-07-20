@@ -697,8 +697,9 @@ setColors = do
     colorBlue <- GPop.colorNew
     set colorBlue [ #blue := 65535 ]
     colorGreen <- GPop.colorNew
-    set colorGreen [#red := 39424, #green := 52480, #blue := 12800 ]
+    -- set colorGreen [#red := 39424, #green := 52480, #blue := 12800 ]
     -- set colorGreen [#red := 8704, #green := 35584, #blue := 8704 ]
+    set colorGreen [#red := 0, #green := 32767, #blue := 0]
     colorWhite <- GPop.colorNew
     set colorWhite [#red := 65535, #green := 65535, #blue := 65535 ]
     colorNavy <- GPop.colorNew
