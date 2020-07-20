@@ -123,18 +123,41 @@ mainGtk fpath poppySPath = do
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
       isSomethingMatched = or $ map (\keys -> Lis.isPrefixOf stKeys keys) registeredKeys
+    {-
+    doc <- readIORef docRef
+    let
+      cDoc = dkCurrDoc doc
+    docTitle <- GPop.documentGetTitle cDoc
+    docNPages <- GPop.documentGetNPages cDoc
+    let
+      currPage = dkCurrPage doc
+      winTitle = (show stKeys) ++ " " ++ (Text.unpack docTitle) ++ ": ( " ++ (show currPage) ++ " / " ++ (show docNPages) ++ " )"
+    Gtk.windowSetTitle window $ Text.pack winTitle
+-}
     Gtk.windowSetTitle window $ Text.pack $ show stKeys
     when (stKeys == ["Down"]) $ do
       resizeFromCurrPageSqs window docsRef docRef mVars
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["j"]) $ do
-      goOtherPage window docRef incl incl
+      docs <- readIORef docsRef
+      let
+        isDual = dksIsDualPage docs
+        goFunc
+         | isDual = incl
+         | otherwise = incl1
+      goOtherPage window docRef goFunc goFunc
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["k"]) $ do
-      goOtherPage window docRef decl decl
+      docs <- readIORef docsRef
+      let
+        isDual = dksIsDualPage docs
+        goFunc
+         | isDual = decl
+         | otherwise = decl1
+      goOtherPage window docRef goFunc goFunc
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
