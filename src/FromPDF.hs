@@ -60,7 +60,7 @@ tes n = do
             . foldSameTags0
             . foldAdvAdvize))
     deepNounized = deepNounizeBetJoshi sexpUnitNPs
-  showSP $ forgetSubs $ foldNPAdvByWall $ recFoldPhraseJP (foldNPVPSensByWall . foldAdvNPVPSensByWall) deepNounized
+  showSP $ forgetSubs $ foldNPAdvByWall $ recFoldPhraseJP (foldNPVPSensWOJoshiByWall . foldNPVPSensByWall . foldAdvNPVPWOJoshiSensByWall . foldAdvNPVPSensByWall) deepNounized
 
 rootJTag = CJTag {jTag = "root", jTag1 = "root"}
 nilJTag = CJTag {jTag = "nil", jTag1 = "nil"}
@@ -232,12 +232,14 @@ foldAdvNPVPSensByWall (Opr tg sexps)
              kakariJo = map (\c -> Atom (CJTag "助詞" "係助詞") c) ["が", "は"]
          isVerb4 = "動詞" == (jTag $ getTagJP $ (sexps0 !! 4))
          isAdj4 = "形容詞" == (jTag $ getTagJP $ (sexps0 !! 4))
-         isWall5 = isKigou || isConj　|| isTo || isConj2
+         isWall5 = isKigou || isConj　|| (isTo || isToIu) || isConj2 || isNP
            where
              isKigou = "記号" == (jTag $ getTagJP $ last sexps0)
              isConj = "接続詞" == (jTag $ getTagJP $ last sexps0)
              isTo = Atom (CJTag "助詞" "格助詞") "と" == (last sexps0)
+             isToIu = checkIsTok "という" $ forgetSubs $ last sexps0
              isConj2 = "接続助詞" == (jTag1 $ getTagJP $ last sexps0)
+             isNP = "名詞" == (jTag $ getTagJP $ last sexps0)
     isNewTagOKEnd = tagsCond stEnd
     res@(stEnd, plEnd)
       | otherwise = foldl f (take 5 sexps, []) dropped
@@ -250,11 +252,64 @@ foldAdvNPVPSensByWall (Opr tg sexps)
            | isNewTagOK = ([x], pl ++ foldedOpr) -- <- stack terminated
            | otherwise = popped -- popped
              where
-               isFirstCheck = (length st == 6) && pl == []
+               isFirstCheck = (length st == 5) && pl == []
                isFirstCheckOK = isFirstCheck && (tagsCond (dummy : st))
                  where
                    dummy = Atom (CJTag "記号" "読点") "、"
                isNotYet = length st < 6
+               stackedAdded = snocL st x
+               isNewTagOK = tagsCond st
+               foldedOpr = [head st, Opr advJTag $ init $ tail st, last st]
+               foldedOprFirst = [Opr advJTag $ init st, last st]
+               popped = (snocL (tail st) x, snocL pl $ head st)
+               poppedFirst = (snocL st x, pl)
+
+foldAdvNPVPWOJoshiSensByWall :: SExp JTag String -> SExp JTag String
+foldAdvNPVPWOJoshiSensByWall Nil = Nil
+foldAdvNPVPWOJoshiSensByWall (Atom a b) = (Atom a b)
+foldAdvNPVPWOJoshiSensByWall (Opr tg sexps)
+  | length sexps < 5 = (Opr tg sexps)
+  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr advJTag $ init $ tail stEnd, last stEnd])
+  | otherwise = Opr tg (plEnd ++ stEnd)
+  where
+    advJTag = CJTag "動詞" "文"
+    tagsCond sexps0 = isWall0 && isAdv1 && isNoun2 && (isVerb3 || isAdj3) && isWall4
+       where
+         isWall0 = isKigou || isConj　|| isTo || isConj2
+           where
+             isKigou = "記号" == (jTag $ getTagJP $ head sexps0)
+             isConj = "接続詞" == (jTag $ getTagJP $ head sexps0)
+             isTo = Atom (CJTag "助詞" "格助詞") "と" == (head sexps0)
+             isConj2 = "接続助詞" == (jTag1 $ getTagJP $ head sexps0)
+         isAdv1 = "副詞" == (jTag $ getTagJP $ (sexps0 !! 1))
+         isNoun2 = "名詞" == (jTag $ getTagJP $ (sexps0 !! 2))
+         isVerb3 = "動詞" == (jTag $ getTagJP $ (sexps0 !! 3))
+         isAdj3 = "形容詞" == (jTag $ getTagJP $ (sexps0 !! 3))
+         isWall4 = isKigou || isConj　|| (isTo || isToIu) || isConj2 || isNP
+           where
+             isKigou = "記号" == (jTag $ getTagJP $ last sexps0)
+             isConj = "接続詞" == (jTag $ getTagJP $ last sexps0)
+             isTo = Atom (CJTag "助詞" "格助詞") "と" == (last sexps0)
+             isToIu = checkIsTok "という" $ forgetSubs $ last sexps0
+             isConj2 = "接続助詞" == (jTag1 $ getTagJP $ last sexps0)
+             isNP = "名詞" == (jTag $ getTagJP $ last sexps0)
+    isNewTagOKEnd = tagsCond stEnd
+    res@(stEnd, plEnd)
+      | otherwise = foldl f (take 4 sexps, []) dropped
+       where
+         dropped = drop 4 sexps
+         f y@(st, pl) x
+           | isFirstCheckOK = ([x], foldedOprFirst)
+           | isFirstCheck = poppedFirst
+           | isNotYet = (stackedAdded, pl) -- <- stack continue
+           | isNewTagOK = ([x], pl ++ foldedOpr) -- <- stack terminated
+           | otherwise = popped -- popped
+             where
+               isFirstCheck = (length st == 4) && pl == []
+               isFirstCheckOK = isFirstCheck && (tagsCond (dummy : st))
+                 where
+                   dummy = Atom (CJTag "記号" "読点") "、"
+               isNotYet = length st < 5
                stackedAdded = snocL st x
                isNewTagOK = tagsCond st
                foldedOpr = [head st, Opr advJTag $ init $ tail st, last st]
@@ -267,6 +322,58 @@ checkIsTok tok sexp =  case sexp of
                Nil -> False
                Opr _ _ -> False
                Atom _ tk -> tk == tok
+
+foldNPVPSensWOJoshiByWall :: SExp JTag String -> SExp JTag String
+foldNPVPSensWOJoshiByWall Nil = Nil
+foldNPVPSensWOJoshiByWall (Atom a b) = (Atom a b)
+foldNPVPSensWOJoshiByWall (Opr tg sexps)
+  | length sexps < 4 = (Opr tg sexps)
+  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr advJTag $ init $ tail stEnd, last stEnd])
+  | otherwise = Opr tg (plEnd ++ stEnd)
+  where
+    advJTag = CJTag "動詞" "文"
+    tagsCond sexps0 = isWall0 && isNoun1 && (isVerb2 || isAdj2) && isWall3
+       where
+         isWall0 = isKigou || isConj　|| isTo || isConj2
+           where
+             isKigou = "記号" == (jTag $ getTagJP $ head sexps0)
+             isConj = "接続詞" == (jTag $ getTagJP $ head sexps0)
+             isTo = Atom (CJTag "助詞" "格助詞") "と" == (head sexps0)
+             isConj2 = "接続助詞" == (jTag1 $ getTagJP $ head sexps0)
+         isNoun1 = "名詞" == (jTag $ getTagJP $ (sexps0 !! 1))
+         isVerb2 = "動詞" == (jTag $ getTagJP $ (sexps0 !! 2))
+         isAdj2 = "形容詞" == (jTag $ getTagJP $ (sexps0 !! 2))
+         isWall3 = isKigou || isConj　|| (isTo || isToIu) || isConj2 || isNP
+           where
+             isKigou = "記号" == (jTag $ getTagJP $ last sexps0)
+             isConj = "接続詞" == (jTag $ getTagJP $ last sexps0)
+             isTo = Atom (CJTag "助詞" "格助詞") "と" == (last sexps0)
+             isToIu = checkIsTok "という" $ forgetSubs $ last sexps0
+             isConj2 = "接続助詞" == (jTag1 $ getTagJP $ last sexps0)
+             isNP = "名詞" == (jTag $ getTagJP $ last sexps0)
+    isNewTagOKEnd = tagsCond stEnd
+    res@(stEnd, plEnd)
+      | otherwise = foldl f (take 3 sexps, []) dropped
+       where
+         dropped = drop 3 sexps
+         f y@(st, pl) x
+           | isFirstCheckOK = ([x], foldedOprFirst)
+           | isFirstCheck = poppedFirst
+           | isNotYet = (stackedAdded, pl) -- <- stack continue
+           | isNewTagOK = ([x], pl ++ foldedOpr) -- <- stack terminated
+           | otherwise = popped -- popped
+             where
+               isFirstCheck = (length st == 3) && pl == []
+               isFirstCheckOK = isFirstCheck && (tagsCond (dummy : st))
+                 where
+                   dummy = Atom (CJTag "記号" "読点") "、"
+               isNotYet = length st < 4
+               stackedAdded = snocL st x
+               isNewTagOK = tagsCond st
+               foldedOpr = [head st, Opr advJTag $ init $ tail st, last st]
+               foldedOprFirst = [Opr advJTag $ init st, last st]
+               popped = (snocL (tail st) x, snocL pl $ head st)
+               poppedFirst = (snocL st x, pl)
 
 foldNPVPSensByWall :: SExp JTag String -> SExp JTag String
 foldNPVPSensByWall Nil = Nil
@@ -291,13 +398,15 @@ foldNPVPSensByWall (Opr tg sexps)
              kakuJo = map (\c -> Atom (CJTag "助詞" "格助詞") c) ["が", "は"]
              kakariJo = map (\c -> Atom (CJTag "助詞" "係助詞") c) ["が", "は"]
          isVerb3 = "動詞" == (jTag $ getTagJP $ (sexps0 !! 3))
-         isAdj3 = "形容詞" == (jTag $ getTagJP $ (sexps0 !! 4))
-         isWall4 = isKigou || isConj　|| isTo || isConj2
+         isAdj3 = "形容詞" == (jTag $ getTagJP $ (sexps0 !! 3))
+         isWall4 = isKigou || isConj　|| (isTo || isToIu) || isConj2 || isNP
            where
              isKigou = "記号" == (jTag $ getTagJP $ last sexps0)
              isConj = "接続詞" == (jTag $ getTagJP $ last sexps0)
              isTo = Atom (CJTag "助詞" "格助詞") "と" == (last sexps0)
+             isToIu = checkIsTok "という" $ forgetSubs $ last sexps0
              isConj2 = "接続助詞" == (jTag1 $ getTagJP $ last sexps0)
+             isNP = "名詞" == (jTag $ getTagJP $ last sexps0)
     isNewTagOKEnd = tagsCond stEnd
     res@(stEnd, plEnd)
       | otherwise = foldl f (take 4 sexps, []) dropped
@@ -310,7 +419,7 @@ foldNPVPSensByWall (Opr tg sexps)
            | isNewTagOK = ([x], pl ++ foldedOpr) -- <- stack terminated
            | otherwise = popped -- popped
              where
-               isFirstCheck = (length st == 5) && pl == []
+               isFirstCheck = (length st == 4) && pl == []
                isFirstCheckOK = isFirstCheck && (tagsCond (dummy : st))
                  where
                    dummy = Atom (CJTag "記号" "読点") "、"
@@ -322,6 +431,7 @@ foldNPVPSensByWall (Opr tg sexps)
                popped = (snocL (tail st) x, snocL pl $ head st)
                poppedFirst = (snocL st x, pl)
 
+
 foldNPAdvByWall :: SExp JTag String -> SExp JTag String
 foldNPAdvByWall Nil = Nil
 foldNPAdvByWall (Atom a b) = (Atom a b)
@@ -331,7 +441,7 @@ foldNPAdvByWall (Opr tg sexps)
   | otherwise = Opr tg (plEnd ++ stEnd)
   where
     advJTag = CJTag "副詞" "名詞副詞"
-    tagsCond sexps0 = isWall0 && isNoun1 && isKakuJo2
+    tagsCond sexps0 = isWall0 && (isNoun1 || isAdj1) && isKakuJo2
        where
          isWall0 = isKigou || isAdv || isConj || isHa || isGa
            where
@@ -341,8 +451,9 @@ foldNPAdvByWall (Opr tg sexps)
              isHa = Atom (CJTag "助詞" "係助詞") "は" == head sexps0
              isGa = Atom (CJTag "助詞" "格助詞") "が" == head sexps0
          isNoun1 = "名詞" == (jTag $ getTagJP $ (sexps0 !! 1))
+         isAdj1 = "形容詞" == (jTag $ getTagJP $ (sexps0 !! 1))
          -- isKakuJo2 =  (elem lastlast $ kakuJo ++ [kakuJo2, kakuJo3, kakuJo4, fukuJo]) || isComplex || checkIsTok "までに" (forgetSubs lastlast) || foldl (\y -> \x -> y || checkIsTok x forgotten) False complices
-         isKakuJo2 =  (elem lastlast $ kakuJo ++ [kakuJo2, kakuJo3, kakuJo4, fukuJo]) || foldl (\y -> \x -> y || checkIsTok x forgotten) False complices
+         isKakuJo2 =  (elem lastlast $ kakuJo ++ [kakuJo2, kakuJo3, kakuJo4, kakuJo5, kaJo, fukuJo]) || foldl (\y -> \x -> y || checkIsTok x forgotten) False complices
            where
              lastlast = sexps0 !! 2
              forgotten = forgetSubs lastlast
@@ -350,6 +461,8 @@ foldNPAdvByWall (Opr tg sexps)
              kakuJo2 = Atom (CJTag "助詞" "副詞化") "に"
              kakuJo3 = Atom (CJTag "助詞" "副助詞") "までに"
              kakuJo4 = Atom (CJTag "助詞" "係助詞") "も"
+             kakuJo5 = Atom (CJTag "助詞" "係助詞") "は"
+             kaJo = Atom (CJTag "助詞" "副助詞／並立助詞／終助詞") "か"
              fukuJo = Atom (CJTag "助詞" "副助詞") "でも"
              complices = ["では", "までに", "について", "については", "として"]
              isComplex = case forgetSubs lastlast of
@@ -401,7 +514,7 @@ foldVPAdvByWall (Opr tg sexps)
          isNoun1 = "動詞" == (jTag $ getTagJP $ (sexps0 !! 1))
          isKakuJo2 =  elem (sexps0 !! 2) $ kakuJo
            where
-             kakuJo = map (\c -> Atom (CJTag "助詞" "接続助詞") c) ["て"]
+             kakuJo = map (\c -> Atom (CJTag "助詞" "接続助詞") c) ["て", "ば"]
     isNewTagOKEnd = tagsCond stEnd
     res@(stEnd, plEnd)
       | otherwise = foldl f (take 2 sexps, []) dropped
