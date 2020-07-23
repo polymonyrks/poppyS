@@ -62,6 +62,47 @@ tes n = do
     deepNounized = deepNounizeBetJoshi sexpUnitNPs
   showSP $ forgetSubs $ foldNPAdvByWall $ recFoldPhraseJP (foldNPVPSensWOJoshiByWall . foldNPVPSensByWall . foldAdvNPVPWOJoshiSensByWall . foldAdvNPVPSensByWall) deepNounized
 
+te n = do
+  pairss <- V.sequence =<< V.map getMecabed <$> iVecFromFileJP "hogehoge.txt"
+  let
+    pairs = pairss  V.! n
+    sexp0 = toSExpsJP pairs
+    sexpUnitNPs = recFoldPhraseJP (
+        foldVPsJP
+      . foldNPsJP
+      . foldSahenVP
+      . foldVPAux) sexp0
+    sentensize = recFoldPhraseJP (
+          foldSameTags0
+        . foldNPVPSensWOJoshiByWall
+        . foldSameTags0
+        . foldNPVPSensByWall
+        . foldSameTags0
+        . foldAdvNPVPWOJoshiSensByWall
+        . foldSameTags0
+        . foldAdvNPVPSensByWall)
+    deepNounizeBetJoshi = recFoldPhraseJP (
+        foldAdjNP
+      . foldSameTags0
+      . foldVPNPByWall
+      . recFoldPhraseJP (
+              sentensize
+            . foldVPTeVP
+            . foldSameTags0
+            . foldNPAdvByWall
+            . foldSameTags0
+            . foldAdjVPJP
+            . foldSameTags0
+            . foldAdvAdjJP
+            . foldSameTags0
+            . foldAdvVPJP
+            . foldSameTags0
+            . foldVPAdvByWall
+            . foldSameTags0
+            . foldAdvAdvize))
+    deepNounized = deepNounizeBetJoshi sexpUnitNPs
+  showSP $ forgetSubs deepNounized
+
 rootJTag = CJTag {jTag = "root", jTag1 = "root"}
 nilJTag = CJTag {jTag = "nil", jTag1 = "nil"}
 nounJTag = CJTag {jTag = "名詞", jTag1 = "名詞名詞"}
@@ -545,18 +586,6 @@ recFoldPhraseJP phraseFunc sexp0
    where
      foldedOnce = phraseFunc sexp0
 
-foldNPGaOVP sexp0 = sexp1
-  where
-    foldGaO = foldSuccTags (verbJTag, 3, f)
-      where
-        verbJTag = CJTag "動詞" "自立"
-        f xs = isHeadNP && isMidGao && isLastVP
-          where
-            isHeadNP = "名詞" == (jTag $ getTagJP $ head xs)
-            isMidGao = (Atom (CJTag "助詞" "格助詞") "を") == xs !! 1 || (Atom (CJTag "助詞" "格助詞") "が") == xs !! 1
-            isLastVP = "動詞" == (jTag $ getTagJP $ last xs)
-    sexp1 = foldGaO sexp0
-
 foldAdvAdvize sexp0 = sexp1
   where
     foldVPNP = foldSuccTags (verbJTag, 2, f)
@@ -566,17 +595,6 @@ foldAdvAdvize sexp0 = sexp1
           where
             isHeadAdv = "副詞" == (jTag $ getTagJP $ head xs)
             isLastAdvize = "副詞化" == (jTag1 $ getTagJP $ last xs)
-    sexp1 = foldVPNP sexp0
-
-foldAdjNPJP sexp0 = sexp1
-  where
-    foldVPNP = foldSuccTags (verbJTag, 2, f)
-      where
-        verbJTag = CJTag "名詞" "形容詞名詞"
-        f xs = isHeadVP && isLastNP
-          where
-            isHeadVP = "形容詞" == (jTag $ getTagJP $ head xs)
-            isLastNP = "名詞" == (jTag $ getTagJP $ last xs)
     sexp1 = foldVPNP sexp0
 
 foldAdjVPJP sexp0 = sexp1
