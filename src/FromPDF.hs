@@ -62,11 +62,8 @@ tes n = do
     deepNounized = deepNounizeBetJoshi sexpUnitNPs
   showSP $ forgetSubs $ foldNPAdvByWall $ recFoldPhraseJP (foldNPVPSensWOJoshiByWall . foldNPVPSensByWall . foldAdvNPVPWOJoshiSensByWall . foldAdvNPVPSensByWall) deepNounized
 
-te n = do
-  pairss <- V.sequence =<< V.map getMecabed <$> iVecFromFileJP "hogehoge.txt"
-  let
-    pairs = pairss  V.! n
-    sexp0 = toSExpsJP pairs
+foldNPsJPRecursive sexp0 = deepNounized
+  where
     sexpUnitNPs = recFoldPhraseJP (
         foldVPsJP
       . foldNPsJP
@@ -101,7 +98,14 @@ te n = do
             . foldSameTags0
             . foldAdvAdvize))
     deepNounized = deepNounizeBetJoshi sexpUnitNPs
-  showSP $ forgetSubs deepNounized
+
+te n = do
+  pairss <- V.sequence =<< V.map getMecabed <$> iVecFromFileJP "hogehoge.txt"
+  let
+    pairs = pairss  V.! n
+    sexp0 = toSExpsJP pairs
+    res = foldNPsJPRecursive sexp0
+  showSP $ forgetSubs res
 
 rootJTag = CJTag {jTag = "root", jTag1 = "root"}
 nilJTag = CJTag {jTag = "nil", jTag1 = "nil"}
@@ -1142,7 +1146,8 @@ getSExpsIOS page isJapanese = do
       mecabRes <- getMecabed sens
       let
         sexp0 = toSExpsJP mecabRes
-        sexp = foldNPsJP sexp0
+        -- sexp = foldNPsJP sexp0
+        sexp = foldNPsJPRecursive sexp0
         indexed0 = indexingSP sexp
         forgotten = map (\x@((x1,x2),x3) -> (x1,x2,x3)) $ forgetSExp indexed0
         indexed = [res]
