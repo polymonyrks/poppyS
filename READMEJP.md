@@ -5,15 +5,11 @@
 ご自身でビルドして色々遊んでみてください。(★カメラの説明書に適用した場合の効果が絶大でした。下の方に用意しています。)   
 HaskellでGUI(([gi-gtk](https://hackage.haskell.org/package/gi-gtk))をやりたい人も参考になると思います。  
 以下、実行環境を整える準備です。  
- 
-## Ubuntu20.04
-OSは[Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)です。  
-まだ環境を持ってない人は、  
-仮想環境（[VirtualBox](https://www.virtualbox.org/)等）とかご自身が今はつかっていない古いPCに入れたりするのがおすすめです。  
-その際は軽量なUbuntuである[lubuntu](https://lubuntu.me/downloads/)を使うといいと思います（下の手順で導入できること確認済みです。）。
-他のLinuxディストリビューションやMac、Windowsは動作確認していませんが、下と同様のことをやれば動くと思います([【追記】Windows10 Homeにて動作確認済み。安定して使えるようになったらアナウンス予定)。  
-ターミナルで以下のコマンドを打ち込んでいけばいいです。  
-(Ubuntuでのターミナル起動はCtrlとAltを押しながらtです)。  
+
+## OS
+推奨OSは[Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)もしくは、[Ubuntu 18.04 LTS (Bionic Beaver) Desktop](https://releases.ubuntu.com/18.04/)です。  
+[lubuntu 20.04 Desktop](https://lubuntu.me/downloads/)でも動作確認できました。Windows10も動きますが[別ページ用意しました](./READMEWINJP.md)。
+インストールはターミナルで以下のコマンドを打ち込んでいけばいいです。  
 ## Update Packages list
 ```shell
 sudo apt update
@@ -107,7 +103,7 @@ stack exec poppyS-exe "pdfs/SICP.pdf"
 ```shell
 stack exec poppyS-exe "/home/username/poppyS/pdfs/SICP.pdf"
 ```
-お試しで色々なPDF試したい場合は、stack installしてできたpoppy-exeを($HOME/.local/binにできます).pdfファイルを開くアプリに指定すれば、右クリックのプルダウン選択で実行できます。デフォルトアプリに指定するのはおすすめしません。  
+お試しで色々なPDF試したい場合は、stack installしてできたpoppy-exeを($HOME/.local/binにできます)pdfファイルを開くアプリに指定すれば、右クリックのプルダウン選択で実行できます。デフォルトアプリに指定するのはおすすめしません。  
 ## How to read PDF
 PDFリーダー（poppyS）を立ち上げてから少し待つと一部単語が黄色に色が変わります。  
 待っても色が変わらないときにはstanford coreNLP server がタイムアウトになっているかもしれません。  
@@ -123,15 +119,24 @@ PDFリーダー（poppyS）を立ち上げてから少し待つと一部単語�
 |  Right  |  ページ送り（順方向・1ページ）  |
 |  Left  |  ページ送り（逆方向・1ページ）  |
 |  Down  |  画像サイズ調整（余白切り取り）  |
-|  cc  |  着色を全解除（後述）  |
+|  dd  |  着色を全解除（後述）  |
 |  p  |  一つ前の着色設定の復活  |
 |  x  |  個別解除モードの起動と終了  |
 |  gg  | 最初のページへの移動 |
+|  w  | ２ページモード（最大化）と１ページモードの切り替え |
 |  :w Enter  |  着色を保存（後述）  |  
-
+## mouse
+### 表
+|  コマンド  |  効果  |
+| ---- | ---- |
+|  単語を左クリック  |  色をトグル（順方向）  |
+|  単語を右クリック  |  色をトグル（逆方向）  |
+|  空白域を左クリック  |  ページ送り（順方向・2ページ）  |
+|  空白域を右クリック  |  ページ送り（逆方向・2ページ）  |
 ### コメント
 Right, Left, Downは矢印キーのことです。Enterはエンターキーです。  
 Vimっぽい操作に近づけようとしています。今はこんな感じです。  
+
 ## 着色
 マウス操作は着色に使います。文章中の適当な箇所をクリックしてみてください。色が変わります。何度か連打すると他の色に変わります。  
 色の変わる順番は、赤、青、緑、紫、オレンジ、ピンク、水色、シアン、赤、青、、といった具合です。
