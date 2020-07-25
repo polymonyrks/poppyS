@@ -68,7 +68,7 @@ echo $HOME
 # Execution of poppyS
 1. Prepare some PDF Files.  
 2. Run Stanford CoreNLP Server.  
-3. Execute poppyS with args (target PDF File's path. Only English Documents supported).  
+3. Execute poppyS with args (target PDF File's path. Only English Documents supported. (Japanese Documents support(more experimental) is [here](./READMEJP.md))).  
 for more details, see below.  
 ## Prepare some PDF Files.
 This program poppyS is suitable for hard to read documents such as a bit greek or latin ones.  
