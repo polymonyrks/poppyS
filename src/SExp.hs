@@ -214,6 +214,21 @@ printSExp' (n, (Opr tag ss)) = concat [(replicate n ' '), "[", (ushow tag), " [\
           vssLast = V.last vssTail0
           h y x = concat [y, (printSExp' (n + 1, x)), ",\n"]
 
+countRank :: SExp a b -> Int
+countRank Nil = 0
+countRank (Atom _ _) = 1
+countRank (Opr _ subs) = 1 + (maximum (map countRank subs))
+
+countNofAtoms :: SExp a b -> Int
+countNofAtoms Nil = 0
+countNofAtoms (Atom _ _) = 1
+countNofAtoms (Opr _ subs) = (sum (map countNofAtoms subs))
+
+countNofChars :: SExp a String -> Int
+countNofChars Nil = 0
+countNofChars (Atom _ tok) = length tok
+countNofChars (Opr _ subs) = (sum (map countNofChars subs))
+
 instance Show Tag where
    show ROOT = "ROOT"
    show NP = "NP"

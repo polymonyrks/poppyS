@@ -62,6 +62,7 @@ tes n = do
     deepNounized = deepNounizeBetJoshi sexpUnitNPs
   showSP $ forgetSubs $ foldNPAdvByWall $ recFoldPhraseJP (foldNPVPSensWOJoshiByWall . foldNPVPSensByWall . foldAdvNPVPWOJoshiSensByWall . foldAdvNPVPSensByWall) deepNounized
 
+
 foldNPsJPRecursive sexp0 = deepNounized
   where
     sexpUnitNPs = recFoldPhraseJP (
@@ -104,11 +105,11 @@ te n = do
   let
     pairs = pairss  V.! n
     sexp0 = toSExpsJP pairs
-    res = foldNPsJPRecursive sexp0
-  showSP $ forgetSubs res
+    res2  = foldNPsJPRecursive sexp0
+  showSP $ forgetSubs res2
 
 rootJTag = CJTag {jTag = "root", jTag1 = "root"}
-nilJTag = CJTag {jTag = "nil", jTag1 = "nil"}
+nilJTag  = CJTag {jTag = "nil", jTag1 = "nil"}
 nounJTag = CJTag {jTag = "名詞", jTag1 = "名詞名詞"}
 
 foldAdjNP sexp0 = sexp1
@@ -1064,8 +1065,14 @@ extractSExpsJP page = do
   bb <- V.mapM retrSexpSJP zipped
   return $ V.concatMap id bb
 
+{-
+doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/poppyS/rust.pdf") Nothing
+page <- GPop.documentGetPage doc 3
+isJapanese = True
+-}
 --prp
 getSExpsIOS page isJapanese = do
+  hoge <- GPop.pageGetText page
   (wid, hei) <- GPop.pageGetSize page
   chInfos <- getChInfos page
   blocksPrim <- (\x -> getBlock x hei wid) <$> getChInfos page -- stable, but not covers some PDFs which has character layout bugs.
@@ -1148,6 +1155,8 @@ getSExpsIOS page isJapanese = do
         sexp0 = toSExpsJP mecabRes
         -- sexp = foldNPsJP sexp0
         sexp = foldNPsJPRecursive sexp0
+      -- showSP sexp
+      let
         indexed0 = indexingSP sexp
         forgotten = map (\x@((x1,x2),x3) -> (x1,x2,x3)) $ forgetSExp indexed0
         indexed = [res]
@@ -1155,7 +1164,8 @@ getSExpsIOS page isJapanese = do
           res = map ggg resPrim
             where
               ggg (nums, tag, tok)
-               | (length nums == 1) && (jTag tag == "名詞") = (nums, NP, tok)
+                -- | (length nums == 1) && (jTag tag == "名詞") = (nums, NP, tok)
+               | (jTag tag == "名詞") = (nums, NP, tok)
                | otherwise = (nums, TAGVOID, tok)
           resPrim = gg forgotten
           gg = map g

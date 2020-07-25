@@ -21,7 +21,7 @@ import qualified Control.Lens as LENS
 import qualified Data.Aeson.Lens as AL
 import Data.Text.ICU.Convert as ICU
 import qualified Data.ByteString.Lazy as BL
-import Lib (iVecFromFile, oVecToFile, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getDivideLine, countPrefix, countSuffix, indexingL)
+import Lib (iVecFromFile, oVecToFile, oVecToFileJP, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getDivideLine, countPrefix, countSuffix, indexingL)
 -- import PopSExp (indexingSP, forgetSExp, injectSExpI, reconsSExp, showSP)
 import PopSExp
 import ParserP (parse, pSExp)
@@ -123,18 +123,7 @@ mainGtk fpath poppySPath = do
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
       isSomethingMatched = or $ map (\keys -> Lis.isPrefixOf stKeys keys) registeredKeys
-    {-
-    doc <- readIORef docRef
-    let
-      cDoc = dkCurrDoc doc
-    docTitle <- GPop.documentGetTitle cDoc
-    docNPages <- GPop.documentGetNPages cDoc
-    let
-      currPage = dkCurrPage doc
-      winTitle = (show stKeys) ++ " " ++ (Text.unpack docTitle) ++ ": ( " ++ (show currPage) ++ " / " ++ (show docNPages) ++ " )"
-    Gtk.windowSetTitle window $ Text.pack winTitle
--}
-    Gtk.windowSetTitle window $ Text.pack $ show stKeys
+    Gtk.windowSetTitle window $ Text.pack $ ushow stKeys
     when (stKeys == ["Down"]) $ do
       resizeFromCurrPageSqs window docsRef docRef mVars
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
@@ -230,11 +219,11 @@ mainGtk fpath poppySPath = do
         currPage = dkCurrPage doc
         poppySPath = dksPoppySPath docs
         configFilesDir = poppySPath ++ "/configs"
-        outout = V.fromList $ (show currPage) : conf
+        outout = V.fromList $ (ushow currPage) : conf
         currDocName = dkPDFDocName doc
         configFilePath = configFilesDir ++ "/" ++ currDocName ++ "_config.txt"
-      oVecToFile outout configFilePath
-      oVecToFile (V.fromList confGlobal) globalConfigFilePath
+      oVecToFileJP outout configFilePath
+      oVecToFileJP (V.fromList confGlobal) globalConfigFilePath
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window "Config Saved."
       return ()
@@ -473,6 +462,7 @@ mainGtk fpath poppySPath = do
     row <- get event #y
     return False
 
+-- prp
   on window #draw $ \context -> do
     docs <- readIORef docsRef
     doc <- readIORef docRef
@@ -519,6 +509,11 @@ mainGtk fpath poppySPath = do
               g2 x = case x of
                 Nothing -> ("", [])
                 Just y -> y
+      forCheck = case sexpsMaybe of
+        Nothing -> []
+        Just sexps -> sexps
+    -- mapM showSP $ map (mapNode snd fst) forCheck
+    -- cshowIL detacheds
     let
       detachedsNext =
         case sexpsMaybeNext of
@@ -539,7 +534,7 @@ mainGtk fpath poppySPath = do
             stemmedPrim = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $ map (\x -> (stemEng $ fst x, snd x)) detacheds
             stemmedNextPrim = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $  map (\x -> (stemEng $ fst x, snd x)) detachedsNext
       clickedSq@(isLeft, sqssqs) = dkClickedSquare doc
-    putStrLn $ show sqssqs
+    --putStrLn $ ushow sqssqs
     --cshowIL stemmed
     --cshowIL stemmedNext
     --putStrLn "uchidomedayo"
@@ -866,7 +861,7 @@ initDoc docsRef fpath = do
     currDocName = reverse $ takeWhile (\c -> not $ c == '/') $ tail $ dropWhile (\c -> not $ c == '.') $ reverse fpath
     isExistsConfig = elem currDocName configs
     configFilePath = configFilesDir ++ "/" ++ currDocName ++ "_config.txt"
-  when (not isExistsConfig) $ oVecToFile (V.singleton $ show 0) configFilePath
+  when (not isExistsConfig) $ oVecToFileJP (V.singleton $ ushow 0) configFilePath
 
   doc <- GPop.documentNewFromFile (Text.pack fpath) Nothing
   nOfPage <- GPop.documentGetNPages doc
@@ -902,6 +897,7 @@ initDoc docsRef fpath = do
     , dkNextPage = nextPage -- -negative if not 2 pages
     , dkTogColIndex = 0
     , dkIsJapanese = False
+    -- , dkIsJapanese = True
     , dkClipSq = clipSq
     , dkClipSqNext = clipSqNext
     , dkClickedSquare = (-1, [])
@@ -946,8 +942,8 @@ stackStan window mvars docsRef docRef = do
 
   nextForward <- getNextNothing mvSexps currPage
   nextBackward <- getPrevNothing mvSexps currPage
-  putStrLn $ show nextForward
-  putStrLn $ show nextBackward
+  putStrLn $ ushow nextForward
+  putStrLn $ ushow nextBackward
   putStrLn "processed"
 
 
@@ -1097,10 +1093,20 @@ stopper f minm maxm n
   | maxm < f n = maxm
   | otherwise = f n
 
+-- prp
+-- isBottomBy needs to be replaced.
 getColundRectangles sexps configs isJapanese = electeds
   where
-      detacheds = map (map g2) $ map (filter g) $ map takeSndL $ map forgetSExp $ concatMap ((filter (\y -> isBottomBy id y)) . (takeSpecTags (\x -> x == NP))) $  map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
+      detacheds = map (map g2)
+        $ map (filter g)
+        $ map takeSndL
+        $ map forgetSExp
+        $ concatMap ((filter (\y -> isBottomBy id y)) . (takeSpecTags (\x -> x == NP)))
+        -- $ concatMap ((filter (\y -> countNofChars (mapNode id fst y) < nOfWordsUB)) . (takeSpecTags (\x -> x == NP)))
+        -- $ concatMap ((takeSpecTags (\x -> x == NP)))
+        $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
         where
+          nOfWordsUB = 15
           g x = case x of
             Nothing -> False
             Just _ -> True
@@ -1140,4 +1146,3 @@ getTotalSquares currSExps (pHei', pWid') = totalSquares
           leftFrons = minimum $ map sqLeft squares
           botFrons = maximum $ map sqBot squares
           rightFrons = maximum $ map sqRight squares
-
