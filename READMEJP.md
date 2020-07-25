@@ -147,7 +147,28 @@ Vimっぽい操作に近づけようとしています。今はこんな感じ�
 space l tで切り替えます(lはlanguage, tはtoggleという気持ちで設定しています)。
 Ubuntuのみ動作確認しています。  
 #### Mecabのインストール
-文章作成中
+[このページ](https://qiita.com/ekzemplaro/items/c98c7f6698f130b55d53)を参考にしました。
+##### Mecab本体
+```shell
+sudo apt install mecab
+sudo apt install libmecab-dev
+sudo apt install mecab-ipadic-utf8
+```
+##### 拡張（neologd）
+```shell
+git clone https://github.com/neologd/mecab-ipadic-neologd.git
+cd mecab-ipadic-neologd
+sudo bin/install-mecab-ipadic-neologd
+```
+##### mecabrcの編集
+```shell
+sudo vim /etc/mecabrc
+```
+以下のようにdicdirに関する行を書き換える。
+```shell
+; dicdir = /var/lib/mecab/dic/debian
+dicdir = /usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd
+```
 ### 着色
 マウス操作は着色に使います。文章中の適当な箇所をクリックしてみてください。色が変わります。何度か連打すると他の色に変わります。  
 色の変わる順番は、赤、青、緑、紫、オレンジ、ピンク、水色、シアン、赤、青、、といった具合です。
