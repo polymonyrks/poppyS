@@ -856,11 +856,13 @@ initDoc docsRef fpath = do
     configFilesDir = poppySPath ++ "/configs"
   files <- listDirectory configFilesDir
   let
+    configSuffix = "_config.txt"
     colors = dksColors docs
-    configs = map (takeWhile (\c -> not $ c == '_')) $ filter (\x -> Lis.isSuffixOf ".txt" x) files
+    -- configs = map (takeWhile (\c -> not $ c == '_')) $ filter (\x -> Lis.isSuffixOf ".txt" x) files
+    configs = map (\str -> take (length str - length configSuffix) str) $ filter (\x -> Lis.isSuffixOf configSuffix x) files
     currDocName = reverse $ takeWhile (\c -> not $ c == '/') $ tail $ dropWhile (\c -> not $ c == '.') $ reverse fpath
     isExistsConfig = elem currDocName configs
-    configFilePath = configFilesDir ++ "/" ++ currDocName ++ "_config.txt"
+    configFilePath = configFilesDir ++ "/" ++ currDocName ++ configSuffix
   when (not isExistsConfig) $ oVecToFileJP (V.singleton $ ushow 0) configFilePath
 
   doc <- GPop.documentNewFromFile (Text.pack fpath) Nothing
@@ -1101,12 +1103,17 @@ getColundRectangles sexps configs isJapanese = electeds
         $ map (filter g)
         $ map takeSndL
         $ map forgetSExp
-        $ concatMap ((filter (\y -> isBottomBy id y)) . (takeSpecTags (\x -> x == NP)))
+        $ concatMap ((filter filterFunction) . (takeSpecTags (\x -> x == NP)))
+        -- $ concatMap ((filter (\y -> isBottomBy id y)) . (takeSpecTags (\x -> x == NP)))
         -- $ concatMap ((filter (\y -> countNofChars (mapNode id fst y) < nOfWordsUB)) . (takeSpecTags (\x -> x == NP)))
         -- $ concatMap ((takeSpecTags (\x -> x == NP)))
         $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
         where
-          nOfWordsUB = 15
+          filterFunction
+           | isJapanese = (\y -> countNofChars (mapNode id fst y) < nOfWordsUB)
+           | otherwise = (\y -> isBottomBy id y)
+            where
+              nOfWordsUB = 15
           g x = case x of
             Nothing -> False
             Just _ -> True

@@ -8,7 +8,7 @@ Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-
 ## OS
 Recommended: [Ubuntu 20.04 LTS (Focal Fossa) Desktop](https://releases.ubuntu.com/20.04/) or [Ubuntu 18.04 LTS (Bionic Beaver) Desktop](https://releases.ubuntu.com/18.04/).  
 [lubuntu 20.04 Desktop](https://lubuntu.me/downloads/) also works.  
-Insruction for [Windows 10 (home / pro)](https://www.microsoft.com/) is [here(other page)](./READMEWIN.md)
+Instruction for [Windows 10 (home / pro)](https://www.microsoft.com/) is [here(other page)](./READMEWIN.md)
 For other Distros, or other OS, equivalent process may work.  
 ## Update Package List
 ```shell
