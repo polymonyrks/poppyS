@@ -875,6 +875,7 @@ initDoc docsRef fpath = do
      | isMonoPage = -1
      | otherwise = firstPage + 1
   page <- GPop.documentGetPage doc firstPage
+  txt <- Text.unpack <$> GPop.pageGetText page
   (wid, hei) <- GPop.pageGetSize page
   (widNext, heiNext) <- do
     if nextPage == -1
@@ -884,6 +885,13 @@ initDoc docsRef fpath = do
         sizeN <- GPop.pageGetSize pageNext
         return sizeN
   let
+    engRatio = (fromIntegral $ length $ filter f txt) / (fromIntegral $ length txt)
+      where
+        f c = elem c $ ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9']
+    isJP
+     | txt == "" = False
+     | engRatio < 0.5 = True
+     | otherwise = False
     clipSq = CSq {sqLeft = 0, sqTop = 0, sqRight = wid, sqBot = hei}
     clipSqNext = CSq {sqLeft = 0, sqTop = 0, sqRight = widNext, sqBot = heiNext}
     res = CDoc {
@@ -896,7 +904,8 @@ initDoc docsRef fpath = do
     , dkCurrPage = firstPage
     , dkNextPage = nextPage -- -negative if not 2 pages
     , dkTogColIndex = 0
-    , dkIsJapanese = False
+    , dkIsJapanese = isJP
+    -- , dkIsJapanese = False
     -- , dkIsJapanese = True
     , dkClipSq = clipSq
     , dkClipSqNext = clipSqNext
