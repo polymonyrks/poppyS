@@ -581,6 +581,7 @@ mainGtk fpath poppySPath = do
       nextSexps = case sexpsMaybeNext of
         Just sexpsPrim -> sexpsPrim
         Nothing -> []
+    let
       electeds = getColundRectangles sexps configs isJapanese
       electedsNext = getColundRectangles nextSexps configs isJapanese
     rects <- sequence electeds
@@ -898,8 +899,8 @@ initDoc docsRef fpath = do
     , dkCurrPage = firstPage
     , dkNextPage = nextPage -- -negative if not 2 pages
     , dkTogColIndex = 0
-    , dkIsJapanese = False
-    -- , dkIsJapanese = True
+    -- , dkIsJapanese = False
+    , dkIsJapanese = True
     , dkClipSq = clipSq
     , dkClipSqNext = clipSqNext
     , dkClickedSquare = (-1, [])
@@ -1104,9 +1105,42 @@ getColundRectangles sexps configs isJapanese = electeds
         $ map takeSndL
         $ map forgetSExp
         $ concatMap ((filter filterFunction) . (takeSpecTags (\x -> x == NP)))
-        -- $ concatMap ((filter (\y -> isBottomBy id y)) . (takeSpecTags (\x -> x == NP)))
-        -- $ concatMap ((filter (\y -> countNofChars (mapNode id fst y) < nOfWordsUB)) . (takeSpecTags (\x -> x == NP)))
-        -- $ concatMap ((takeSpecTags (\x -> x == NP)))
+        $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
+        where
+          filterFunction
+           | isJapanese = (\y -> countNofChars (mapNode id fst y) < nOfWordsUB)
+           | otherwise = (\y -> isBottomBy id y)
+            where
+              nOfWordsUB = 15
+          g x = case x of
+            Nothing -> False
+            Just _ -> True
+          g2 x = case x of
+            Nothing -> ("", [])
+            Just y -> y
+      detachedAssigneds = Lis.nubBy g2 $ foldl g [] configs
+         where
+           g2 x y = snd x == snd y
+           g y x@(stemX, color) = y ++ filtered
+              where
+                filtered = [(color, sqs) | stem@(stems, sqs) <- stemmeds, elem (toLowers stemX) stems]
+           stemmeds
+             -- | isJapanese = map (\xs -> (takeFstL xs, takeSndL xs)) detacheds
+             | isJapanese = map (\xs -> (map toLowers $ takeFstL xs, takeSndL xs)) detacheds
+             | otherwise = map (\xs -> (map (toLowers . stemEng) $ takeFstL xs, takeSndL xs)) detacheds
+      electeds = map f3 $ concatMap (\x@(col, sqss) -> map (\x -> (col, x)) $ concat sqss) detachedAssigneds
+        where
+          f3 (color, sq) = do
+            rect <- sqToRect sq
+            return (color, rect)
+
+getColundRectangles2 sexps configs isJapanese = electeds
+  where
+      detacheds = map (map g2)
+        $ map (filter g)
+        $ map takeSndL
+        $ map forgetSExp
+        $ concatMap ((filter filterFunction) . (takeSpecTags (\x -> x == NP)))
         $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
         where
           filterFunction
