@@ -512,8 +512,6 @@ mainGtk fpath poppySPath = do
       forCheck = case sexpsMaybe of
         Nothing -> []
         Just sexps -> sexps
-    -- mapM showSP $ map (mapNode snd fst) forCheck
-    -- cshowIL detacheds
     let
       detachedsNext =
         case sexpsMaybeNext of
@@ -527,17 +525,16 @@ mainGtk fpath poppySPath = do
                 Nothing -> ("", [])
                 Just y -> y
       ngStems = ["that", "this", "them", "their", "these", "those", "from"]
+      ngStemsJP = ["あ", "い", "う", "え", "お", "か", "き", "く", "け", "こ", "さ", "し", "す", "せ", "そ", "た", "ち", "つ", "て", "と", "な", "に", "ぬ", "ね", "の", "は", "ひ", "ふ", "へ", "ほ", "ま", "み", "む", "め", "も", "や", "ゆ", "よ", "わ", "を", "ん", "ため", "よう", "この", "あの", "こと"]
       (stemmed, stemmedNext)
-       | isJapanese = (detacheds, detachedsNext)
+       | isJapanese = (stemmedPrimJP, stemmedNextPrimJP)
        | otherwise = (stemmedPrim, stemmedNextPrim)
          where
             stemmedPrim = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $ map (\x -> (stemEng $ fst x, snd x)) detacheds
             stemmedNextPrim = filter (\x -> (3 < (length $ fst x)) && (not $ elem (fst x) ngStems)) $  map (\x -> (stemEng $ fst x, snd x)) detachedsNext
+            stemmedPrimJP = filter (\x -> (not $ elem (fst x) ngStemsJP)) detacheds
+            stemmedNextPrimJP = filter (\x -> (not $ elem (fst x) ngStemsJP)) detachedsNext
       clickedSq@(isLeft, sqssqs) = dkClickedSquare doc
-    --putStrLn $ ushow sqssqs
-    --cshowIL stemmed
-    --cshowIL stemmedNext
-    --putStrLn "uchidomedayo"
     let
       specials = takeFstL $ filter (\x -> not $ elem (fst x) $ alreadies) $ take 5 $ reverse $ Lis.sortBy f $ V.toList $ getHistogram $ V.fromList $ takeFstL applicant
          where
@@ -899,8 +896,8 @@ initDoc docsRef fpath = do
     , dkCurrPage = firstPage
     , dkNextPage = nextPage -- -negative if not 2 pages
     , dkTogColIndex = 0
-    -- , dkIsJapanese = False
-    , dkIsJapanese = True
+    , dkIsJapanese = False
+    -- , dkIsJapanese = True
     , dkClipSq = clipSq
     , dkClipSqNext = clipSqNext
     , dkClickedSquare = (-1, [])
