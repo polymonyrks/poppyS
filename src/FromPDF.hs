@@ -2060,6 +2060,7 @@ getMecabed sens = do
     replaced = Text.unpack $ foldl (\y -> \x -> Text.replace x "" y) (Text.pack sens) ngWords
     -- cmd = Turtle.fromString $ "echo " ++ "\""  ++ sens ++ "\"" ++ " | mecab"
     cmd = Turtle.fromString $ "echo " ++ "\""  ++ replaced ++ "\"" ++ " | mecab"
+    chcp = Turtle.fromString "chcp 65001" -- for windows encoding
   res2 <- fmap (Text.unpack . Turtle.lineToText) <$> get2 cmd
   return $ V.fromList $ map getMData res2
 
