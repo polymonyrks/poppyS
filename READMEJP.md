@@ -97,7 +97,15 @@ Stanford CoreNLP Serverを立ち上げた状態で、本PDFリーダー(poppyS)�
 sudo docker run -p 9000:9000 nlpbox/corenlp
 ```
 初回だけダウンロードが始まります。ちょっと時間がかかりますが、次回以降はこのプロセスはないです。
-
+poppySのプログラムの設定上、dockerはlocalhostを使っていることを想定しています。異なる環境の場合はエラーが出ると思いますので、fromPDF.hsの  
+```haskell
+command = "http://localhost:9000/?annotators=parse&outputFormat=json&timeout=50000"
+```
+上のlocalhostの箇所をご自身の環境に合うものに変更してください。  
+(例)
+```haskell
+command = "http://192.168.99.100:9000/?annotators=parse&outputFormat=json&timeout=50000"
+```
 ## poppySをファイルのパスを引数にして起動
 以下のコマンドでPDFリーダー（poppyS）が立ち上がります。
 (e.g.1) $HOME/poppySから起動する場合
@@ -142,10 +150,10 @@ PDFリーダー（poppyS）を立ち上げてから少し待つと一部単語�
 ### コメント
 Right, Left, Downは矢印キーのことです。Enterはエンターキーです。  
 Vimっぽい操作に近づけようとしています。今はこんな感じです。  
-### 日本語モードの搭載（予告）
+### 日本語モードの搭載
 少しチューニングがまだ残っていますが、日本語文書にも対応しました。Mecabのインストールが必要です。  
 space l tで切り替えます(lはlanguage, tはtoggleという気持ちで設定しています)。
-Ubuntuのみ動作確認しています。  
+Ubuntuのみ動作確認しています(Windows10でも動作しそうなの確認しました)。  
 #### Mecabのインストール
 [このページ](https://qiita.com/ekzemplaro/items/c98c7f6698f130b55d53)を参考にしました。
 ##### Mecab本体

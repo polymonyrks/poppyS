@@ -111,6 +111,7 @@ yourUsersNameはご自身のホームフォルダ(コマンドプロンプトを
 ## プログラムの実行
 ### 実行ファイルのショートカットの作成
 poppySの実行ファイルは、"C:\Users\yourUsersName\AppData\Roaming\local\bin\poppyS-exe.exe"に生成されています。これのショートカットをデスクトップあたりに作っておきます。PDFファイルをこのショートカットアイコンにドラッグアンドドロップで起動できるようになっています(後述)。  
+実行時にも上のzlib1.dll絡みのエラーが出た場合には、zlib1.dllをpoppyS-exe.exeのあるフォルダにコピーすればエラーが出なくなります。  
 ### PDFファイルの準備
 今は英文(English)のみ対応。【追記】日本語文書についても開発開始しました。開発途上の部分も公開しています。それなりのものができたら、公式にアナウンスします（parser部分のチューニングが全然できていません）。）
 Stanford CoreNLP Serverを立ち上げた状態で、本PDFリーダー(poppyS)を立ち上げる必要があります。  
@@ -141,7 +142,30 @@ Stanford CoreNLP Serverを立ち上げた状態で、本PDFリーダー(poppyS)�
 docker run -p 9000:9000 nlpbox/corenlp
 ```
 初回だけダウンロードが始まります。ちょっと時間がかかりますが、次回以降はこのプロセスはないです。
+poppySのプログラムの設定上、dockerはlocalhostを使っていることを想定しています。異なる環境の場合はエラーが出ると思いますので、fromPDF.hsの  
+```haskell
+command = "http://localhost:9000/?annotators=parse&outputFormat=json&timeout=50000"
+```
+上のlocalhostの箇所をご自身の環境に合うものに変更してください。  
+(例)
+```haskell
+command = "http://192.168.99.100:9000/?annotators=parse&outputFormat=json&timeout=50000"
+```
+windows homeのdockerの場合、自分の環境だと"docker is configured to use the dafault machine with IP 192.168.99.100"と書かれていたので、  
+上のように変更したらうまく行きました。
 ### poppySの実行
 ドラッグアンドドロップでやれます。先程作成したpoppyS-exe.exeのショートカットアイコンにPDFファイルをドラッグ・アンド・ドロップしてみてください。  
 ## How to read PDF
 以下は[Ubuntuのページ](./READMEJP.md)と内容が重複するので、そちらを参照ください。  
+### 日本語モードの搭載(Windowsの場合)
+少しチューニングがまだ残っていますが、日本語文書にも対応しました。Mecabのインストールが必要です。  
+space l tで切り替えます(lはlanguage, tはtoggleという気持ちで設定しています)。
+Ubuntuのみ動作確認しています(Windows10でも動作しそうなの確認しました)。  
+#### Mecabのインストール
+[公式ページ](https://taku910.github.io/mecab/)の、Binary package for MS-Windowsをインストールしてください。  
+インストール時にはSHIFT-JISでなくUTF8を選択してください。  
+更に、Pathを通しておいてください。Mecabインストール時の設定に依りますがデフォルトでは、
+```shell
+C:\Program Files (x86)\Mecab\bin
+```
+みたいな場所になっているはずです。  

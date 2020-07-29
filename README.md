@@ -96,6 +96,11 @@ Read them yourself with this poppyS.
 ```
 sudo docker run -p 9000:9000 nlpbox/corenlp
 ```
+This poppyS program assumes docker uses localhost, so if your environment is different from that you may have error, 
+so modify the line below in fromPDF.hs.  
+```haskell
+command = "http://localhost:9000/?annotators=parse&outputFormat=json&timeout=50000"
+```
 ## Execute poppyS with Args.
 ```shell
 stack exec poppyS-exe TARGETPDFPATH

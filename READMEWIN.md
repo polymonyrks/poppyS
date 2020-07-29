@@ -120,8 +120,18 @@ Read them yourself with this poppyS.
 ```
 docker run -p 9000:9000 nlpbox/corenlp
 ```
+This poppyS program assumes docker uses localhost, so if your environment is different from that you may have error, 
+so modify the line below in fromPDF.hs.  
+```haskell
+command = "http://localhost:9000/?annotators=parse&outputFormat=json&timeout=50000"
+```
+(e.g.)
+```haskell
+command = "http://192.168.99.100:9000/?annotators=parse&outputFormat=json&timeout=50000"
+```
 ## Drag and Drop a PDF File to the Symbolic link Icon. 
 Drag and Drop works. This executes the poppyS with args automatically.  
+If you have the dll error mentioned above at runtime, copy the zlib1.dll said above to the directory where the poppyS-exe.exe exists.
 # How to read PDF
 ## Wait a few Seconds
 Once execute poppyS, wait a few seconds. Some words will be colored by yellow.  

@@ -1,1 +1,6 @@
-"20"
+"0"
+"homotopy-initi,Pink"
+"unival,Aqua"
+"homotopi,Red"
+"induct,Orange"
+"Type,Green"
