@@ -63,6 +63,7 @@ tes n = do
   showSP $ forgetSubs $ foldNPAdvByWall $ recFoldPhraseJP (foldNPVPSensWOJoshiByWall . foldNPVPSensByWall . foldAdvNPVPWOJoshiSensByWall . foldAdvNPVPSensByWall) deepNounized
 
 
+foldNPsJPRecursive :: SExp JTag String -> SExp JTag String
 foldNPsJPRecursive sexp0 = deepNounized
   where
     sexpUnitNPs = recFoldPhraseJP (
@@ -112,6 +113,7 @@ rootJTag = CJTag {jTag = "root", jTag1 = "root"}
 nilJTag  = CJTag {jTag = "nil", jTag1 = "nil"}
 nounJTag = CJTag {jTag = "名詞", jTag1 = "名詞名詞"}
 
+foldAdjNP :: SExp JTag String -> SExp JTag String
 foldAdjNP sexp0 = sexp1
   where
     foldFunc = foldSuccTags (verbJTag, 2, f)
@@ -123,6 +125,7 @@ foldAdjNP sexp0 = sexp1
             isLastAux = "名詞" == (jTag $ getTagJP $ last xs)
     sexp1 = foldFunc sexp0
 
+foldVPTeVP :: SExp JTag String -> SExp JTag String
 foldVPTeVP sexp0 = sexp1
   where
     foldFunc = foldSuccTags (verbJTag, 3, f)
@@ -135,6 +138,7 @@ foldVPTeVP sexp0 = sexp1
             isLastAux = "動詞" == (jTag $ getTagJP $ last xs)
     sexp1 = foldFunc sexp0
 
+foldVPAux :: SExp JTag String -> SExp JTag String
 foldVPAux sexp0 = sexp1
   where
     foldFunc = foldSuccTags (verbJTag, 2, f)
@@ -146,6 +150,7 @@ foldVPAux sexp0 = sexp1
             isLastAux = "助動詞" == (jTag $ getTagJP $ last xs)
     sexp1 = foldFunc sexp0
 
+foldSahenVP :: SExp JTag String -> SExp JTag String
 foldSahenVP sexp0 = sexp1
   where
     foldFunc = foldSuccTags (verbJTag, 2, f)
@@ -539,6 +544,7 @@ foldNPAdvByWall (Opr tg sexps)
                popped = (snocL (tail st) x, snocL pl $ head st)
                poppedFirst = (snocL st x, pl)
 
+cshowFG :: [SExp JTag String] -> IO ()
 cshowFG = cshowIL . (map forgetSubs)
 
 foldVPAdvByWall :: SExp JTag String -> SExp JTag String
@@ -585,12 +591,14 @@ foldVPAdvByWall (Opr tg sexps)
                popped = (snocL (tail st) x, snocL pl $ head st)
                poppedFirst = (snocL st x, pl)
 
+recFoldPhraseJP :: Eq t => (t -> t) -> t -> t
 recFoldPhraseJP phraseFunc sexp0
   | foldedOnce == sexp0 = sexp0
   | otherwise = recFoldPhraseJP phraseFunc foldedOnce
    where
      foldedOnce = phraseFunc sexp0
 
+foldAdvAdvize :: SExp JTag String -> SExp JTag String
 foldAdvAdvize sexp0 = sexp1
   where
     foldVPNP = foldSuccTags (verbJTag, 2, f)
@@ -602,6 +610,7 @@ foldAdvAdvize sexp0 = sexp1
             isLastAdvize = "副詞化" == (jTag1 $ getTagJP $ last xs)
     sexp1 = foldVPNP sexp0
 
+foldAdjVPJP :: SExp JTag String -> SExp JTag String
 foldAdjVPJP sexp0 = sexp1
   where
     foldVPNP = foldSuccTags (verbJTag, 2, f)
@@ -613,6 +622,7 @@ foldAdjVPJP sexp0 = sexp1
             isLastVP = "動詞" == (jTag $ getTagJP $ last xs)
     sexp1 = foldVPNP sexp0
 
+foldAdvAdjJP :: SExp JTag String -> SExp JTag String
 foldAdvAdjJP sexp0 = sexp1
   where
     foldVPNP = foldSuccTags (verbJTag, 2, f)
@@ -624,6 +634,7 @@ foldAdvAdjJP sexp0 = sexp1
             isLastVP = "形容詞" == (jTag $ getTagJP $ last xs)
     sexp1 = foldVPNP sexp0
 
+foldAdvVPJP :: SExp JTag String -> SExp JTag String
 foldAdvVPJP sexp0 = sexp1
   where
     foldVPNP = foldSuccTags (verbJTag, 2, f)
@@ -635,6 +646,7 @@ foldAdvVPJP sexp0 = sexp1
             isLastVP = "動詞" == (jTag $ getTagJP $ last xs)
     sexp1 = foldVPNP sexp0
 
+foldVPsJP :: SExp JTag String -> SExp JTag String
 foldVPsJP sexp0 = sexp1
   where
     foldJoDoushi tag tag1 sexp = foldSuccTags (verbJTag, 2, f) sexp
@@ -655,6 +667,7 @@ foldVPsJP sexp0 = sexp1
     sexp1 = (foldNonAuto . (foldJoDoushi "形容詞" "自立") . (foldJoDoushi "動詞" "自立") . (foldJoDoushi "動詞" "非自立")) sexp0
     -- sexp1 = (foldJoDoushi "動詞" "非自立") sexp0
 
+foldNPsJP :: SExp JTag String -> SExp JTag String
 foldNPsJP sexp0 = sexp4
   where
     sexp1 = foldPrefix sexp0
@@ -821,6 +834,7 @@ getTagJP (Atom tag _) = tag
 getTagJP (Opr tag _) = tag
 
 
+foldlDebug :: (a1 -> a2 -> a1) -> a1 -> [a2] -> Int -> (a1, a2)
 foldlDebug f yInit xs n = (scanned !! n, xs !! n)
    where
      scanned = scanl f yInit xs
@@ -975,6 +989,8 @@ doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/poppyS/gisho.p
 page <- GPop.documentGetPage doc 143
 -}
 
+extractSExpsJP
+  :: GPop.Page -> IO (V.Vector (String, String, String))
 extractSExpsJP page = do
   (wid, hei) <- GPop.pageGetSize page
   chInfos <- getChInfos page
@@ -1071,6 +1087,8 @@ page <- GPop.documentGetPage doc 3
 isJapanese = True
 -}
 --prp
+getSExpsIOS
+  :: GPop.Page -> Bool -> IO [SExp (Posi, Tag) ([Char], [Sq Double])]
 getSExpsIOS page isJapanese = do
   hoge <- GPop.pageGetText page
   (wid, hei) <- GPop.pageGetSize page
@@ -1194,6 +1212,7 @@ data ChInfo = CChInfo {
   }
     deriving (Eq, Ord, Show)
 
+getChInfos :: GPop.Page -> IO (V.Vector ChInfo)
 getChInfos page = do
   txttxt <- GPop.pageGetText page
   if txttxt == ""
@@ -1232,6 +1251,7 @@ getChInfos page = do
       return chInfos
 
 --prp
+getChInfosS :: GPop.Page -> IO (V.Vector ChInfo)
 getChInfosS page = do
   txttxt <- GPop.pageGetText page
   if txttxt == ""
@@ -1274,6 +1294,9 @@ getChInfosS page = do
       return chInfos
 
 -- prp
+getBlock
+  :: V.Vector ChInfo
+     -> Double -> p -> V.Vector (V.Vector (V.Vector ChInfo))
 getBlock chInfos hei wid
   | chInfos == V.empty = V.empty
   | otherwise = folded
@@ -1353,6 +1376,9 @@ getBlock chInfos hei wid
         -- ho = V.map (V.map (V.toList . takeFst)) folded
 
 
+getBlockS
+  :: V.Vector ChInfo
+     -> p1 -> p2 -> V.Vector (V.Vector (V.Vector ChInfo))
 getBlockS chInfos hei wid
   | chInfos == V.empty = V.empty
   | otherwise = folded
@@ -1417,6 +1443,10 @@ getBlockS chInfos hei wid
 
 replaceStanTable = [("-LRB-", "("), ("-RRB-", ")")]
 
+stanAssign2Poppy1JP
+  :: (Eq a1, Eq a2) =>
+     V.Vector (Char, V.Vector a2)
+     -> [[(Posi, a1, Maybe [Char])]] -> [SExp (Posi, a1) ([Char], [a2])]
 stanAssign2Poppy1JP charSqs indexed = map reconsSExp resSExpForg
   where
     lengths = map length indexed
@@ -1481,6 +1511,10 @@ stanAssign2Poppy1JP charSqs indexed = map reconsSExp resSExpForg
         f y@(raw, stacked) n = (drop n raw, stacked ++ [take n raw])
 
 --kesuna
+stanAssign2Poppy1
+  :: Eq a =>
+     V.Vector (Char, V.Vector a)
+     -> [Turtle.Text] -> [SExp (Posi, Tag) (String, [a])]
 stanAssign2Poppy1 charSqs stanRess = map reconsSExp resSExpForg
   where
     indexed = map (gg . forgetIndexed) stanRess
@@ -1560,15 +1594,22 @@ type SquareD = ((Double, Double), (Double, Double))
 
 
 
+isIncludedPopplerRect :: PopPRectangle -> PopPRectangle -> Bool
 isIncludedPopplerRect ns@(PopPRectangle a b c d) nd@(PopPRectangle e f g h)
   = (a <= e) && (b <= f) && (g <= c) && (h <= d)
 
+popPPageFindText :: GPop.Page -> Turtle.Text -> IO [PopPRectangle]
 popPPageFindText page token = do
   -- rects <- GPop.pageFindText page token
   rects <- GPop.pageFindTextWithOptions page token [GPop.FindFlagsCaseSensitive]
   rectsSwapped <- mapM (gpopRectToPopPRect page) rects
   return rectsSwapped
 
+getCharPossSqRect
+  :: [Char]
+     -> GPop.Page
+     -> V.Vector (Char, V.Vector PopPRectangle)
+     -> IO (V.Vector (Char, V.Vector PopPRectangle))
 getCharPossSqRect [] page stacked = return stacked
 getCharPossSqRect (c:cs) page stacked = do
   charPoss <- popPPageFindText page $ Text.pack [c]
@@ -1601,11 +1642,13 @@ pRectToSqNoSwap :: PopPRectangle -> Sq Double
 pRectToSqNoSwap (PopPRectangle smallX smallY bigX bigY) = CSq {sqTop =  smallY, sqLeft = smallX, sqBot = bigY, sqRight = bigX}
 
 -- docPathSuffix = "./pdfs/CTFP.pdf"
+replaceStr :: Turtle.Text -> Turtle.Text -> String -> String
 replaceStr nd ns str = Text.unpack $ Text.replace nd ns $ Text.pack str
 
 
 
 
+stanIOPoppy1 :: [Char] -> IO [Turtle.Text]
 stanIOPoppy1 str = do
   conv <- open "UTF8" Nothing
   let
@@ -1711,10 +1754,16 @@ showRect rect = do
   -- return ((x1, y1), (x2, y2))
   return $ CSq {sqTop = y1, sqLeft = x1, sqBot = y2, sqRight = x2}
 
+cshowIL :: Show b => [b] -> IO ()
 cshowIL lis = mapM_ uprint $ zip [0 .. (length lis - 1)] lis
+
+cshowL :: (Foldable t, Show a) => t a -> IO ()
 cshowL lis = mapM_ uprint  lis
 
+cshowI :: Show b => V.Vector b -> IO ()
 cshowI lis = cshowIL $ V.toList lis
+
+cshow :: Show a => V.Vector a -> IO ()
 cshow lis = cshowL $ V.toList lis
 
 swapEtFlatten :: [(a, [b])] -> [(b, a)]
@@ -1747,6 +1796,7 @@ buildRequest url body = do
   return (nakedRequest { method = "POST", requestBody = body })
 
 
+forgetIndexed :: Turtle.Text -> [([Int], Tag, Maybe String)]
 forgetIndexed res
   | parsed == [] = error errorMesse
   | otherwise = forgotten
@@ -1820,11 +1870,19 @@ getRectSW page lin opts = do
   sqs <- mapM showRect $ rects
   return (txt, sqs)
 
+indexing :: [b] -> [(Int, b)]
 indexing xs = zip [0 .. (length xs - 1)] xs
 
+takeLeft :: ((a, b1), b2) -> a
 takeLeft x = fst $ fst x
+
+takeTop :: ((a, b1), b2) -> b1
 takeTop x = snd $ fst x
+
+takeBot :: (a1, (a2, b)) -> a2
 takeBot x = fst $ snd x
+
+takeRight :: (a1, (a2, b)) -> b
 takeRight x = snd $ snd x
 
 flattenSnd :: Foldable t => t (a, [b]) -> [(a, b)]
@@ -1835,6 +1893,7 @@ flattenSnd xs = concatMap (\x -> map (\y -> (fst x, y)) $ snd x) xs
 
 
 
+isIncludePoint :: Ord a => (a, a) -> Sq a -> Bool
 isIncludePoint poi@(r, c) sq = sqLeft sq <= c && c <= sqRight sq && sqTop sq <= r && r <= sqBot sq
 
 fromTokensToSens :: V.Vector String -> String

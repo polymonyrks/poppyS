@@ -1,5 +1,0 @@
-"106"
-"imag,Green"
-"object,Red"
-"categori,Pink"
-"Functor,Blue"

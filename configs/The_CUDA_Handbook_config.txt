@@ -1,6 +1,0 @@
-"76"
-"Figur,Blue"
-"GPU,Blue"
-"section,Blue"
-"CUDA,Pink"
-"chapter,Blue"
