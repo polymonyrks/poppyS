@@ -1114,7 +1114,8 @@ getColundRectangles sexps configs isJapanese = electeds
         $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
         where
           filterFunction
-           | isJapanese = (\y -> countNofChars (mapNode id fst y) < nOfWordsUB)
+           -- | isJapanese = (\y -> countNofChars (mapNode id fst y) < nOfWordsUB)
+           | isJapanese = (\y -> True)
            | otherwise = (\y -> isBottomBy id y)
             where
               nOfWordsUB = 15

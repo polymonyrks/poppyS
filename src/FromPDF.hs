@@ -31,38 +31,6 @@ import qualified GI.Poppler as GPop
 import Foreign.Ptr (castPtr, nullPtr)
 import Foreign.ForeignPtr (withForeignPtr)
 
-tes n = do
-  pairss <- V.sequence =<< V.map getMecabed <$> iVecFromFileJP "hogehoge.txt"
-  let
-    pairs = pairss  V.! n
-    sexp0 = toSExpsJP pairs
-    sexpUnitNPs = recFoldPhraseJP (
-        foldVPsJP
-      . foldNPsJP
-      . foldSahenVP
-      . foldVPAux) sexp0
-    deepNounizeBetJoshi = recFoldPhraseJP (
-        foldAdjNP
-      . foldSameTags0
-      . foldVPNPByWall
-      . recFoldPhraseJP (
-              foldVPTeVP
-            . foldSameTags0
-            . foldNPAdvByWall
-            . foldSameTags0
-            . foldAdjVPJP
-            . foldSameTags0
-            . foldAdvAdjJP
-            . foldSameTags0
-            . foldAdvVPJP
-            . foldSameTags0
-            . foldVPAdvByWall
-            . foldSameTags0
-            . foldAdvAdvize))
-    deepNounized = deepNounizeBetJoshi sexpUnitNPs
-  showSP $ forgetSubs $ foldNPAdvByWall $ recFoldPhraseJP (foldNPVPSensWOJoshiByWall . foldNPVPSensByWall . foldAdvNPVPWOJoshiSensByWall . foldAdvNPVPSensByWall) deepNounized
-
-
 foldNPsJPRecursive :: SExp JTag String -> SExp JTag String
 foldNPsJPRecursive sexp0 = deepNounized
   where
@@ -107,18 +75,18 @@ te n = do
     pairs = pairss  V.! n
     sexp0 = toSExpsJP pairs
     res2  = foldNPsJPRecursive sexp0
-  showSP $ forgetSubs res2
+  showSP res2
+  -- showSP $ forgetSubs res2
 
 rootJTag = CJTag {jTag = "root", jTag1 = "root", jTagIsNP = False}
 nilJTag  = CJTag {jTag = "nil", jTag1 = "nil", jTagIsNP = False}
-nounJTag = CJTag {jTag = "名詞", jTag1 = "名詞名詞", jTagIsNP = True}
 
 foldAdjNP :: SExp JTag String -> SExp JTag String
 foldAdjNP sexp0 = sexp1
   where
-    foldFunc = foldSuccTags (verbJTag, 2, f)
+    foldFunc = foldSuccTags (newJTag, 2, f)
       where
-        verbJTag = CJTag "名詞" "形容詞名詞" True
+        newJTag = CJTag "名詞" "形容詞名詞" True
         f xs = isHeadVerb && isLastAux
           where
             isHeadVerb = "形容詞" == (jTag $ getTagJP $ (!! 0) xs)
@@ -128,9 +96,9 @@ foldAdjNP sexp0 = sexp1
 foldVPTeVP :: SExp JTag String -> SExp JTag String
 foldVPTeVP sexp0 = sexp1
   where
-    foldFunc = foldSuccTags (verbJTag, 3, f)
+    foldFunc = foldSuccTags (newJTag, 3, f)
       where
-        verbJTag = CJTag "動詞" "動詞て動詞" False
+        newJTag = CJTag "動詞" "動詞て動詞" False
         f xs = isHeadVerb && isMidTe && isLastAux
           where
             isHeadVerb = "動詞" == (jTag $ getTagJP $ (!! 0) xs)
@@ -141,9 +109,9 @@ foldVPTeVP sexp0 = sexp1
 foldVPAux :: SExp JTag String -> SExp JTag String
 foldVPAux sexp0 = sexp1
   where
-    foldFunc = foldSuccTags (verbJTag, 2, f)
+    foldFunc = foldSuccTags (newJTag, 2, f)
       where
-        verbJTag = CJTag "動詞" "助動詞動詞" False
+        newJTag = CJTag "動詞" "助動詞動詞" False
         f xs = isHeadVerb && isLastAux
           where
             isHeadVerb = "動詞" == (jTag $ getTagJP $ (!! 0) xs)
@@ -153,9 +121,9 @@ foldVPAux sexp0 = sexp1
 foldSahenVP :: SExp JTag String -> SExp JTag String
 foldSahenVP sexp0 = sexp1
   where
-    foldFunc = foldSuccTags (verbJTag, 2, f)
+    foldFunc = foldSuccTags (newJTag, 2, f)
       where
-        verbJTag = CJTag "動詞" "サ変動詞" False
+        newJTag = CJTag "動詞" "サ変動詞" False
         f xs = isHeadSahen && isLastVerb
           where
             isHeadSahen = "サ変接続" == (jTag1 $ getTagJP $ (!! 0) xs)
@@ -167,10 +135,10 @@ foldAdjNPByWall Nil = Nil
 foldAdjNPByWall (Atom a b) = (Atom a b)
 foldAdjNPByWall (Opr tg sexps)
   | length sexps < 4 = (Opr tg sexps)
-  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr advJTag $ tail stEnd])
+  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr newJTag $ tail stEnd])
   | otherwise = Opr tg (plEnd ++ stEnd)
   where
-    advJTag = CJTag "名詞" "形容詞名詞" True
+    newJTag = CJTag "名詞" "形容詞名詞" True
     tagsCond sexps0 = isWall0 && isAdj1 && isNoun2 && isWall3
        where
          isWall0 = isKigou || isConj　|| isJoshi
@@ -205,8 +173,8 @@ foldAdjNPByWall (Opr tg sexps)
                isNotYet = length st < 4
                stackedAdded = snocL st x
                isNewTagOK = tagsCond st
-               foldedOpr = [head st, Opr advJTag $ init $ tail st, last st]
-               foldedOprFirst = [Opr advJTag $ init st, last st]
+               foldedOpr = [head st, Opr newJTag $ init $ tail st, last st]
+               foldedOprFirst = [Opr newJTag $ init st, last st]
                popped = (snocL (tail st) x, snocL pl $ head st)
                poppedFirst = (snocL st x, pl)
 
@@ -215,10 +183,11 @@ foldVPNPByWall Nil = Nil
 foldVPNPByWall (Atom a b) = (Atom a b)
 foldVPNPByWall (Opr tg sexps)
   | length sexps < 4 = (Opr tg sexps)
-  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr advJTag $ tail stEnd])
+  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr newJTag $ tail stEnd])
   | otherwise = Opr tg (plEnd ++ stEnd)
   where
-    advJTag = CJTag "名詞" "動詞名詞" True
+    -- newJTag = CJTag "名詞" "動詞名詞" True
+    newJTag = CJTag "名詞" "動詞名詞" False
     tagsCond sexps0 = isWall0 && isVerb1 && isNoun2 && isWall3
        where
          isWall0 = isKigou || isConj　|| isJoshi
@@ -253,8 +222,8 @@ foldVPNPByWall (Opr tg sexps)
                isNotYet = length st < 4
                stackedAdded = snocL st x
                isNewTagOK = tagsCond st
-               foldedOpr = [head st, Opr advJTag $ init $ tail st, last st]
-               foldedOprFirst = [Opr advJTag $ init st, last st]
+               foldedOpr = [head st, Opr newJTag $ init $ tail st, last st]
+               foldedOprFirst = [Opr newJTag $ init st, last st]
                popped = (snocL (tail st) x, snocL pl $ head st)
                poppedFirst = (snocL st x, pl)
 
@@ -263,10 +232,10 @@ foldAdvNPVPSensByWall Nil = Nil
 foldAdvNPVPSensByWall (Atom a b) = (Atom a b)
 foldAdvNPVPSensByWall (Opr tg sexps)
   | length sexps < 6 = (Opr tg sexps)
-  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr advJTag $ init $ tail stEnd, last stEnd])
+  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr newJTag $ init $ tail stEnd, last stEnd])
   | otherwise = Opr tg (plEnd ++ stEnd)
   where
-    advJTag = CJTag "動詞" "文" False
+    newJTag = CJTag "動詞" "文" False
     tagsCond sexps0 = isWall0 && isAdv1 && isNoun2 && isKakuJo3 && (isVerb4 || isAdj4) && isWall5
        where
          isWall0 = isKigou || isConj　|| isTo || isConj2
@@ -310,8 +279,8 @@ foldAdvNPVPSensByWall (Opr tg sexps)
                isNotYet = length st < 6
                stackedAdded = snocL st x
                isNewTagOK = tagsCond st
-               foldedOpr = [head st, Opr advJTag $ init $ tail st, last st]
-               foldedOprFirst = [Opr advJTag $ init st, last st]
+               foldedOpr = [head st, Opr newJTag $ init $ tail st, last st]
+               foldedOprFirst = [Opr newJTag $ init st, last st]
                popped = (snocL (tail st) x, snocL pl $ head st)
                poppedFirst = (snocL st x, pl)
 
@@ -320,10 +289,10 @@ foldAdvNPVPWOJoshiSensByWall Nil = Nil
 foldAdvNPVPWOJoshiSensByWall (Atom a b) = (Atom a b)
 foldAdvNPVPWOJoshiSensByWall (Opr tg sexps)
   | length sexps < 5 = (Opr tg sexps)
-  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr advJTag $ init $ tail stEnd, last stEnd])
+  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr newJTag $ init $ tail stEnd, last stEnd])
   | otherwise = Opr tg (plEnd ++ stEnd)
   where
-    advJTag = CJTag "動詞" "文" False
+    newJTag = CJTag "動詞" "文" False
     tagsCond sexps0 = isWall0 && isAdv1 && isNoun2 && (isVerb3 || isAdj3) && isWall4
        where
          isWall0 = isKigou || isConj　|| isTo || isConj2
@@ -363,8 +332,8 @@ foldAdvNPVPWOJoshiSensByWall (Opr tg sexps)
                isNotYet = length st < 5
                stackedAdded = snocL st x
                isNewTagOK = tagsCond st
-               foldedOpr = [head st, Opr advJTag $ init $ tail st, last st]
-               foldedOprFirst = [Opr advJTag $ init st, last st]
+               foldedOpr = [head st, Opr newJTag $ init $ tail st, last st]
+               foldedOprFirst = [Opr newJTag $ init st, last st]
                popped = (snocL (tail st) x, snocL pl $ head st)
                poppedFirst = (snocL st x, pl)
 
@@ -379,10 +348,10 @@ foldNPVPSensWOJoshiByWall Nil = Nil
 foldNPVPSensWOJoshiByWall (Atom a b) = (Atom a b)
 foldNPVPSensWOJoshiByWall (Opr tg sexps)
   | length sexps < 4 = (Opr tg sexps)
-  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr advJTag $ init $ tail stEnd, last stEnd])
+  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr newJTag $ init $ tail stEnd, last stEnd])
   | otherwise = Opr tg (plEnd ++ stEnd)
   where
-    advJTag = CJTag "動詞" "文" False
+    newJTag = CJTag "動詞" "文" False
     tagsCond sexps0 = isWall0 && isNoun1 && (isVerb2 || isAdj2) && isWall3
        where
          isWall0 = isKigou || isConj　|| isTo || isConj2
@@ -421,8 +390,8 @@ foldNPVPSensWOJoshiByWall (Opr tg sexps)
                isNotYet = length st < 4
                stackedAdded = snocL st x
                isNewTagOK = tagsCond st
-               foldedOpr = [head st, Opr advJTag $ init $ tail st, last st]
-               foldedOprFirst = [Opr advJTag $ init st, last st]
+               foldedOpr = [head st, Opr newJTag $ init $ tail st, last st]
+               foldedOprFirst = [Opr newJTag $ init st, last st]
                popped = (snocL (tail st) x, snocL pl $ head st)
                poppedFirst = (snocL st x, pl)
 
@@ -431,10 +400,10 @@ foldNPVPSensByWall Nil = Nil
 foldNPVPSensByWall (Atom a b) = (Atom a b)
 foldNPVPSensByWall (Opr tg sexps)
   | length sexps < 5 = (Opr tg sexps)
-  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr advJTag $ init $ tail stEnd, last stEnd])
+  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr newJTag $ init $ tail stEnd, last stEnd])
   | otherwise = Opr tg (plEnd ++ stEnd)
   where
-    advJTag = CJTag "動詞" "文" False
+    newJTag = CJTag "動詞" "文" False
     tagsCond sexps0 = isWall0 && isNoun1 && isKakuJo2 && (isVerb3 || isAdj3) && isWall4
        where
          isWall0 = isKigou || isConj　|| isTo || isConj2
@@ -477,8 +446,8 @@ foldNPVPSensByWall (Opr tg sexps)
                isNotYet = length st < 5
                stackedAdded = snocL st x
                isNewTagOK = tagsCond st
-               foldedOpr = [head st, Opr advJTag $ init $ tail st, last st]
-               foldedOprFirst = [Opr advJTag $ init st, last st]
+               foldedOpr = [head st, Opr newJTag $ init $ tail st, last st]
+               foldedOprFirst = [Opr newJTag $ init st, last st]
                popped = (snocL (tail st) x, snocL pl $ head st)
                poppedFirst = (snocL st x, pl)
 
@@ -488,10 +457,10 @@ foldNPAdvByWall Nil = Nil
 foldNPAdvByWall (Atom a b) = (Atom a b)
 foldNPAdvByWall (Opr tg sexps)
   | length sexps < 3 = (Opr tg sexps)
-  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr advJTag $ tail stEnd])
+  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr newJTag $ tail stEnd])
   | otherwise = Opr tg (plEnd ++ stEnd)
   where
-    advJTag = CJTag "副詞" "名詞副詞" False
+    newJTag = CJTag "副詞" "名詞副詞" False
     tagsCond sexps0 = isWall0 && (isNoun1 || isAdj1) && isKakuJo2
        where
          isWall0 = isKigou || isAdv || isConj || isHa || isGa
@@ -539,8 +508,8 @@ foldNPAdvByWall (Opr tg sexps)
                isNotYet = length st < 3
                stackedAdded = snocL st x
                isNewTagOK = tagsCond st
-               foldedOpr = [head st, Opr advJTag $ tail st]
-               foldedOprFirst = Opr advJTag st
+               foldedOpr = [head st, Opr newJTag $ tail st]
+               foldedOprFirst = Opr newJTag st
                popped = (snocL (tail st) x, snocL pl $ head st)
                poppedFirst = (snocL st x, pl)
 
@@ -552,10 +521,10 @@ foldVPAdvByWall Nil = Nil
 foldVPAdvByWall (Atom a b) = (Atom a b)
 foldVPAdvByWall (Opr tg sexps)
   | length sexps < 3 = (Opr tg sexps)
-  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr advJTag $ tail stEnd])
+  | isNewTagOKEnd = Opr tg (plEnd ++ [head stEnd, Opr newJTag $ tail stEnd])
   | otherwise = Opr tg (plEnd ++ stEnd)
   where
-    advJTag = CJTag "副詞" "動詞副詞" False
+    newJTag = CJTag "副詞" "動詞副詞" False
     tagsCond sexps0 = isWall0 && isNoun1 && isKakuJo2
        where
          isWall0 = isKigou || isAdv || isConj
@@ -586,8 +555,8 @@ foldVPAdvByWall (Opr tg sexps)
                isNotYet = length st < 3
                stackedAdded = snocL st x
                isNewTagOK = tagsCond st
-               foldedOpr = [head st, Opr advJTag $ tail st]
-               foldedOprFirst = Opr advJTag st
+               foldedOpr = [head st, Opr newJTag $ tail st]
+               foldedOprFirst = Opr newJTag st
                popped = (snocL (tail st) x, snocL pl $ head st)
                poppedFirst = (snocL st x, pl)
 
@@ -601,9 +570,9 @@ recFoldPhraseJP phraseFunc sexp0
 foldAdvAdvize :: SExp JTag String -> SExp JTag String
 foldAdvAdvize sexp0 = sexp1
   where
-    foldVPNP = foldSuccTags (verbJTag, 2, f)
+    foldVPNP = foldSuccTags (newJTag, 2, f)
       where
-        verbJTag = CJTag "副詞" "副詞副詞" False
+        newJTag = CJTag "副詞" "副詞副詞" False
         f xs = isHeadAdv && isLastAdvize
           where
             isHeadAdv = "副詞" == (jTag $ getTagJP $ head xs)
@@ -613,9 +582,9 @@ foldAdvAdvize sexp0 = sexp1
 foldAdjVPJP :: SExp JTag String -> SExp JTag String
 foldAdjVPJP sexp0 = sexp1
   where
-    foldVPNP = foldSuccTags (verbJTag, 2, f)
+    foldVPNP = foldSuccTags (newJTag, 2, f)
       where
-        verbJTag = CJTag "動詞" "形容詞動詞" False
+        newJTag = CJTag "動詞" "形容詞動詞" False
         f xs = isHeadNP && isLastVP
           where
             isHeadNP = "形容詞" == (jTag $ getTagJP $ head xs)
@@ -625,9 +594,9 @@ foldAdjVPJP sexp0 = sexp1
 foldAdvAdjJP :: SExp JTag String -> SExp JTag String
 foldAdvAdjJP sexp0 = sexp1
   where
-    foldVPNP = foldSuccTags (verbJTag, 2, f)
+    foldVPNP = foldSuccTags (newJTag, 2, f)
       where
-        verbJTag = CJTag "形容詞" "副詞形容詞" False
+        newJTag = CJTag "形容詞" "副詞形容詞" False
         f xs = isHeadNP && isLastVP
           where
             isHeadNP = "副詞" == (jTag $ getTagJP $ head xs)
@@ -637,9 +606,9 @@ foldAdvAdjJP sexp0 = sexp1
 foldAdvVPJP :: SExp JTag String -> SExp JTag String
 foldAdvVPJP sexp0 = sexp1
   where
-    foldVPNP = foldSuccTags (verbJTag, 2, f)
+    foldVPNP = foldSuccTags (newJTag, 2, f)
       where
-        verbJTag = CJTag "動詞" "副詞動詞" False
+        newJTag = CJTag "動詞" "副詞動詞" False
         f xs = isHeadNP && isLastVP
           where
             isHeadNP = "副詞" == (jTag $ getTagJP $ head xs)
@@ -649,16 +618,16 @@ foldAdvVPJP sexp0 = sexp1
 foldVPsJP :: SExp JTag String -> SExp JTag String
 foldVPsJP sexp0 = sexp1
   where
-    foldJoDoushi tag tag1 sexp = foldSuccTags (verbJTag, 2, f) sexp
+    foldJoDoushi tag tag1 sexp = foldSuccTags (newJTag, 2, f) sexp
       where
-        verbJTag = CJTag tag tag1 False
+        newJTag = CJTag tag tag1 False
         f xs = isHeadVerb && isLastJoDoushi
           where
             isHeadVerb = (CJTag tag tag1 False) == (getTagJP $ head xs)
             isLastJoDoushi = (CJTag "助動詞" "*" False) == (getTagJP $ last xs)
-    foldNonAuto = foldSuccTags (verbJTag, 3, f)
+    foldNonAuto = foldSuccTags (newJTag, 3, f)
       where
-        verbJTag = CJTag "動詞" "自立" False
+        newJTag = CJTag "動詞" "自立" False
         f xs = isHeadAuto && isLastNonAuto
           where
             isHeadAuto = (CJTag "動詞" "自立" False) == (getTagJP $ head xs)
@@ -670,16 +639,17 @@ foldVPsJP sexp0 = sexp1
 foldNPsJP :: SExp JTag String -> SExp JTag String
 foldNPsJP sexp0 = sexp4
   where
+    newJTag = CJTag {jTag = "名詞", jTag1 = "名詞名詞", jTagIsNP = True}
     sexp1 = foldPrefix sexp0
     sexp2 = foldSuffix sexp1
     sexp3 = foldSameTags0 sexp2
-    sexp31 = foldSuccTags (nounJTag, 2, f) sexp3
+    sexp31 = foldSuccTags (newJTag, 2, f) sexp3
       where
         f xs = isHeadRentai && isLastNoun
           where
             isHeadRentai = (jTag $ getTagJP $ (head xs)) == "連体詞"
             isLastNoun = (jTag $ getTagJP $ (last xs)) == "名詞" || (jTag $ getTagJP $ (last xs)) == "代名詞"
-    sexp4 = foldSuccTags (nounJTag, 3, f) sexp31
+    sexp4 = foldSuccTags (newJTag, 3, f) sexp31
       where
         f xs = isHeadNoun && isMidJoshiAndNo && isLastNoun
           where
