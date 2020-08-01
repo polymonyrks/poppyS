@@ -31,6 +31,16 @@ import qualified GI.Poppler as GPop
 import Foreign.Ptr (castPtr, nullPtr)
 import Foreign.ForeignPtr (withForeignPtr)
 
+testSentense = "Explicitな名詞フラグの導入と、名詞句の長さ制限を取っ払った。残りは、気になる文章をstrとして登録した後に、そいつをデバッグする環境の構築だろう。これは、手で貼っておいてという感じがいいと思う。"
+
+te2 = do
+  mecabedRes <- getMecabed testSentense
+  let
+    sexp0 = toSExpsJP mecabedRes
+    res2  = foldNPsJPRecursive sexp0
+  showSP $ forgetNPSubs res2
+
+
 foldNPsJPRecursive :: SExp JTag String -> SExp JTag String
 foldNPsJPRecursive sexp0 = deepNounized
   where
@@ -49,7 +59,9 @@ foldNPsJPRecursive sexp0 = deepNounized
         . foldSameTags0
         . foldAdvNPVPSensByWall)
     deepNounizeBetJoshi = recFoldPhraseJP (
-        foldAdjNP
+        foldNPsJP
+      . foldSameTags0
+      . foldAdjNP
       . foldSameTags0
       . foldVPNPByWall
       . recFoldPhraseJP (
@@ -688,6 +700,14 @@ forgetSubs (Atom a b) = (Atom a b)
 forgetSubs (Opr tg sexps)
   | tg == rootJTag = (Opr tg $ map forgetSubs sexps)
   | otherwise = (Atom tg $ concatMap getSubTokens sexps)
+
+forgetNPSubs :: SExp JTag String -> SExp JTag String
+forgetNPSubs Nil = Nil
+forgetNPSubs (Atom a b) = (Atom a b)
+forgetNPSubs (Opr tg sexps)
+  | tg == rootJTag = (Opr tg $ map forgetNPSubs sexps)
+  | jTagIsNP tg == True = (Atom tg $ concatMap getSubTokens sexps)
+  | otherwise = (Opr tg $ map forgetNPSubs sexps)
 
 getSubTokens :: SExp JTag String -> String
 getSubTokens Nil = ""
