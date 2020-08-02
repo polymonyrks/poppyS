@@ -69,6 +69,12 @@ oVecToFileJP vec fpath = do
   V.mapM (\x -> hPutStrLn handle $ ushow x) vec
   hClose handle
 
+oFileJP :: String -> IO ()
+oFileJP fpath = do
+  handle <- openFile fpath WriteMode
+  hSetEncoding handle utf8
+  hClose handle
+
 cshow :: Show a => V.Vector a -> IO (V.Vector ())
 cshow vec = do
   V.mapM (\x -> uprint x) vec

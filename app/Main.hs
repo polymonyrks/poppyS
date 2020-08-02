@@ -21,7 +21,7 @@ import qualified Control.Lens as LENS
 import qualified Data.Aeson.Lens as AL
 import Data.Text.ICU.Convert as ICU
 import qualified Data.ByteString.Lazy as BL
-import Lib (iVecFromFile, oVecToFile, oVecToFileJP, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getDivideLine, countPrefix, countSuffix, indexingL)
+import Lib (iVecFromFile, oVecToFile, oVecToFileJP, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getDivideLine, countPrefix, countSuffix, indexingL, oFileJP)
 -- import PopSExp (indexingSP, forgetSExp, injectSExpI, reconsSExp, showSP)
 import PopSExp
 import ParserP (parse, pSExp)
@@ -68,6 +68,7 @@ renderWithContext :: GI.Cairo.Context -> Render () -> IO ()
 renderWithContext ct r = withManagedPtr ct $ \p ->
                          runReaderT (runRender r) (Cairo (castPtr p))
 
+main :: IO ()
 main = do
   setLocaleEncoding utf8
   let
@@ -118,12 +119,34 @@ mainGtk fpath poppySPath = do
       decl n nOfPage = mod (n - 2) nOfPage
       incl1 n nOfPage = mod (n + 1) nOfPage
       decl1 n nOfPage = mod (n - 1) nOfPage
-      registeredKeys = [["j"], ["k"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"]]
+      registeredKeysConfigIO = concatMap (\n -> [[show n], ["colon", "w", show n]]) [0 .. 9]
+      registeredKeys = [["j"], ["k"], ["Up"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["s"]] ++ registeredKeysConfigIO
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
       isSomethingMatched = or $ map (\keys -> Lis.isPrefixOf stKeys keys) registeredKeys
     Gtk.windowSetTitle window $ Text.pack $ ushow stKeys
+    when (stKeys == ["Up"]) $ do
+      mode <- dksDebug <$> readIORef docsRef
+      let
+        newMode
+         | mode == Vanilla = Hint
+         | otherwise = Vanilla
+      modifyIORef docsRef (\x -> x {dksDebug = newMode})
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.widgetQueueDraw window
+      return ()
+    when (stKeys == ["s"]) $ do
+      mode <- dksDebug <$> readIORef docsRef
+      let
+        newMode
+         | mode == Vanilla = Hint
+         | mode == Hint = Gramatica
+         | otherwise = Vanilla
+      modifyIORef docsRef (\x -> x {dksDebug = newMode})
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.widgetQueueDraw window
+      return ()
     when (stKeys == ["Down"]) $ do
       resizeFromCurrPageSqs window docsRef docRef mVars
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
@@ -227,6 +250,44 @@ mainGtk fpath poppySPath = do
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window "Config Saved."
       return ()
+    let
+      saveConfig n = do
+        when (stKeys == ["colon", "w", show n]) $ do
+          docs <- readIORef docsRef
+          doc <- readIORef docRef
+          let
+            colors = dksColors docs
+            conf = res
+              where
+                res = map (\x -> (fst x) ++ "," ++ (decodeConfig colors $ snd x)) $ dkConfig doc
+            currPage = dkCurrPage doc
+            poppySPath = dksPoppySPath docs
+            configFilesDir = poppySPath ++ "/configsPreset"
+            outout = V.fromList $ (ushow currPage) : conf
+            configFilePath = configFilesDir ++ "/" ++ (show n) ++ "_config.txt"
+          oVecToFileJP outout configFilePath
+          modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+          Gtk.windowSetTitle window $ Text.pack $ "Config Saved to #Slot " ++ (show n)
+          return ()
+      loadConfig n = do
+        when (stKeys == [show n]) $ do
+          docs <- readIORef docsRef
+          doc <- readIORef docRef
+          let
+            colors = dksColors docs
+            poppySPath = dksPoppySPath docs
+            configFilesDir = poppySPath ++ "/configsPreset"
+            configFilePath = configFilesDir ++ "/" ++ (show n) ++ "_config.txt"
+          configsPrim <- iVecFromFile configFilePath
+          let
+            config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) $ V.tail configsPrim
+          modifyIORef docRef (\x -> x {dkConfig = config})
+          modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+          Gtk.widgetQueueDraw window
+          Gtk.windowSetTitle window $ Text.pack $ "Config loaded from #Slot " ++ (show n)
+          return ()
+    mapM loadConfig [0 .. 9]
+    mapM saveConfig [0 .. 9]
     when (stKeys == ["space", "l", "t"]) $ do
       modifyIORef docRef (\x -> x {dkIsJapanese = not $ dkIsJapanese x})
       Gtk.widgetQueueDraw window
@@ -344,7 +405,7 @@ mainGtk fpath poppySPath = do
           colors = dksColors docs
           isFail = words == []
           isFailNext = wordsNext == []
-          iword@(isLeft, (word, tarSqs)) -- prp63
+          iword@(isLeft, (word, tarSqs))
             | isFail && isFailNext = (-1, ("", []))
             | not isFail = (0, head words)
             | otherwise = (1, head wordsNext)
@@ -462,7 +523,6 @@ mainGtk fpath poppySPath = do
     row <- get event #y
     return False
 
--- prp
   on window #draw $ \context -> do
     docs <- readIORef docsRef
     doc <- readIORef docRef
@@ -561,16 +621,14 @@ mainGtk fpath poppySPath = do
              | otherwise = [head $ filter (\y -> tok == (fst $ snd y)) stemmedOrderedTagged]
              where
                filtered = filter (\y -> tok == (fst $ snd y)) stemmedOrderedTagged
-      rectsSpecial@(special0, special1) =
-        let
+      rectsSpecial@(special0, special1) = (res0, res1)
+        where
           concated = map (\x@(i, (tk, sq)) -> (i, sq)) $ specialsPrius
           concated0 = concat $ takeSndL $ filter (\x -> fst x == 0) concated
           concated1 = concat $ takeSndL $ filter (\x -> fst x == 1) concated
           gold = colGold colors
           res0 = map (\x -> (\y -> (gold, y)) <$> sqToRect x) concated0
           res1 = map (\x -> (\y -> (gold, y)) <$> sqToRect x) concated1
-        in
-          (res0, res1)
     let
       sexps = case sexpsMaybe of
         Just sexpsPrim -> sexpsPrim
@@ -579,12 +637,20 @@ mainGtk fpath poppySPath = do
         Just sexpsPrim -> sexpsPrim
         Nothing -> []
     let
-      electeds = getColundRectangles sexps configs isJapanese
-      electedsNext = getColundRectangles nextSexps configs isJapanese
+      mode = dksDebug docs
+      electeds = getColundRectangles sexps configs isJapanese colors mode
+      electedsNext = getColundRectangles nextSexps configs isJapanese colors mode
     rects <- sequence electeds
     rectsNext <- sequence electedsNext
     rectsSpec <- sequence special0
     rectsSpecNext <- sequence special1
+    let
+      colundRects
+       | mode == Vanilla = []
+       | otherwise = rectsSpec ++ rects
+      colundRectsNext
+       | mode == Vanilla = []
+       | otherwise = rectsSpecNext ++ rectsNext
     page <- GPop.documentGetPage currDoc currPage
     hw@(width, height) <- Gtk.windowGetSize window
     (pWid', pHei') <- GPop.pageGetSize page
@@ -600,7 +666,7 @@ mainGtk fpath poppySPath = do
        translate (- pageLeft) (- pageTop)
        -- zeroRect <- GPop.rectangleNew
        GPop.pageRender page context
-       _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection page context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) $ rectsSpec ++ rects
+       _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection page context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRects
        restore
 
     -- for NextPage(If exists)
@@ -612,7 +678,7 @@ mainGtk fpath poppySPath = do
           translate (pWid' - pageLeftNext - (pWid' - pageRight) - pageLeft) (- pageTopNext)
           -- zeroRect <- GPop.rectangleNew
           GPop.pageRender pageNext context
-          _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection pageNext context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) $ rectsSpecNext ++ rectsNext
+          _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection pageNext context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRectsNext
           restore
       else return ()
     return True
@@ -645,7 +711,7 @@ data MVars = CMVars{
     mVarSExps :: (MV.MVector RealWorld (Maybe [(SExp (Posi, Tag) (String, [Sq Double]))]))
   }
 
-data Mode = Hint | Adhoc | Gramatica | Primitive | Scout
+data Mode = Hint | Gramatica | Vanilla
   deriving (Show, Eq)
 
 
@@ -663,6 +729,7 @@ data Docs = CDocs {
   , dksGlobalConfig :: [(String, GPop.Color)]
   , dksIsDeleting :: Bool
   , dksIsDualPage :: Bool
+  , dksPresetConfigs :: [[([Char], GPop.Color)]]
   }
 
 data Doc = CDoc {
@@ -822,12 +889,21 @@ decodeConfig colors y
   | otherwise = "Red"
 
 globalConfigFilePath = "global_config.txt"
+presetConfigDirr = "configsPreset"
+presetConfigFileNames = map (\n -> (show n) ++ "_config.txt") [0 .. 9]
 
 initDocs :: String -> IO Docs
 initDocs poppySPath = do
   configsPrim <- iVecFromFile $ poppySPath ++ "/" ++ globalConfigFilePath
+  presetConfs <- listDirectory $ poppySPath ++ "/" ++ presetConfigDirr
   colors <- setColors
   let
+    notExists = filter (\x -> not $ elem x presetConfs) presetConfigFileNames
+  mapM (\x -> oVecToFileJP (V.singleton $ ushow 0) $ poppySPath ++ "/" ++ presetConfigDirr ++ "/" ++ x) notExists
+  confContents <- V.mapM iVecFromFile $ V.fromList $ map (\x -> poppySPath ++ "/" ++ presetConfigDirr ++ "/" ++ x) presetConfigFileNames
+  let
+    getConfigContents configsPrim = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) $ V.tail configsPrim
+    presetConfigs = map getConfigContents $ V.toList confContents
     config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsPrim
     res = CDocs {
         dksPoppySPath = poppySPath
@@ -843,6 +919,7 @@ initDocs poppySPath = do
       , dksGlobalConfig = config
       , dksIsDeleting = False
       , dksIsDualPage = True
+      , dksPresetConfigs = presetConfigs
       }
   return res
 
@@ -1102,9 +1179,8 @@ stopper f minm maxm n
   | maxm < f n = maxm
   | otherwise = f n
 
--- prp
 -- isBottomBy needs to be replaced.
-getColundRectangles sexps configs isJapanese = electeds
+getColundRectangles sexps configs isJapanese colors mode = electeds
   where
       detacheds = map (map g2)
         $ map (filter g)
@@ -1125,7 +1201,7 @@ getColundRectangles sexps configs isJapanese = electeds
           g2 x = case x of
             Nothing -> ("", [])
             Just y -> y
-      detachedAssigneds = Lis.nubBy g2 $ foldl g [] configs
+      detachedAssignedsHinted = Lis.nubBy g2 $ foldl g [] configs
          where
            g2 x y = snd x == snd y
            g y x@(stemX, color) = y ++ filtered
@@ -1135,41 +1211,29 @@ getColundRectangles sexps configs isJapanese = electeds
              -- | isJapanese = map (\xs -> (takeFstL xs, takeSndL xs)) detacheds
              | isJapanese = map (\xs -> (map toLowers $ takeFstL xs, takeSndL xs)) detacheds
              | otherwise = map (\xs -> (map (toLowers . stemEng) $ takeFstL xs, takeSndL xs)) detacheds
-      electeds = map f3 $ concatMap (\x@(col, sqss) -> map (\x -> (col, x)) $ concat sqss) detachedAssigneds
-        where
-          f3 (color, sq) = do
-            rect <- sqToRect sq
-            return (color, rect)
-
-getColundRectangles2 sexps configs isJapanese = electeds
-  where
-      detacheds = map (map g2)
-        $ map (filter g)
-        $ map takeSndL
-        $ map forgetSExp
-        $ concatMap ((filter filterFunction) . (takeSpecTags (\x -> x == NP)))
-        $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
-        where
-          filterFunction
-           | isJapanese = (\y -> countNofChars (mapNode id fst y) < nOfWordsUB)
-           | otherwise = (\y -> isBottomBy id y)
-            where
-              nOfWordsUB = 15
-          g x = case x of
-            Nothing -> False
-            Just _ -> True
-          g2 x = case x of
-            Nothing -> ("", [])
-            Just y -> y
-      detachedAssigneds = Lis.nubBy g2 $ foldl g [] configs
-         where
-           g2 x y = snd x == snd y
-           g y x@(stemX, color) = y ++ filtered
+      hintedDeChimera = filter f detachedAssignedsHinted
+          where
+            f (col, sqs) = and $ map g detachedAssignedsHinted
               where
-                filtered = [(color, sqs) | stem@(stems, sqs) <- stemmeds, elem (toLowers stemX) stems]
-           stemmeds
-             | isJapanese = map (\xs -> (takeFstL xs, takeSndL xs)) detacheds
-             | otherwise = map (\xs -> (map (toLowers . stemEng) $ takeFstL xs, takeSndL xs)) detacheds
+                g (c, sq) = (not $ [] == filter (\x -> not $ elem x sq) sqs) || sq == sqs
+      detachedAssignedsCyclic = assed
+         where
+           flattenedSqs = map takeSndL detacheds
+           flattenedNotInc = filter f flattenedSqs
+             where
+               f sqs = and $ map g flattenedSqs
+                 where
+                   g sq = (not $ [] == filter (\x -> not $ elem x sq) sqs) || sq == sqs
+           assed = map f $ indexingL flattenedNotInc
+             where
+               f (i, sqs)
+                | mod i 2 == 0 = (colRed colors, sqs)
+                | otherwise = (colBlue colors, sqs)
+      detachedAssigneds
+       -- | mode == Hint = detachedAssignedsHinted
+       | mode == Hint = hintedDeChimera
+       | mode == Gramatica = detachedAssignedsCyclic
+       | otherwise = []
       electeds = map f3 $ concatMap (\x@(col, sqss) -> map (\x -> (col, x)) $ concat sqss) detachedAssigneds
         where
           f3 (color, sq) = do
