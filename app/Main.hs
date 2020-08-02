@@ -119,7 +119,7 @@ mainGtk fpath poppySPath = do
       decl n nOfPage = mod (n - 2) nOfPage
       incl1 n nOfPage = mod (n + 1) nOfPage
       decl1 n nOfPage = mod (n - 1) nOfPage
-      registeredKeysConfigIO = concatMap (\n -> [[show n], ["colon", "w", show n]]) [0 .. 9]
+      registeredKeysConfigIO = ["0"] : concatMap (\n -> [[show n], ["colon", "w", show n]]) [1 .. 9]
       registeredKeys = [["j"], ["k"], ["Up"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["s"]] ++ registeredKeysConfigIO
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
@@ -265,6 +265,11 @@ mainGtk fpath poppySPath = do
             configFilesDir = poppySPath ++ "/configsPreset"
             outout = V.fromList $ (ushow currPage) : conf
             configFilePath = configFilesDir ++ "/" ++ (show n) ++ "_config.txt"
+            configFilePath0 = configFilesDir ++ "/0_config.txt"
+          outoutPrevPrim <- iVecFromFile configFilePath
+          let
+            outoutPrev = V.map (\x -> read x :: String) outoutPrevPrim
+          oVecToFileJP outoutPrev configFilePath0
           oVecToFileJP outout configFilePath
           modifyIORef docsRef (\x -> x {dksKeysStacked = []})
           Gtk.windowSetTitle window $ Text.pack $ "Config Saved to #Slot " ++ (show n)
@@ -748,7 +753,6 @@ data Doc = CDoc {
   , dkClickedSquare :: (Int, [Sq Double]) -- fst is which of these, i.e. (-1: no clicked, 0: leftPage, 1:rightPage)
 -- ppp  , dkTokSqTrues :: V.Vector (V.Vector (String, PopPRectangle))
   }
-
 
 setColors :: IO Colors
 setColors = do
