@@ -121,7 +121,8 @@ mainGtk fpath poppySPath = do
       decl n nOfPage = mod (n - 2) nOfPage
       incl1 n nOfPage = mod (n + 1) nOfPage
       decl1 n nOfPage = mod (n - 1) nOfPage
-      registeredKeysConfigIO = ["0"] : concatMap (\n -> [[show n], ["colon", "w", show n]]) [1 .. 9]
+      numChars = (map (\c -> [c]) ['a' .. 'z']) ++ (map show [1 .. 9])
+      registeredKeysConfigIO = ["at", "0"] : concatMap (\c -> [["at", c], ["colon", "w", "at", c]]) numChars
       registeredKeys = [["j"], ["k"], ["Up"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["s"]] ++ registeredKeysConfigIO
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
@@ -267,8 +268,8 @@ mainGtk fpath poppySPath = do
       Gtk.windowSetTitle window "Config Saved."
       return ()
     let
-      saveConfig n = do
-        when (stKeys == ["colon", "w", show n]) $ do
+      saveConfig c = do
+        when (stKeys == ["colon", "w", "at", c]) $ do
           docs <- readIORef docsRef
           doc <- readIORef docRef
           let
@@ -280,7 +281,7 @@ mainGtk fpath poppySPath = do
             poppySPath = dksPoppySPath docs
             configFilesDir = poppySPath ++ "/configsPreset"
             outout = V.fromList $ (ushow currPage) : conf
-            configFilePath = configFilesDir ++ "/" ++ (show n) ++ "_config.txt"
+            configFilePath = configFilesDir ++ "/" ++ c ++ "_config.txt"
             configFilePath0 = configFilesDir ++ "/0_config.txt"
           outoutPrevPrim <- iVecFromFile configFilePath
           let
@@ -288,27 +289,27 @@ mainGtk fpath poppySPath = do
           oVecToFileJP outoutPrev configFilePath0
           oVecToFileJP outout configFilePath
           modifyIORef docsRef (\x -> x {dksKeysStacked = []})
-          Gtk.windowSetTitle window $ Text.pack $ "Config Saved to #Slot " ++ (show n)
+          Gtk.windowSetTitle window $ Text.pack $ "Config Saved to #Slot " ++ c
           return ()
-      loadConfig n = do
-        when (stKeys == [show n]) $ do
+      loadConfig c = do
+        when (stKeys == ["at", c]) $ do
           docs <- readIORef docsRef
           doc <- readIORef docRef
           let
             colors = dksColors docs
             poppySPath = dksPoppySPath docs
             configFilesDir = poppySPath ++ "/configsPreset"
-            configFilePath = configFilesDir ++ "/" ++ (show n) ++ "_config.txt"
+            configFilePath = configFilesDir ++ "/" ++ c ++ "_config.txt"
           configsPrim <- iVecFromFile configFilePath
           let
             config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) $ V.tail configsPrim
           modifyIORef docRef (\x -> x {dkConfig = config})
           modifyIORef docsRef (\x -> x {dksKeysStacked = []})
           Gtk.widgetQueueDraw window
-          Gtk.windowSetTitle window $ Text.pack $ "Config loaded from #Slot " ++ (show n)
+          Gtk.windowSetTitle window $ Text.pack $ "Config loaded from #Slot " ++ c
           return ()
-    mapM loadConfig [0 .. 9]
-    mapM saveConfig [0 .. 9]
+    mapM loadConfig numChars
+    mapM saveConfig numChars
     when (stKeys == ["space", "l", "t"]) $ do
       modifyIORef docRef (\x -> x {dkIsJapanese = not $ dkIsJapanese x})
       Gtk.widgetQueueDraw window
@@ -920,10 +921,14 @@ decodeConfig colors y
 
 globalConfigFilePath = "global_config.txt"
 presetConfigDirr = "configsPreset"
-presetConfigFileNames = map (\n -> (show n) ++ "_config.txt") [0 .. 9]
+presetConfigFileNames = (map (\c -> [c] ++ "_config.txt") ['a' .. 'z']) ++ (map (\n -> (show n) ++ "_config.txt") [0 .. 9])
 
 initDocs :: String -> IO Docs
 initDocs poppySPath = do
+  let
+    fullPresetDirr = poppySPath ++ "/" ++ presetConfigDirr
+    fullGlobal = poppySPath ++ "/" ++ globalConfigFilePath
+  createDirectoryIfMissing False fullPresetDirr
   configsPrim <- iVecFromFile $ poppySPath ++ "/" ++ globalConfigFilePath
   presetConfs <- listDirectory $ poppySPath ++ "/" ++ presetConfigDirr
   colors <- setColors
@@ -959,6 +964,7 @@ initDoc docsRef fpath = do
   let
     poppySPath = dksPoppySPath docs
     configFilesDir = poppySPath ++ "/configs"
+  createDirectoryIfMissing False configFilesDir
   files <- listDirectory configFilesDir
   let
     configSuffix = "_config.txt"
