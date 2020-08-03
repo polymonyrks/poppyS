@@ -100,6 +100,7 @@ mainGtk fpath poppySPath = do
   docsRef <- newIORef docs
   doc <- initDoc docsRef fpath
   docRef <- newIORef doc
+  Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
   let
     currDoc = dkCurrDoc doc
     currPage = dkCurrPage doc
@@ -134,6 +135,7 @@ mainGtk fpath poppySPath = do
          | otherwise = Vanilla
       modifyIORef docsRef (\x -> x {dksDebug = newMode})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       Gtk.widgetQueueDraw window
       return ()
     when (stKeys == ["s"]) $ do
@@ -145,11 +147,13 @@ mainGtk fpath poppySPath = do
          | otherwise = Vanilla
       modifyIORef docsRef (\x -> x {dksDebug = newMode})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       Gtk.widgetQueueDraw window
       return ()
     when (stKeys == ["Down"]) $ do
       resizeFromCurrPageSqs window docsRef docRef mVars
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window $ Text.pack "Cropped"
       return ()
     when (stKeys == ["j"]) $ do
       docs <- readIORef docsRef
@@ -161,6 +165,7 @@ mainGtk fpath poppySPath = do
       goOtherPage window docRef goFunc goFunc
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       return ()
     when (stKeys == ["k"]) $ do
       docs <- readIORef docsRef
@@ -172,26 +177,31 @@ mainGtk fpath poppySPath = do
       goOtherPage window docRef goFunc goFunc
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       return ()
     when (stKeys == ["Left"]) $ do
       goOtherPage window docRef decl1 decl1
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       return ()
     when (stKeys == ["Right"]) $ do
       goOtherPage window docRef incl1 incl1
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       return ()
     when (stKeys == ["g", "g"]) $ do
       goOtherPage window docRef (\n -> \m -> 0) (\n -> \m -> 1)
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       return ()
     when (stKeys == ["G"]) $ do
       goOtherPage window docRef (\n -> \m -> nPage - 1) (\n -> \m -> 0)
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       return ()
     when (stKeys == ["w"]) $ do
       docs <- readIORef docsRef
@@ -200,9 +210,12 @@ mainGtk fpath poppySPath = do
         nextIsDual = not $ dksIsDualPage docs
       modifyIORef docsRef (\x -> x {dksIsDualPage = nextIsDual})
       if nextIsDual == True
-        then Gtk.windowMaximize window
+        then do
+          Gtk.windowMaximize window
+          Gtk.windowSetTitle window $ Text.pack "Maximized"
         else do
           Gtk.windowUnmaximize window
+          Gtk.windowSetTitle window $ Text.pack "UnMaximized"
           -- Gtk.windowResize window (floor $ (fromIntegral wHei) / 2.0) (floor $ (fromIntegral wWid) / 2.0)
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
@@ -210,6 +223,7 @@ mainGtk fpath poppySPath = do
       modifyIORef docRef (\x -> x {dkConfig = dkConfigYank x})
       Gtk.widgetQueueDraw window
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window $ Text.pack "Pasted"
       return ()
     when (stKeys == ["x"]) $ do
       docs <- readIORef docsRef
@@ -227,6 +241,7 @@ mainGtk fpath poppySPath = do
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       Gtk.widgetQueueDraw window
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window $ Text.pack "DeColored"
       return ()
     when (stKeys == ["colon", "w", "Return"]) $ do
       docs <- readIORef docsRef
@@ -305,7 +320,7 @@ mainGtk fpath poppySPath = do
       nOfPage <- GPop.documentGetNPages cdoc
       mapM (\m -> MV.write mvSexps m Nothing) [0 .. (fromIntegral nOfPage) - 1]
       modifyMVar_ mVars (\mvrs -> return $ mvrs {mVarSExps = mvSexps})
-      Gtk.windowSetTitle window "lang toggled."
+      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       return ()
     when (name == Just "Escape") $ do
       --modifyIORef docsRef (\x -> x {dksKeysStacked = []})
@@ -500,23 +515,33 @@ mainGtk fpath poppySPath = do
               modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = [(word, newColor)] ++ dropped, dkTogColIndex = newIndex})
               modifyIORef docsRef (\docs -> docs {dksGlobalConfig = [(word, newColor)] ++ droppedG})
               Gtk.widgetQueueDraw window
+              Gtk.windowSetTitle window $ Text.pack forWinTitle
            else
              do
                let
                  dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
                modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = dropped, dkTogColIndex = newIndex})
+
                Gtk.widgetQueueDraw window
+               Gtk.windowSetTitle window $ Text.pack forWinTitle
           else
            if button == 1
             then
              if nextIsDual
-               then goOtherPage window docRef incl incl
-               else goOtherPage window docRef incl1 incl1
+               then do
+                 goOtherPage window docRef incl incl
+                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+               else do
+                 goOtherPage window docRef incl1 incl1
+                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
             else
              if nextIsDual
-               then goOtherPage window docRef decl decl
-               else goOtherPage window docRef decl1 decl1
-        Gtk.windowSetTitle window $ Text.pack forWinTitle
+               then do
+                 goOtherPage window docRef decl decl
+                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+               else do
+                 goOtherPage window docRef decl1 decl1
+                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
         return False
 
   on window #buttonReleaseEvent $ \event -> do
@@ -975,6 +1000,7 @@ initDoc docsRef fpath = do
      | otherwise = False
     clipSq = CSq {sqLeft = 0, sqTop = 0, sqRight = wid, sqBot = hei}
     clipSqNext = CSq {sqLeft = 0, sqTop = 0, sqRight = widNext, sqBot = heiNext}
+  let
     res = CDoc {
       dkPDFPath = fpath
     , dkPDFDocName = currDocName
@@ -994,6 +1020,22 @@ initDoc docsRef fpath = do
     }
   return res
 
+getWindowTitleFromDoc :: IORef Docs -> IORef Doc -> IO [Char]
+getWindowTitleFromDoc docsRef docRef = do
+  docs <- readIORef docsRef
+  doc <- readIORef docRef
+  let
+    currDoc = dkCurrDoc doc
+  docTitle <- GPop.documentGetTitle currDoc
+  nOfPage <- GPop.documentGetNPages currDoc
+  let
+    currPage = dkCurrPage doc
+    lang
+     | dkIsJapanese doc = "JP"
+     | otherwise = "EN"
+    mode = dksDebug docs
+    res = (Text.unpack docTitle) ++ ": " ++ "[" ++ (show currPage) ++ "/" ++ (show nOfPage) ++ "]" ++ " lang := " ++ lang ++ ": " ++ "mode := " ++ (show mode)
+  return res
 
 initMVars :: IORef Doc -> IO MVars
 initMVars docRef = do
