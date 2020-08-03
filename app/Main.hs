@@ -1030,7 +1030,12 @@ getWindowTitleFromDoc docsRef docRef = do
     -- docName = dkPDFDocName doc
   docName <- catch (do
       docTitle <- GPop.documentGetTitle currDoc
-      return $ Text.unpack docTitle
+      let
+        titleRes
+         | docTitle == "" = dkPDFDocName doc
+         | otherwise = Text.unpack docTitle
+      -- return $ Text.unpack docTitle
+      return titleRes
       )
     (\ (err::SomeException) -> do
       return $ dkPDFDocName doc)
