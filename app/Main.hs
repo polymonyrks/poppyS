@@ -982,6 +982,8 @@ initDoc docsRef fpath = do
      | otherwise = firstPage + 1
   page <- GPop.documentGetPage doc firstPage
   txt <- Text.unpack <$> GPop.pageGetText page
+  pageHalf <- GPop.documentGetPage doc $ div nOfPage 2
+  txtHalf <- Text.unpack <$> GPop.pageGetText pageHalf
   (wid, hei) <- GPop.pageGetSize page
   (widNext, heiNext) <- do
     if nextPage == -1
@@ -991,7 +993,7 @@ initDoc docsRef fpath = do
         sizeN <- GPop.pageGetSize pageNext
         return sizeN
   let
-    engRatio = (fromIntegral $ length $ filter f txt) / (fromIntegral $ length txt)
+    engRatio = (fromIntegral $ length $ filter f $ txt ++ txtHalf) / (fromIntegral $ length $ txt ++ txtHalf)
       where
         f c = elem c $ ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9']
     isJP
@@ -1012,8 +1014,6 @@ initDoc docsRef fpath = do
     , dkNextPage = nextPage -- -negative if not 2 pages
     , dkTogColIndex = 0
     , dkIsJapanese = isJP
-    -- , dkIsJapanese = False
-    -- , dkIsJapanese = True
     , dkClipSq = clipSq
     , dkClipSqNext = clipSqNext
     , dkClickedSquare = (-1, [])
@@ -1026,7 +1026,8 @@ getWindowTitleFromDoc docsRef docRef = do
   doc <- readIORef docRef
   let
     currDoc = dkCurrDoc doc
-  docTitle <- GPop.documentGetTitle currDoc
+    docName = dkPDFDocName doc
+  -- docTitle <- GPop.documentGetTitle currDoc
   nOfPage <- GPop.documentGetNPages currDoc
   let
     currPage = dkCurrPage doc
@@ -1034,7 +1035,7 @@ getWindowTitleFromDoc docsRef docRef = do
      | dkIsJapanese doc = "JP"
      | otherwise = "EN"
     mode = dksDebug docs
-    res = (Text.unpack docTitle) ++ ": " ++ "[" ++ (show currPage) ++ "/" ++ (show nOfPage) ++ "]" ++ " lang := " ++ lang ++ ": " ++ "mode := " ++ (show mode)
+    res = docName ++ ": " ++ "[" ++ (show currPage) ++ "/" ++ (show nOfPage) ++ "]" ++ " lang := " ++ lang ++ ": " ++ "mode := " ++ (show mode)
   return res
 
 initMVars :: IORef Doc -> IO MVars
