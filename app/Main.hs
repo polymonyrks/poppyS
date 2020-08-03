@@ -52,6 +52,7 @@ import Graphics.Rendering.Cairo.Types (Cairo(Cairo))
 import Foreign.Ptr (castPtr)
 
 import GHC.IO.Encoding
+import Control.Exception.Safe
 
 
 pdfFilesDir :: String
@@ -1026,7 +1027,13 @@ getWindowTitleFromDoc docsRef docRef = do
   doc <- readIORef docRef
   let
     currDoc = dkCurrDoc doc
-    docName = dkPDFDocName doc
+    -- docName = dkPDFDocName doc
+  docName <- catch (do
+      docTitle <- GPop.documentGetTitle currDoc
+      return $ Text.unpack docTitle
+      )
+    (\ (err::SomeException) -> do
+      return $ dkPDFDocName doc)
   -- docTitle <- GPop.documentGetTitle currDoc
   nOfPage <- GPop.documentGetNPages currDoc
   let

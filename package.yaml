@@ -45,6 +45,7 @@ dependencies:
 - directory
 - strict
 - unicode-show
+- safe-exceptions
 
 name: poppyS
 version: 0.1.0.0
