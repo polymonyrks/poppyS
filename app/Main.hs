@@ -21,7 +21,7 @@ import qualified Control.Lens as LENS
 import qualified Data.Aeson.Lens as AL
 import Data.Text.ICU.Convert as ICU
 import qualified Data.ByteString.Lazy as BL
-import Lib (iVecFromFile, oVecToFile, oVecToFileJP, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getDivideLine, countPrefix, countSuffix, indexingL, oFileJP)
+import Lib (iVecFromFile, iVecFromFileJP, oVecToFile, oVecToFileJP, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getDivideLine, countPrefix, countSuffix, indexingL, oFileJP)
 -- import PopSExp (indexingSP, forgetSExp, injectSExpI, reconsSExp, showSP)
 import PopSExp
 import ParserP (parse, pSExp)
@@ -72,6 +72,8 @@ renderWithContext ct r = withManagedPtr ct $ \p ->
 main :: IO ()
 main = do
   setLocaleEncoding utf8
+  --cp932 <- mkTextEncoding "cp932"
+  --setLocaleEncoding cp932
   let
     toSlush = (Text.unpack) . (Text.replace "\\" "/") . Text.pack
   homePath <- toSlush <$> getEnv "HOME"
@@ -89,7 +91,6 @@ main = do
          isFullLinux = head fpathPrim == '/'
          isWindows = elem ':' $ takeWhile (\c -> not $ c == '/') homePath
          isFullWindows = elem ':' $ takeWhile (\c -> not $ c == '/') fpathPrim
-
   -- oVecToFile (V.fromList hogeCheck) "/home/polymony/rks.txt"
   mainGtk fpath poppySPath
 
@@ -129,7 +130,7 @@ mainGtk fpath poppySPath = do
     let
       isSomethingMatched = or $ map (\keys -> Lis.isPrefixOf stKeys keys) registeredKeys
     Gtk.windowSetTitle window $ Text.pack $ ushow stKeys
-    when (stKeys == ["Up"]) $ do
+    when (stKeys == ["s"]) $ do
       mode <- dksDebug <$> readIORef docsRef
       let
         newMode
@@ -140,7 +141,7 @@ mainGtk fpath poppySPath = do
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       Gtk.widgetQueueDraw window
       return ()
-    when (stKeys == ["s"]) $ do
+    when (stKeys == ["Up"]) $ do
       mode <- dksDebug <$> readIORef docsRef
       let
         newMode
@@ -283,7 +284,7 @@ mainGtk fpath poppySPath = do
             outout = V.fromList $ (ushow currPage) : conf
             configFilePath = configFilesDir ++ "/" ++ c ++ "_config.txt"
             configFilePath0 = configFilesDir ++ "/0_config.txt"
-          outoutPrevPrim <- iVecFromFile configFilePath
+          outoutPrevPrim <- iVecFromFileJP configFilePath
           let
             outoutPrev = V.map (\x -> read x :: String) outoutPrevPrim
           oVecToFileJP outoutPrev configFilePath0
@@ -300,7 +301,7 @@ mainGtk fpath poppySPath = do
             poppySPath = dksPoppySPath docs
             configFilesDir = poppySPath ++ "/configsPreset"
             configFilePath = configFilesDir ++ "/" ++ c ++ "_config.txt"
-          configsPrim <- iVecFromFile configFilePath
+          configsPrim <- iVecFromFileJP configFilePath
           let
             config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) $ V.tail configsPrim
           modifyIORef docRef (\x -> x {dkConfig = config})
@@ -367,9 +368,8 @@ mainGtk fpath poppySPath = do
           nextPage = dkNextPage doc
           isJapanese = dkIsJapanese doc
         page <- GPop.documentGetPage currDoc currPage
-        pageNext <- GPop.documentGetPage currDoc currPage
+        nOfPage <- GPop.documentGetNPages currDoc
         (pWid', pHei') <- GPop.pageGetSize page
-        (pWidNext', pHeiNext') <- GPop.pageGetSize pageNext
         hw@(wWid, wHei) <- Gtk.windowGetSize window
         let
           ratio = (fromIntegral wHei) / (pageBot - pageTop)
@@ -378,7 +378,9 @@ mainGtk fpath poppySPath = do
         rowReal <- get event #y
         button <- get event #button -- left click is 1, right click is 3
         sexpsMaybe <- MV.read sexpsMV (fromIntegral currPage)
-        sexpsMaybeNext <- MV.read sexpsMV (fromIntegral nextPage)
+        sexpsMaybeNext <- case nOfPage of
+          1 -> return Nothing
+          _ -> MV.read sexpsMV (fromIntegral nextPage)
         let
           detacheds =
             case sexpsMaybe of
@@ -577,7 +579,10 @@ mainGtk fpath poppySPath = do
       isJapanese = dkIsJapanese doc
     page <- GPop.documentGetPage currDoc currPage
     nOfPage <- GPop.documentGetNPages currDoc
-    pageNext <- GPop.documentGetPage currDoc currPage
+    pageNext <- do
+      if nOfPage == 1
+        then return page
+        else GPop.documentGetPage currDoc currPage
     (pWid', pHei') <- GPop.pageGetSize page
     (pWidNext', pHeiNext') <- GPop.pageGetSize pageNext
     hw@(wWid, wHei) <- Gtk.windowGetSize window
@@ -700,7 +705,6 @@ mainGtk fpath poppySPath = do
        GPop.pageRender page context
        _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection page context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRects
        restore
-
     -- for NextPage(If exists)
     if (0 < nextPage) && (nextPage < (fromIntegral nOfPage) - 1) && (dksIsDualPage docs)then
       renderWithContext context $ do
@@ -929,13 +933,13 @@ initDocs poppySPath = do
     fullPresetDirr = poppySPath ++ "/" ++ presetConfigDirr
     fullGlobal = poppySPath ++ "/" ++ globalConfigFilePath
   createDirectoryIfMissing False fullPresetDirr
-  configsPrim <- iVecFromFile $ poppySPath ++ "/" ++ globalConfigFilePath
+  configsPrim <- iVecFromFileJP $ poppySPath ++ "/" ++ globalConfigFilePath
   presetConfs <- listDirectory $ poppySPath ++ "/" ++ presetConfigDirr
   colors <- setColors
   let
     notExists = filter (\x -> not $ elem x presetConfs) presetConfigFileNames
   mapM (\x -> oVecToFileJP (V.singleton $ ushow 0) $ poppySPath ++ "/" ++ presetConfigDirr ++ "/" ++ x) notExists
-  confContents <- V.mapM iVecFromFile $ V.fromList $ map (\x -> poppySPath ++ "/" ++ presetConfigDirr ++ "/" ++ x) presetConfigFileNames
+  confContents <- V.mapM iVecFromFileJP $ V.fromList $ map (\x -> poppySPath ++ "/" ++ presetConfigDirr ++ "/" ++ x) presetConfigFileNames
   let
     getConfigContents configsPrim = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) $ V.tail configsPrim
     presetConfigs = map getConfigContents $ V.toList confContents
@@ -978,14 +982,16 @@ initDoc docsRef fpath = do
 
   doc <- GPop.documentNewFromFile (Text.pack fpath) Nothing
   nOfPage <- GPop.documentGetNPages doc
-  configsPrim <- iVecFromFile configFilePath
+  when (nOfPage == 1) $ modifyIORef docsRef (\dks -> dks {dksIsDualPage = False})
+  configsPrim <- iVecFromFileJP configFilePath
   let
     firstPageFromFile = read $ (tail . init ) $ V.head configsPrim :: Int32
     config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) $ V.tail configsPrim
     firstPage = stopper id 0 (nOfPage - 2)  firstPageFromFile :: Int32
     isMonoPage = nOfPage == 1
     nextPage
-     | isMonoPage = -1
+     -- | isMonoPage = -1
+     | isMonoPage = 0
      | otherwise = firstPage + 1
   page <- GPop.documentGetPage doc firstPage
   txt <- Text.unpack <$> GPop.pageGetText page
@@ -993,9 +999,6 @@ initDoc docsRef fpath = do
   txtHalf <- Text.unpack <$> GPop.pageGetText pageHalf
   (wid, hei) <- GPop.pageGetSize page
   (widNext, heiNext) <- do
-    if nextPage == -1
-      then return (-1, -1)
-      else do
         pageNext <- GPop.documentGetPage doc nextPage
         sizeN <- GPop.pageGetSize pageNext
         return sizeN
@@ -1018,7 +1021,8 @@ initDoc docsRef fpath = do
     , dkConfigYank = []
     , dkCurrToken = ""
     , dkCurrPage = firstPage
-    , dkNextPage = nextPage -- -negative if not 2 pages
+    -- , dkNextPage = nextPage -- -negative if not 2 pages
+    , dkNextPage = nextPage
     , dkTogColIndex = 0
     , dkIsJapanese = isJP
     , dkClipSq = clipSq
@@ -1083,31 +1087,13 @@ stackStan window mvars docsRef docRef = do
     currPage = fromIntegral $ dkCurrPage doc
     isJapanese = dkIsJapanese doc
   maxPage <- fromIntegral <$> GPop.documentGetNPages currDoc
-  let
-    forwardNums
-      | currPage == maxPage - 1 = [0 .. (maxPage - 1)]
-      | otherwise = [currPage .. (maxPage - 1)]
-    backwardNums
-      | currPage == 0 = reverse [0 .. (maxPage - 1)]
-      | otherwise = reverse [0 .. (currPage - 1)]
-
   nextForward <- getNextNothing mvSexps currPage
   nextBackward <- getPrevNothing mvSexps currPage
-  putStrLn $ ushow nextForward
-  putStrLn $ ushow nextBackward
-  putStrLn "processed"
-
 
   if nextForward == Nothing && nextBackward == Nothing
-    then return ()
+    then putStrLn "parse Finished" >> return ()
     else do
-     let
-      f2 n2 = case n2 of
-        Just n -> do
-          nP <- GPop.documentGetPage currDoc n
-          aa <- getSExpsIOS nP isJapanese
-          return (Just aa)
-        Nothing -> return Nothing
+    let
       f = case nextForward of
         Nothing -> case nextBackward of
           Nothing -> return mvSexps
@@ -1130,38 +1116,48 @@ stackStan window mvars docsRef docRef = do
             newSExp2  <- getSExpsIOS mP2 isJapanese
             MV.write mvSexps m2 (Just newSExp2)
             return mvSexps
-     mvSexpsNeo <- f
-     modifyMVar_ mvars (\mvrs -> return $ mvrs {mVarSExps = mvSexpsNeo})
-     if nextForward == Just currPage
-       then do
+    mvSexpsNeo <- f
+    modifyMVar_ mvars (\mvrs -> return $ mvrs {mVarSExps = mvSexpsNeo})
+    if nextForward == Just currPage
+      then do
         Gtk.widgetQueueDraw window
         stackStan window mvars docsRef docRef
-       else
+      else
         stackStan window mvars docsRef docRef
-     --stackStan mvars docRef
+
 getNextNothing :: MV.MVector RealWorld (Maybe a) -> Int -> IO (Maybe Int)
 getNextNothing mv i = do
-  hoge <- MV.read mv i
   let
-    f :: IO (Maybe Int)
-    f = case hoge of
-      Nothing -> return (Just i)
-      Just _ -> if (MV.length mv - 1) < (i + 1)
-        then return Nothing
-        else getNextNothing mv (i + 1)
-  f
+    len = MV.length mv
+  if len - 1 < i || i < 0
+    then return Nothing
+    else do
+      hoge <- MV.read mv i
+      let
+        f :: IO (Maybe Int)
+        f = case hoge of
+          Nothing -> return (Just i)
+          Just _ -> if (MV.length mv - 1) < (i + 1)
+            then return Nothing
+            else getNextNothing mv (i + 1)
+      f
 
 getPrevNothing :: MV.MVector RealWorld (Maybe a) -> Int -> IO (Maybe Int)
 getPrevNothing mv i = do
-  hoge <- MV.read mv i
   let
-    f :: IO (Maybe Int)
-    f = case hoge of
-      Nothing -> return (Just i)
-      Just _ -> if (i - 1) < 0
-        then return Nothing
-        else getPrevNothing mv (i - 1)
-  f
+    len = MV.length mv
+  if len - 1 < i || i < 0
+    then return Nothing
+    else do
+      hoge <- MV.read mv i
+      let
+        f :: IO (Maybe Int)
+        f = case hoge of
+          Nothing -> return (Just i)
+          Just _ -> if (i - 1) < 0
+            then return Nothing
+            else getPrevNothing mv (i - 1)
+      f
 
 goOtherPage window docRef inclF inclFNext = do
   doc <- readIORef docRef
@@ -1191,7 +1187,10 @@ resizeFromCurrPageSqs window docsRef docRef mVars = do
     currSExps <- MV.read sexpss $ fromIntegral currPage
     nOfPage <- GPop.documentGetNPages currDoc
     page <- GPop.documentGetPage currDoc currPage
-    pageNext <- GPop.documentGetPage currDoc nextPage
+    pageNext <- do
+      if nOfPage == 1
+        then return page
+        else GPop.documentGetPage currDoc nextPage
     hw@(width, height) <- Gtk.windowGetSize window
     (pWid', pHei') <- GPop.pageGetSize page
     (pWidNext', pHeiNext') <- GPop.pageGetSize pageNext
@@ -1239,10 +1238,14 @@ resizeFromCurrPageSqs window docsRef docRef mVars = do
                         , dkClipSqNext = sqNext})
     Gtk.widgetQueueDraw window
 
-stopper f minm maxm n
+stopper f minmPrim maxmPrim n
   | f n < minm = minm
   | maxm < f n = maxm
   | otherwise = f n
+    where
+      (minm, maxm)
+       | maxmPrim < minmPrim = (maxmPrim, minmPrim)
+       | otherwise = (minmPrim, maxmPrim)
 
 -- isBottomBy needs to be replaced.
 getColundRectangles sexps configs isJapanese colors mode = electeds

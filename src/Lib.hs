@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Lib where
 
 import Prelude as P
@@ -9,6 +10,23 @@ import Turtle
 import qualified Data.Text as Text
 import qualified Control.Foldl as Fold
 import Text.Show.Unicode
+
+import qualified Control.Exception as E
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+
+readFileT :: String -> IO T.Text
+readFileT fname = do
+  sjis <- mkTextEncoding "CP932"
+  readFile' utf8_bom `E.catches` [readTE sjis]
+   where
+    readTE te = E.Handler $ \(e::E.SomeException) -> readFile' te
+
+    readFile' :: TextEncoding -> IO T.Text
+    readFile' te =
+      withFile fname ReadMode $ \h -> do
+        hSetEncoding h te
+        T.hGetContents h
 
 takeFst = V.map fst
 takeSnd = V.map snd
@@ -59,6 +77,7 @@ iVecFromFileJP listPath = do
   handle <- openFile listPath ReadMode
   hSetEncoding handle utf8
   fText <- hGetContents handle
+  --fText <- T.unpack <$> readFileT listPath
   let forout = V.fromList $ lines fText :: V.Vector String
   return forout
 
