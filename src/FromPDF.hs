@@ -30,6 +30,7 @@ import Data.GI.Base
 import qualified GI.Poppler as GPop
 import Foreign.Ptr (castPtr, nullPtr)
 import Foreign.ForeignPtr (withForeignPtr)
+import System.Info
 
 testSentense = "Explicitな名詞フラグの導入と、名詞句の長さ制限を取っ払った。残りは、気になる文章をstrとして登録した後に、そいつをデバッグする環境の構築だろう。これは、手で貼っておいてという感じがいいと思う。"
 
@@ -2116,6 +2117,12 @@ getMecabed sens = do
     -- cmd = Turtle.fromString $ "echo " ++ "\""  ++ sens ++ "\"" ++ " | mecab"
     cmd = Turtle.fromString $ "echo " ++ "\""  ++ replaced ++ "\"" ++ " | mecab"
     chcp = Turtle.fromString "chcp 65001" -- for windows encoding
+  -- putStrLn os
+  if os == "mingw32"
+    then do
+     _ <- get2 chcp
+     return ()
+    else return ()
   res2 <- fmap (Text.unpack . Turtle.lineToText) <$> get2 cmd
   return $ V.fromList $ map getMData res2
 
