@@ -39,6 +39,13 @@ packages:
       sha256: 263fe8df2eb451fe9bd2fb9bec23ebff3082767e61f70585f44b6f8b9119e18e
   original:
     hackage: snowball-1.0.0.1@sha256:99b46eb27a338567666041e8b45510a2448d97a7ec3d85dd0982aba8b8d49b09,7306
+- completed:
+    hackage: charsetdetect-1.1.0.2@sha256:f5aa040983c784611f8a486a0fcda3ec13005eff6f0515c4ab4aa323f6199cd8,8273
+    pantry-tree:
+      size: 7322
+      sha256: d7351773f7f715279416a9f0c84cc44dc1aeae996d29130a6b86ae776dbfb279
+  original:
+    hackage: charsetdetect-1.1.0.2@sha256:f5aa040983c784611f8a486a0fcda3ec13005eff6f0515c4ab4aa323f6199cd8,8273
 snapshots:
 - completed:
     size: 524164

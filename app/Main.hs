@@ -54,6 +54,18 @@ import Foreign.Ptr (castPtr)
 import GHC.IO.Encoding
 import Control.Exception.Safe
 
+import Codec.Text.IConv
+import Codec.Binary.UTF8.String
+import Data.Text.Encoding
+import Codec.Text.Detect
+
+{-
+doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/poppyS/bug0.pdf") Nothing
+page <- GPop.documentGetPage doc 0
+txt <- GPop.pageGetText page
+txtB = encodeUtf8 txt
+enc = convert "UTF-8" "Shift_JIS" $ BL.fromStrict txtB
+-}
 
 pdfFilesDir :: String
 pdfFilesDir = "./pdfs"
@@ -147,6 +159,7 @@ mainGtk fpath poppySPath = do
         newMode
          | mode == Vanilla = Hint
          | mode == Hint = Gramatica
+         | mode == Gramatica = Primitive
          | otherwise = Vanilla
       modifyIORef docsRef (\x -> x {dksDebug = newMode})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
@@ -684,9 +697,11 @@ mainGtk fpath poppySPath = do
     let
       colundRects
        | mode == Vanilla = []
+       | mode == Primitive = rects
        | otherwise = rectsSpec ++ rects
       colundRectsNext
        | mode == Vanilla = []
+       | mode == Primitive = rectsNext
        | otherwise = rectsSpecNext ++ rectsNext
     page <- GPop.documentGetPage currDoc currPage
     hw@(width, height) <- Gtk.windowGetSize window
@@ -747,7 +762,7 @@ data MVars = CMVars{
     mVarSExps :: (MV.MVector RealWorld (Maybe [(SExp (Posi, Tag) (String, [Sq Double]))]))
   }
 
-data Mode = Hint | Gramatica | Vanilla
+data Mode = Hint | Gramatica | Vanilla | Primitive
   deriving (Show, Eq)
 
 
@@ -1247,7 +1262,26 @@ stopper f minmPrim maxmPrim n
        | maxmPrim < minmPrim = (maxmPrim, minmPrim)
        | otherwise = (minmPrim, maxmPrim)
 
+
+forCheckForget sexps = do
+  let
+    forgotten = map ((concatMap g) . forgetSExp) sexps
+        where
+          g (x1, x2) = case x2 of
+            Nothing -> []
+            Just x22 -> [(x1, x22)]
+  cshowIL forgotten
+  return forgotten
+
 -- isBottomBy needs to be replaced.
+getColundRectangles
+  :: Foldable t =>
+     [SExp (a, Tag) ([Char], [Sq Double])]
+     -> t ([Char], GPop.Color)
+     -> Bool
+     -> Colors
+     -> Mode
+     -> [IO (GPop.Color, GPop.Rectangle)]
 getColundRectangles sexps configs isJapanese colors mode = electeds
   where
       detacheds = map (map g2)
@@ -1269,21 +1303,39 @@ getColundRectangles sexps configs isJapanese colors mode = electeds
           g2 x = case x of
             Nothing -> ("", [])
             Just y -> y
-      detachedAssignedsHinted = Lis.nubBy g2 $ foldl g [] configs
+      -- detachedsPrimitive = map listSubTokens sexps
+      detachedsPrimitive = concatMap ((map snd) . (concatMap g) . forgetSExp) sexps
+          where
+            g (x1, x2) = case x2 of
+              Nothing -> []
+              Just x22 -> [(x1, x22)]
+
+      detachedAssignPrimitive = Lis.nubBy g2 $ foldl g [] configs
+         where
+           g2 x y = snd x == snd y
+           g y x@(stemX, color) = y ++ filtered
+              where
+                filtered = map (\xsq@(x, sq) -> (color, [sq])) $ filter (\xsq@(x, sq) -> (toLowers stemX) == x) stemmeds
+           stemmeds
+             | isJapanese = map (\xsq@(x, sq) -> (toLowers x, sq)) detachedsPrimitive
+             | otherwise = map (\xsq@(x, sq) -> ((toLowers . stemEng) x, sq)) detachedsPrimitive
+
+      detachedAssign detacheds0 = Lis.nubBy g2 $ foldl g [] configs
          where
            g2 x y = snd x == snd y
            g y x@(stemX, color) = y ++ filtered
               where
                 filtered = [(color, sqs) | stem@(stems, sqs) <- stemmeds, elem (toLowers stemX) stems]
            stemmeds
-             -- | isJapanese = map (\xs -> (takeFstL xs, takeSndL xs)) detacheds
-             | isJapanese = map (\xs -> (map toLowers $ takeFstL xs, takeSndL xs)) detacheds
-             | otherwise = map (\xs -> (map (toLowers . stemEng) $ takeFstL xs, takeSndL xs)) detacheds
-      hintedDeChimera = filter f detachedAssignedsHinted
+             | isJapanese = map (\xs -> (map toLowers $ takeFstL xs, takeSndL xs)) detacheds0
+             | otherwise = map (\xs -> (map (toLowers . stemEng) $ takeFstL xs, takeSndL xs)) detacheds0
+
+      deChimera assed = filter f assed
           where
-            f (col, sqs) = and $ map g detachedAssignedsHinted
+            f (col, sqs) = and $ map g assed
               where
                 g (c, sq) = (not $ [] == filter (\x -> not $ elem x sq) sqs) || sq == sqs
+
       detachedAssignedsCyclic = assed
          where
            flattenedSqs = map takeSndL detacheds
@@ -1297,10 +1349,12 @@ getColundRectangles sexps configs isJapanese colors mode = electeds
                f (i, sqs)
                 | mod i 2 == 0 = (colRed colors, sqs)
                 | otherwise = (colBlue colors, sqs)
+
       detachedAssigneds
        -- | mode == Hint = detachedAssignedsHinted
-       | mode == Hint = hintedDeChimera
+       | mode == Hint = deChimera $ detachedAssign detacheds
        | mode == Gramatica = detachedAssignedsCyclic
+       | mode == Primitive = deChimera detachedAssignPrimitive
        | otherwise = []
       electeds = map f3 $ concatMap (\x@(col, sqss) -> map (\x -> (col, x)) $ concat sqss) detachedAssigneds
         where

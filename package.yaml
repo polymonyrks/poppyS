@@ -46,6 +46,9 @@ dependencies:
 - strict
 - unicode-show
 - safe-exceptions
+- iconv
+- utf8-string
+- charsetdetect
 
 name: poppyS
 version: 0.1.0.0

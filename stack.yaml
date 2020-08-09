@@ -46,6 +46,7 @@ extra-deps:
 - gtk2hs-buildtools-0.13.8.0@sha256:132f38155fc677430a47ea750918973161c876fb6f281d342ac2f07eb99229ce,5238                                                    
 - aeson-lens-0.5.0.0@sha256:7b557d74d1f35ce47905d5ab65d9c87bb59843e24177341995d2bb1ceeb177fb,994
 - snowball-1.0.0.1@sha256:99b46eb27a338567666041e8b45510a2448d97a7ec3d85dd0982aba8b8d49b09,7306                                                              
+- charsetdetect-1.1.0.2@sha256:f5aa040983c784611f8a486a0fcda3ec13005eff6f0515c4ab4aa323f6199cd8,8273
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
