@@ -297,7 +297,7 @@ mainGtk fpath poppySPath = do
             outout = V.fromList $ (ushow currPage) : conf
             configFilePath = configFilesDir ++ "/" ++ c ++ "_config.txt"
             configFilePath0 = configFilesDir ++ "/0_config.txt"
-          outoutPrevPrim <- iVecFromFileJP configFilePath
+          outoutPrevPrim <- iVecFromFile configFilePath
           let
             outoutPrev = V.map (\x -> read x :: String) outoutPrevPrim
           oVecToFileJP outoutPrev configFilePath0
@@ -314,7 +314,7 @@ mainGtk fpath poppySPath = do
             poppySPath = dksPoppySPath docs
             configFilesDir = poppySPath ++ "/configsPreset"
             configFilePath = configFilesDir ++ "/" ++ c ++ "_config.txt"
-          configsPrim <- iVecFromFileJP configFilePath
+          configsPrim <- iVecFromFile configFilePath
           let
             config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) $ V.tail configsPrim
           modifyIORef docRef (\x -> x {dkConfig = config})
@@ -948,13 +948,13 @@ initDocs poppySPath = do
     fullPresetDirr = poppySPath ++ "/" ++ presetConfigDirr
     fullGlobal = poppySPath ++ "/" ++ globalConfigFilePath
   createDirectoryIfMissing False fullPresetDirr
-  configsPrim <- iVecFromFileJP $ poppySPath ++ "/" ++ globalConfigFilePath
+  configsPrim <- iVecFromFile $ poppySPath ++ "/" ++ globalConfigFilePath
   presetConfs <- listDirectory $ poppySPath ++ "/" ++ presetConfigDirr
   colors <- setColors
   let
     notExists = filter (\x -> not $ elem x presetConfs) presetConfigFileNames
   mapM (\x -> oVecToFileJP (V.singleton $ ushow 0) $ poppySPath ++ "/" ++ presetConfigDirr ++ "/" ++ x) notExists
-  confContents <- V.mapM iVecFromFileJP $ V.fromList $ map (\x -> poppySPath ++ "/" ++ presetConfigDirr ++ "/" ++ x) presetConfigFileNames
+  confContents <- V.mapM iVecFromFile $ V.fromList $ map (\x -> poppySPath ++ "/" ++ presetConfigDirr ++ "/" ++ x) presetConfigFileNames
   let
     getConfigContents configsPrim = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) $ V.tail configsPrim
     presetConfigs = map getConfigContents $ V.toList confContents
@@ -998,7 +998,7 @@ initDoc docsRef fpath = do
   doc <- GPop.documentNewFromFile (Text.pack fpath) Nothing
   nOfPage <- GPop.documentGetNPages doc
   when (nOfPage == 1) $ modifyIORef docsRef (\dks -> dks {dksIsDualPage = False})
-  configsPrim <- iVecFromFileJP configFilePath
+  configsPrim <- iVecFromFile configFilePath
   let
     firstPageFromFile = read $ (tail . init ) $ V.head configsPrim :: Int32
     config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) $ V.tail configsPrim
