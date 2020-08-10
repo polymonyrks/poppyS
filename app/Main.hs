@@ -136,13 +136,13 @@ mainGtk fpath poppySPath = do
       decl1 n nOfPage = mod (n - 1) nOfPage
       numChars = (map (\c -> [c]) ['a' .. 'z']) ++ (map show [1 .. 9])
       registeredKeysConfigIO = ["at", "0"] : concatMap (\c -> [["at", c], ["colon", "w", "at", c]]) numChars
-      registeredKeys = [["j"], ["k"], ["Up"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["s"]] ++ registeredKeysConfigIO
+      registeredKeys = [["j"], ["k"], ["Up"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"]] ++ registeredKeysConfigIO
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
       isSomethingMatched = or $ map (\keys -> Lis.isPrefixOf stKeys keys) registeredKeys
     Gtk.windowSetTitle window $ Text.pack $ ushow stKeys
-    when (stKeys == ["s"]) $ do
+    when (stKeys == ["v"]) $ do
       mode <- dksDebug <$> readIORef docsRef
       let
         newMode
@@ -157,10 +157,9 @@ mainGtk fpath poppySPath = do
       mode <- dksDebug <$> readIORef docsRef
       let
         newMode
-         | mode == Vanilla = Hint
          | mode == Hint = Gramatica
          | mode == Gramatica = Primitive
-         | otherwise = Vanilla
+         | otherwise = Hint
       modifyIORef docsRef (\x -> x {dksDebug = newMode})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
