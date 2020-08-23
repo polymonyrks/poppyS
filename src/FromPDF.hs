@@ -31,18 +31,25 @@ import qualified GI.Poppler as GPop
 import Foreign.Ptr (castPtr, nullPtr)
 import Foreign.ForeignPtr (withForeignPtr)
 import System.Info
+import qualified Control.Exception as E
+import Data.Text.Encoding.Error
 
-testSentense = "Explicitな名詞フラグの導入と、名詞句の長さ制限を取っ払った。残りは、気になる文章をstrとして登録した後に、そいつをデバッグする環境の構築だろう。これは、手で貼っておいてという感じがいいと思う。"
+data JTag = CJTag {
+    jTag :: String
+  , jTag1 :: String
+  , jTagIsNP :: Bool
+ }
+  deriving (Show, Eq, Ord, Read)
 
-te2 = do
-  mecabedRes <- getMecabed testSentense
-  let
-    sexp0 = toSExpsJP mecabedRes
-    res2  = foldNPsJPRecursive sexp0
-  showSP $ forgetNPSubs res2
+-- 下のfoldNPsJPRecursiveは筆者がチューニングした関数です。
+-- PDFで結果を確認する際は、このfoldNPsJPRecursiveをfoldNPsTest sexp0と置き換えてください
+-- 下のコメントアウトを切り替えればいいです。(stack installも忘れずに)。
+
+-- *************************************************************************
 
 
 foldNPsJPRecursive :: SExp JTag String -> SExp JTag String
+-- foldNPsJPRecursive sexp0 = foldNPsJPTest sexp0
 foldNPsJPRecursive sexp0 = deepNounized
   where
     sexpUnitNPs = recFoldPhraseJP (
@@ -81,6 +88,20 @@ foldNPsJPRecursive sexp0 = deepNounized
             . foldSameTags0
             . foldAdvAdvize))
     deepNounized = deepNounizeBetJoshi sexpUnitNPs
+
+
+testSentense' = "本書はPDFリーダーを自身の手で作ることを通してプログラミング言語Haskellを学ぶ本の第一弾です。"
+
+te2 = do
+  mecabedRes <- getMecabed testSentense'
+  let
+    sexp0 = toSExpsJP mecabedRes
+    res2  = foldNPsJPRecursive sexp0
+    sexp1 = foldNPsJP $ foldSameTags0 sexp0
+  -- showSP $ forgetNPSubs res2
+  showSP $ mapNode (\x -> (jTag x, jTag1 x)) id sexp1
+
+
 
 te n = do
   pairss <- V.sequence =<< V.map getMecabed <$> iVecFromFileJP "hogehoge.txt"
@@ -852,14 +873,6 @@ data MData = CMData {
   deriving (Show, Eq, Ord, Read)
 
 
-data JTag = CJTag {
-    jTag :: String
-  , jTag1 :: String
-  , jTagIsNP :: Bool
- }
-  deriving (Show, Eq, Ord, Read)
-
-
 
 foldTokSq :: SExp Tag (String, [Sq Double]) -> ([String], [Sq Double])
 foldTokSq = foldSExp f0 f1 f2 ([], [])
@@ -884,7 +897,6 @@ synSqs sqs'@(sq:sqs) = stss ++ [residue]
     residue = CSq {sqTop = tpp, sqLeft = leff, sqBot = bott, sqRight = sqRight fronn}
 
 {-
-prp
 pathPrefix = "file://"
 pathInfix1 = "/home/polymony/poppyS/"
 pathInfix2 = "pdfs/"
@@ -1056,14 +1068,12 @@ extractSExpsJP page = do
                     isIsolated = 1 < length y && ((last $ init y) == ' ')
                     isLastBar = 0 < length y && (last y == '-' || last y == '\8208')
                     isLastSpace = 0 < length y && last y == ' '
-  -- prp
     retrSexpS (sens, charSqsPrim) = do
       stanRess <- stanIOPoppy1 sens
       let
         charSqs = V.filter (\x -> (not $ fst x == '\n')) charSqsPrim
         sexps = stanAssign2Poppy1 charSqs stanRess
       return sexps
-  -- prp2
     retrSexpSJP (sens, charSqsPrim) = do
       mecabRes <- getMecabed sens
       let
@@ -1078,11 +1088,10 @@ extractSExpsJP page = do
   return $ V.concatMap id bb
 
 {-
-doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/poppyS/rust.pdf") Nothing
-page <- GPop.documentGetPage doc 3
+doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/poppyS/bug0.pdf") Nothing
+page <- GPop.documentGetPage doc 0
 isJapanese = True
 -}
---prp
 getSExpsIOS
   :: GPop.Page -> Bool -> IO [SExp (Posi, Tag) ([Char], [Sq Double])]
 getSExpsIOS page isJapanese = do
@@ -1155,14 +1164,12 @@ getSExpsIOS page isJapanese = do
                     isIsolated = 1 < length y && ((last $ init y) == ' ')
                     isLastBar = 0 < length y && (last y == '-' || last y == '\8208')
                     isLastSpace = 0 < length y && last y == ' '
-  -- prp
     retrSexpS (sens, charSqsPrim) = do
       stanRess <- stanIOPoppy1 sens
       let
         charSqs = V.filter (\x -> (not $ fst x == '\n')) charSqsPrim
         sexps = stanAssign2Poppy1 charSqs stanRess
       return sexps
-  -- prp2
     retrSexpSJP (sens, charSqsPrim) = do
       mecabRes <- getMecabed sens
       let
@@ -1209,6 +1216,7 @@ data ChInfo = CChInfo {
   }
     deriving (Eq, Ord, Show)
 
+-- prp
 getChInfos :: GPop.Page -> IO (V.Vector ChInfo)
 getChInfos page = do
   txttxt <- GPop.pageGetText page
@@ -1221,8 +1229,18 @@ getChInfos page = do
       rectsSwapped <- mapM (gpopRectToPopPRect page) rects
       attrss <- mapM (GPop.pageGetTextAttributesForArea page) rects
       let
+        getFontNameSafe attr = do
+          let
+            f e = do
+              let
+                err = show (e :: UnicodeException)
+              putStrLn ("warning: cannot read a font name: " ++ err)
+              return (Just "")
+          hoge <- GPop.getTextAttributesFontName attr `E.catch` f
+          return hoge
         getFontNames attrsPrim = do
-          fontsPrim <- mapM GPop.getTextAttributesFontName attrsPrim
+          -- fontsPrim <- mapM GPop.getTextAttributesFontName attrsPrim
+          fontsPrim <- mapM getFontNameSafe attrsPrim
           return fontsPrim
         getFontSizes attrsPrim = do
           fontsPrim <- mapM GPop.getTextAttributesFontSize attrsPrim
@@ -1290,7 +1308,6 @@ getChInfosS page = do
             , chIFontSize = fSize}
       return chInfos
 
--- prp
 getBlock
   :: V.Vector ChInfo
      -> Double -> p -> V.Vector (V.Vector (V.Vector ChInfo))

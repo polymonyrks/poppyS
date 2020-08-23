@@ -59,13 +59,18 @@ import Codec.Binary.UTF8.String
 import Data.Text.Encoding
 import Codec.Text.Detect
 
-{-
-doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/poppyS/bug0.pdf") Nothing
-page <- GPop.documentGetPage doc 0
-txt <- GPop.pageGetText page
-txtB = encodeUtf8 txt
-enc = convert "UTF-8" "Shift_JIS" $ BL.fromStrict txtB
--}
+hogeP = do
+  doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/poppyS/bug0.pdf") Nothing
+  nmax <- GPop.documentGetNPages doc
+  let
+    showTxt n = do
+      page <- GPop.documentGetPage doc n
+      txt <- GPop.pageGetText page
+      mRes <- getMecabed $ Text.unpack txt
+      let
+        toks = V.map mToken mRes
+      cshowI toks
+  mapM showTxt [0 .. nmax - 1]
 
 pdfFilesDir :: String
 pdfFilesDir = "./pdfs"
@@ -83,6 +88,7 @@ renderWithContext ct r = withManagedPtr ct $ \p ->
 
 main :: IO ()
 main = do
+  --hogeP
   setLocaleEncoding utf8
   --cp932 <- mkTextEncoding "cp932"
   --setLocaleEncoding cp932
@@ -105,6 +111,11 @@ main = do
          isFullWindows = elem ':' $ takeWhile (\c -> not $ c == '/') fpathPrim
   -- oVecToFile (V.fromList hogeCheck) "/home/polymony/rks.txt"
   mainGtk fpath poppySPath
+
+{-
+fpath = "file:///home/polymony/poppyS/bug0.pdf"
+poppySPath = "/home/polymony/poppyS"
+-}
 
 mainGtk :: String -> String -> IO ()
 mainGtk fpath poppySPath = do
@@ -136,7 +147,7 @@ mainGtk fpath poppySPath = do
       decl1 n nOfPage = mod (n - 1) nOfPage
       numChars = (map (\c -> [c]) ['a' .. 'z']) ++ (map show [1 .. 9])
       registeredKeysConfigIO = ["at", "0"] : concatMap (\c -> [["at", c], ["colon", "w", "at", c]]) numChars
-      registeredKeys = [["j"], ["k"], ["Up"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"]] ++ registeredKeysConfigIO
+      registeredKeys = [["j"], ["k"], ["Up"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"], ["c"]] ++ registeredKeysConfigIO
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
@@ -153,7 +164,7 @@ mainGtk fpath poppySPath = do
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       Gtk.widgetQueueDraw window
       return ()
-    when (stKeys == ["Up"]) $ do
+    when (stKeys == ["Down"]) $ do
       mode <- dksDebug <$> readIORef docsRef
       let
         newMode
@@ -165,7 +176,19 @@ mainGtk fpath poppySPath = do
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       Gtk.widgetQueueDraw window
       return ()
-    when (stKeys == ["Down"]) $ do
+    when (stKeys == ["Up"]) $ do
+      mode <- dksDebug <$> readIORef docsRef
+      let
+        newMode
+         | mode == Gramatica = Hint
+         | mode == Primitive = Gramatica
+         | otherwise = Primitive
+      modifyIORef docsRef (\x -> x {dksDebug = newMode})
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+      Gtk.widgetQueueDraw window
+      return ()
+    when (stKeys == ["c"]) $ do
       resizeFromCurrPageSqs window docsRef docRef mVars
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window $ Text.pack "Cropped"

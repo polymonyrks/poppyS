@@ -124,9 +124,11 @@ Similar to [Vim Keybindings](https://www.vim.org/).
 | ---- | ---- |
 |  j  | increase page (2 pages) |
 |  k  | decrease page (2 pages) |
+|  Up  | toggle mode (backward)|
+|  Down  | toggle mode (forward) |
 |  Right  | increase page (1 page) |
 |  Left  | decrease page (1 page) |
-|  Down  | crop merginal white zones and adjust page size|
+|  c  | crop merginal white zones and adjust page size|
 |  w  | toggle number of pages displayed (2 pages(maximized) to 1 page and vice versa)|
 |  dd  | decolor all phrases |
 |  p  | paste(recover) Coloring |
