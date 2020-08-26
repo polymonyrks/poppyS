@@ -33,13 +33,16 @@ import Foreign.ForeignPtr (withForeignPtr)
 import System.Info
 import qualified Control.Exception as E
 import Data.Text.Encoding.Error
+import ForGisho (JTag (CJTag), jTag, jTag1, jTagIsNP, foldNPsTest)
 
+{-
 data JTag = CJTag {
     jTag :: String
   , jTag1 :: String
   , jTagIsNP :: Bool
  }
   deriving (Show, Eq, Ord, Read)
+-}
 
 -- 下のfoldNPsJPRecursiveは筆者がチューニングした関数です。
 -- PDFで結果を確認する際は、このfoldNPsJPRecursiveをfoldNPsTest sexp0と置き換えてください
@@ -49,7 +52,7 @@ data JTag = CJTag {
 
 
 foldNPsJPRecursive :: SExp JTag String -> SExp JTag String
--- foldNPsJPRecursive sexp0 = foldNPsJPTest sexp0
+-- foldNPsJPRecursive sexp0 = foldNPsTest sexp0
 foldNPsJPRecursive sexp0 = deepNounized
   where
     sexpUnitNPs = recFoldPhraseJP (
