@@ -147,7 +147,7 @@ mainGtk fpath poppySPath = do
       decl1 n nOfPage = mod (n - 1) nOfPage
       numChars = (map (\c -> [c]) ['a' .. 'z']) ++ (map show [1 .. 9])
       registeredKeysConfigIO = ["at", "0"] : concatMap (\c -> [["at", c], ["colon", "w", "at", c]]) numChars
-      registeredKeys = [["j"], ["k"], ["Up"], ["Down"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"], ["c"]] ++ registeredKeysConfigIO
+      registeredKeys = [["j"], ["k"], ["Up"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"], ["m"], ["n"]] ++ registeredKeysConfigIO
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
@@ -164,19 +164,7 @@ mainGtk fpath poppySPath = do
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       Gtk.widgetQueueDraw window
       return ()
-    when (stKeys == ["Down"]) $ do
-      mode <- dksDebug <$> readIORef docsRef
-      let
-        newMode
-         | mode == Hint = Gramatica
-         | mode == Gramatica = Primitive
-         | otherwise = Hint
-      modifyIORef docsRef (\x -> x {dksDebug = newMode})
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
-      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
-      Gtk.widgetQueueDraw window
-      return ()
-    when (stKeys == ["Up"]) $ do
+    when (stKeys == ["n"]) $ do
       mode <- dksDebug <$> readIORef docsRef
       let
         newMode
@@ -188,7 +176,19 @@ mainGtk fpath poppySPath = do
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       Gtk.widgetQueueDraw window
       return ()
-    when (stKeys == ["c"]) $ do
+    when (stKeys == ["m"]) $ do
+      mode <- dksDebug <$> readIORef docsRef
+      let
+        newMode
+         | mode == Hint = Gramatica
+         | mode == Gramatica = Primitive
+         | otherwise = Hint
+      modifyIORef docsRef (\x -> x {dksDebug = newMode})
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+      Gtk.widgetQueueDraw window
+      return ()
+    when (stKeys == ["Down"]) $ do
       resizeFromCurrPageSqs window docsRef docRef mVars
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window $ Text.pack "Cropped"

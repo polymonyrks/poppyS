@@ -16,6 +16,7 @@ import qualified Data.Vector as V
 import System.Info
 
 
+
 -- *************************************************************************
 -- 「Haskellでつくる不思議な読書体験用」
 
@@ -234,3 +235,17 @@ getMData str = res
       , mVoc2 = tagsInterp !! 7
       , mVoc3 = tagsInterp !! 8
       }
+
+data Orange = Decopon | Lemon | Lime
+  deriving (Eq)
+
+instance Ord Orange where
+ compare Decopon Lemon = LT
+ compare Lemon Lime = LT
+ compare Decopon Lime = LT
+
+cshowIL :: Show b => [b] -> IO ()
+cshowIL lis = mapM_ uprint $ zip [0 .. (length lis - 1)] lis
+
+cshowL :: (Foldable t, Show a) => t a -> IO ()
+cshowL lis = mapM_ uprint  lis
