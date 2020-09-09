@@ -1,6 +1,7 @@
 # poppyS - Syntactical Highlighting for Natural Language in Haskell
 # まえがき
 PDFファイルを構文解析技術を応用して、いい感じで着色して読みやすくするソフトです。  
+以下のGif動画は英語ですが、日本語も対応しています。  
 まだまだ実験的なもの(トイプログラム)ですが、おそらく今後主流になっていく技術だとみています。  
 これまでの速読・精読の技術は、大概は読者が慣れている領域にのみ適用可能なたぐいのものですが、  
 これは慣れていない領域にも適用可能です。  
@@ -73,17 +74,34 @@ Stanford CoreNLP Serverを立ち上げた状態で、本PDFリーダー(poppyS)�
 この辺りが革新的だと確信しています。  
 (PDF例) 
 1. 情報科学分野
+* [Rustの日本語ドキュメント](https://doc.rust-jp.rs/)
+* [Docker Engine ユーザガイド基礎編](https://docs.docker.jp/pdf-download.html)
 * [Haskell Wikibooks](https://en.wikibooks.org/wiki/Haskell)
 * [Basic Category Theory](https://arxiv.org/abs/1612.09375)
 * [Category Theory for Programmers](https://github.com/hmemcpy/milewski-ctfp-pdf)
 * [SICP](https://web.mit.edu/alexmv/6.037/sicp.pdf)
 * [Practical Foundations for Programing Languages](http://profs.sci.univr.it/~merro/files/harper.pdf)
 * [Homotopy Type Theory](http://saunders.phil.cmu.edu/book/hott-ebook.pdf)
+* [Introduction to Categorical Quantum Mechanics (Chris Heunen and Jamie Vicary)](http://www.cs.ox.ac.uk/people/jamie.vicary/IntroductionToCategoricalQuantumMechanics.pdf)]
+
+
 2. 法律関連
+
+* [所得税及び復興特別所得税の確定申告書 申請書A　手引き](https://www.nta.go.jp/taxes/shiraberu/shinkoku/tokushu/yoshiki.htm)
+* [技術書オンライン販売サービス利用規約](https://techbookfest.org/market-terms-of-use.html)
+
+* [Epic Games, Inc. v. Apple Inc. (4:20-cv-05640) (Compliant)](https://www.courtlistener.com/docket/17442392/epic-games-inc-v-apple-inc/)
+
+* [US6520699](http://patft.uspto.gov/netacgi/nph-Parser?Sect1=PTO1&Sect2=HITOFF&d=PALL&p=1&u=%2Fnetahtml%2FPTO%2Fsrchnum.htm&r=1&f=G&l=50&s1=6520699.PN.&OS=PN/6520699&RS=PN/6520699)
+
+* [第８１期第１四半期　四半期報告書 (2020) (任天堂)](https://www.nintendo.co.jp/ir/library/securities/index.html)
+
 * [Copyright Law of the United States](https://www.copyright.gov/title17/title17.pdf)
 * [License Agreement Templates](https://otl.stanford.edu/sites/g/files/sbiybj10286/f/exclusive_03-06-2018.pdf)
 * [Annual Report (2019) (Apple Inc.)](https://s2.q4cdn.com/470004039/files/doc_financials/2019/ar/_10-K-2019-(As-Filed).pdf)
 * [host city contract - Tokyo 2020 Olympic Games](https://gtimg.tokyo2020.org/image/upload/production/jxnoeerdp7hxvgtgxp73.pdf)
+
+
 3. 医療関連
 * [Basics of Molecular Biology](https://homes.cs.washington.edu/~tompa/papers/molbio.pdf)
 * [Clinical characteristics of 2019 novel coronavirus infection in China](https://www.medrxiv.org/content/10.1101/2020.02.06.20020974v1)
