@@ -81,6 +81,9 @@ effectSExp f (i : is) Nil = Nil
 effectSExp f (i : is) (Atom tag1 tok1) = (Atom tag1 tok1)
 effectSExp f (i : is) (Opr tag1 ts1) = (Opr tag1 $ updateList ts1 (i, effectSExp f is))
 
+replaceSExp :: SExp a b -> Posi -> SExp a b -> SExp a b
+replaceSExp sexpReplnd pos sexpReplns = effectSExp (\x -> sexpReplns) pos sexpReplnd
+
 zipSExp :: SExp a c -> SExp b d -> SExp (a, b) (c, d)
 zipSExp Nil _ = Nil
 zipSExp _ Nil = Nil
@@ -152,7 +155,6 @@ compareSExpIndex _ [] = GT
 compareSExpIndex (i : is) (j : js)
   | i == j = compareSExpIndex is js
   | otherwise = compare i j
-
 
 getSens res
   | res == V.empty = V.empty

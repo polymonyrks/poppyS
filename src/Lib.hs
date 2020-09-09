@@ -269,15 +269,11 @@ countPrefix (x:xs) (y:ys)
 countSuffix :: Eq a => [a] -> [a] -> [a]
 countSuffix xs ys = reverse $ countPrefix (reverse xs) (reverse ys)
 
+getIsEvaledEq :: Eq b => a -> a -> (a -> b) -> Bool
+getIsEvaledEq a1 a2 evalF = (evalF a1) == (evalF a2)
 
+evalSimilarity :: Eq b => a -> a -> [(a -> b)] -> Int
+evalSimilarity a1 a2 fs = length $ filter (\x -> x == True) $ map (\f -> getIsEvaledEq a1 a2 f) fs
 
-
-
-
-
-
-
-
-
-
-
+getIsReplacable :: Eq b => (a -> a) -> (a -> b) -> a -> a -> Bool
+getIsReplacable replaceF evalF a1 a2 = getIsEvaledEq (replaceF a1) a2 evalF

@@ -27,6 +27,15 @@ instance (Show a, Show b) => Show (SExp a b) where
 
 type Posi = [Int]
 
+
+extractPSExps :: SExp a b -> [SExp a b]
+extractPSExps Nil = [Nil]
+extractPSExps (Atom t s) = [Atom t s]
+extractPSExps (Opr l ts) = undefined
+  where
+    self = Opr l ts
+    subExtracted = map extractPSExps ts
+
 foldSExp
   :: (tg -> a -> a)
      -> (a -> a -> a) -> (tg -> tk -> a) -> a -> SExp tg tk -> a
