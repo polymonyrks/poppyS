@@ -113,6 +113,14 @@ Stanford CoreNLP Serverを立ち上げた状態で、本PDFリーダー(poppyS)�
 sudo docker run -p 9000:9000 nlpbox/corenlp
 ```
 初回だけダウンロードが始まります。ちょっと時間がかかりますが、次回以降はこのプロセスはないです。
+
+Dockerをいちいち立ち上げるのが面倒な人は、以下のコマンドで対応します。
+--restart=alwaysというオプションを指定するだけです。
+```
+sudo docker run --restart=always -p 9000:9000 nlpbox/corenlp
+```
+
+
 poppySのプログラムの設定上、dockerはlocalhostを使っていることを想定しています。異なる環境の場合はエラーが出ると思いますので、fromPDF.hsの  
 ```haskell
 command = "http://localhost:9000/?annotators=parse&outputFormat=json&timeout=50000"
@@ -122,6 +130,8 @@ command = "http://localhost:9000/?annotators=parse&outputFormat=json&timeout=500
 ```haskell
 command = "http://192.168.99.100:9000/?annotators=parse&outputFormat=json&timeout=50000"
 ```
+
+
 ## poppySをファイルのパスを引数にして起動
 以下のコマンドでPDFリーダー（poppyS）が立ち上がります。
 (e.g.1) $HOME/poppySから起動する場合
@@ -132,7 +142,29 @@ stack exec poppyS-exe "pdfs/SICP.pdf"
 ```shell
 stack exec poppyS-exe "/home/username/poppyS/pdfs/SICP.pdf"
 ```
-お試しで色々なPDF試したい場合は、stack installしてできたpoppy-exeを($HOME/.local/binにできます)pdfファイルを開くアプリに指定すれば、右クリックのプルダウン選択で実行できます。デフォルトアプリに指定するのはおすすめしません。  
+お試しで色々なPDF試したい場合は、stack installしてできたpoppy-exeを($HOME/.local/binにできます)pdfファイルを開くアプリに指定すれば、右クリックのプルダウン選択で実行できます。デフォルトアプリに指定するのはおすすめしませんが、一時的に様々なPDFに試して見る際にはおすすめです。Windowsの場合はアイコンを右クリックで簡単に指定できますが、Ubuntuだと少し手間です。  
+
+poppySディレクトリに、poppyS.desktopというファイルがあります。以下のとおりに、ご自身のユーザー名で書き換えてみてその後、
+```shell
+[Desktop Entry]
+Version=1.0
+Name=poppyS
+Comment=poppyS is a genuin PDF Reader for syntactically highlighting Natural Languages (Now Only Eng. and Jp.)
+Keywords=pdf;
+Exec=/home/yourUserName/.local/bin/poppyS-exe %u
+Path=/home/yourUserName/.local/bin/
+Icon=/home/yourUserName/poppyS/poppyS.png
+Terminal=false
+Type=Application
+Categories=Viewer;Utility;Development;
+MimeType=application/pdf;
+```
+
+上記の、yourUserNameの箇所を書き換えます。
+/usr/share/applications/に、このpoppyS.desktopをコピーすれば、
+Ubuntuでも右クリックでPDFを開くプログラムの一覧にpoppySを挙げることができます。
+
+
 ## How to read PDF
 PDFリーダー（poppyS）を立ち上げてから少し待つと一部単語が黄色に色が変わります。  
 待っても色が変わらないときにはstanford coreNLP server がタイムアウトになっているかもしれません。  
