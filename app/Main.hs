@@ -1046,7 +1046,7 @@ initDoc docsRef fpath = do
       where
         f c = elem c $ ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9']
     isJP
-     | txt == "" = False
+     | txt == "" = True
      | engRatio < 0.5 = True
      | otherwise = False
     clipSq = CSq {sqLeft = 0, sqTop = 0, sqRight = wid, sqBot = hei}
