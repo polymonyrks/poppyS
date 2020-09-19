@@ -48,10 +48,24 @@ posi Nil = [[]]
 posi (Atom _ _) = [[]]
 posi (Opr _ ts) = [] : [ i:p | (i, t) <- zip [0 ..] ts, p <- posi t]
 
+
+indexingSExp :: SExp a b -> SExp ([Int], a) b
+indexingSExp Nil = Nil
+indexingSExp (Atom tag val) = Atom ([0], tag) val
+indexingSExp (Opr tag ss) = helperFunc [] (Opr tag ss)
+  where
+    helperFunc :: [Int] -> SExp a b -> SExp ([Int], a) b
+    helperFunc is Nil = Nil
+    helperFunc is (Atom tag val) = Atom (is, tag) val
+    helperFunc is (Opr tag ts) = Opr (is, tag) (map (\(n, sp) -> helperFunc (snocL is n) sp) $ indexingL ts)
+      where
+        snocL ms m = ms ++ [m]
+
 subTree1 :: SExp a b -> [SExp a b]
 subTree1 Nil = []
 subTree1 (Atom _ _) = []
 subTree1 (Opr _ ts) = ts
+
 
 subTree :: SExp a b -> Posi -> SExp a b
 subTree t [] = t

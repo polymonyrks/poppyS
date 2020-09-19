@@ -9,9 +9,18 @@ PDFファイルを構文解析技術を応用して、いい感じで着色し�
 ぜひご自身でビルドして色々遊んでみてください。(★カメラの説明書に適用した場合の効果が絶大でした。下の方に用意しています。)   
 HaskellでGUIをやる例にもなっています。([gi-gtk](https://hackage.haskell.org/package/gi-gtk))。参考になるかもしれません。  
 以下、実行環境を整える準備です。  
-# インストール方法
+
+# 注意
+20200917現在、gi-pangoのバグによりWindowsでは不思議な読書体験が出来ない状態です。stackというパッケージ管理ソフトが新しいgi-pangoに対応すれば[おそらく解消される](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=968729)と思われますが、そもそもHaskellはLinuxと親和的な言語なので、WindowsでもWSL2でLinux上で動かしたほうが、環境構築の観点では頭を悩ませなくていいと考えました。  
+[WSL2でのインストール方法](./READMEWINJPWSL2.md))にWSL2上で環境構築する方法を用意しましたので、ご検討ください。  
+Msys2による方法（本ページ）、[WSL2による方法](./READMEWINJPWSL2.md)のどちらの方法もメリットがあります。
+
+ * WSL2: HaskellはLinuxと親和的なので環境構築の面でバグったりするリスクが小さい
+ * Msys2: PDFリーダーの実行ファイル(.exe)を.pdfファイルと関連付けられるので、マウスクリックで楽に起動できる。
+
+# インストール方法(Msys2によるもの)
 ## Windows10
-Windows10(pro/home)でも動作することを確認しました(Ubuntuでのインストール手順は[こちら](./READMEJP.md))。  
+Windows10(pro/home)でも動作することを確認しました([Ubuntuでのインストール手順はこちら](./READMEJP.md))。  
 ソフトを使えるようにするには、以下の手順が必要です。  
 ## Haskell Stack
 [stack](https://docs.haskellstack.org/en/stable/README/)
