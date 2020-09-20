@@ -1,5 +1,5 @@
 ## # まえがき
-![poppySGif](https://polymony.net/wp-content/uploads/2020/05/poppySMovie.gif)
+![poppySGif](./poppySMovieJP.gif)
  
 ## MacOS
 MacOSでも動作することを確認しました。ただし、[Ubuntu](./READMEJP.md)と比較して試しの要素が大きいです。  
