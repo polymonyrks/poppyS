@@ -41,6 +41,27 @@ sudo docker pull graham3333/corenlp-complete
 ```
 [stanford CoreNLP Parser](https://stanfordnlp.github.io/CoreNLP/other-languages.html)のdockerの箇所。  
 [Graham MacDonald氏のリンク](https://hub.docker.com/r/graham3333/corenlp-complete)をご参考です。  
+## Mecab
+[こちら](https://joppot.info/2013/12/08/80)を参考にしました。
+### Mecabのインストール
+```shell
+sudo port install mecab
+sudo port install mecab-ipadic-utf8
+```
+### 辞書の変更
+/opt/local/etc/にあるmecabrcの中身を書き換えます(sysdicからipadic-utf8へ変更)。
+
+Before:
+```shell
+dicdir = /opt/local/lib/mecab/dic/sysdic
+```
+
+After:
+```shell
+dicdir = /opt/local/lib/mecab/dic/ipadic-utf8
+```
+
+
 ## poppyS
 PDFリーダーはpoppySと命名しました。  
 ### git clone
