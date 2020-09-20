@@ -13,7 +13,7 @@ HaskellでGUIをやる例にもなっています。([gi-gtk](https://hackage.ha
 # インストール方法
 ## OS
 推奨OSは[Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)もしくは、[Ubuntu 18.04 LTS (Bionic Beaver) Desktop](https://releases.ubuntu.com/18.04/)です。  
-[lubuntu 20.04 Desktop](https://lubuntu.me/downloads/)でも動作確認できました。Windows10も動きますが[別ページ用意しました](./READMEWINJP.md)。
+[lubuntu 20.04 Desktop](https://lubuntu.me/downloads/)でも動作確認できました。Windows10も動きますが[別ページ用意しました](./READMEWINJPWSL2.md)。
 インストールはターミナルで以下のコマンドを打ち込んでいけばいいです。  
 ## Update Packages list
 ```shell
