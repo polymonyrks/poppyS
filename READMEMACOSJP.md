@@ -11,7 +11,8 @@ ParalellsやVMWARE、VirtualBoxでUbuntuを入れて試したほうが楽です�
 情報として残しておきます。
 ソフトを使えるようにするには、以下の手順が必要です。  
 ## Macports
-[Macports](https://www.macports.org/)
+[Macports](https://www.macports.org/)  
+
 HomeBrewも試みましたが、popplerで文字をRenderする際にバグって表示できなかったのでやめました。  
 近年はHomeBrewが流行りのようですが（Macユーザーでなかった自分も知っているくらい）、  
 Macportのほうが老舗で安定しているみたいです。  
@@ -82,13 +83,13 @@ export XDG_CONFIG_DIRS/opt/local/etc/xdg
 cd poppyS
 stack build --extra-lib-dirs="/opt/local/lib" --extra-include-dirs="/opt/local/include"
 ```
-iconvに関するエラーが出た場合には(多分出ると思います)、以下のコマンドでlib-iconvを一旦無効化してから再度上のコマンドでビルド、その後に「必ず」activateして有効に戻すようにしてください。  
+iconvに関するエラーが出た場合には(多分出ると思います)、
+以下のコマンドでlib-iconvを一旦無効化してから再度上のコマンドでビルド、その後に「必ず」activateして有効に戻すようにしてください。  
 ```shell
 sudo port deactivate libiconv
 stack build --extra-lib-dirs="/opt/local/lib" --extra-include-dirs="/opt/local/include"
 sudo port activate libiconv
 ```
-再度の忠告ですが、ビルドが完了したら必ずactivateしてください。  
 
 これでインストール完了です。
 ## プログラムの実行
