@@ -730,6 +730,7 @@ mainGtk fpath poppySPath = do
     page <- GPop.documentGetPage currDoc currPage
     hw@(width, height) <- Gtk.windowGetSize window
     (pWid', pHei') <- GPop.pageGetSize page
+
     renderWithContext context $ do
       save
       setOperator OperatorSource
@@ -737,12 +738,23 @@ mainGtk fpath poppySPath = do
       paint
       restore
     renderWithContext context $ do
+      {-
+       attrss <- mapM (GPop.pageGetTextAttributesForArea page) $ takeSndL rects
+       let
+         alterFontSize attrs = do
+           sizes <- sequence $ map GPop.getTextAttributesFontSize attrs
+           cshowIL sizes
+           sequence $ map (\x@(att, size) -> GPop.setTextAttributesFontSize att 1.0) $ zip attrs sizes
+       liftIO $ sequence $ map alterFontSize attrss
+
+-}
        save
        scale ratio ratio
        translate (- pageLeft) (- pageTop)
        -- zeroRect <- GPop.rectangleNew
        GPop.pageRender page context
        _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection page context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRects
+
        restore
     -- for NextPage(If exists)
     if (0 < nextPage) && (nextPage < (fromIntegral nOfPage) - 1) && (dksIsDualPage docs)then

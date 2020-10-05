@@ -7,7 +7,7 @@
 難しい文書、読む気すら起こらない文書を攻略します（速読・精読）。  
 
 
-理論的背景、詳しい攻略法は[技術書を自作PDFリーダーで読む - Haskellでつくる不思議な読書体験 (1)](https://techbookfest.org/product/6282870020636672?productVariantID=5414866732974080)にまとめています。ご興味ありましたら参照ください。  
+理論的(?)背景、詳しい攻略法は[技術書を自作PDFリーダーで読む - Haskellでつくる不思議な読書体験 (1)](https://techbookfest.org/product/6282870020636672?productVariantID=5414866732974080)にまとめています。ご興味ありましたら参照ください。  
 
 
 以下のGif動画は日本語ですが、英語も対応しています（もともと[英語から開発は始まっています](./README.md)）。  
@@ -75,6 +75,20 @@ sudo docker pull graham3333/corenlp-complete
 ```
 [stanford CoreNLP Parser](https://stanfordnlp.github.io/CoreNLP/other-languages.html)のdockerの箇所。  
 [Graham MacDonald氏のリンク](https://hub.docker.com/r/graham3333/corenlp-complete)をご参考です。  
+
+### 日本語モードの搭載
+少しチューニングがまだ残っていますが、日本語文書にも対応しました。Mecabのインストールが必要です。  
+英語・日本語はソフト起動時に自動判定していますが、構文解析結果がおかしい感じのときは判定ミスしているはずなので、  
+space l tで切り替えてください(lはlanguage, tはtoggleという気持ちで設定しています)。  
+
+#### Mecabのインストール
+##### Mecab本体
+```shell
+sudo apt install mecab
+sudo apt install libmecab-dev
+sudo apt install mecab-ipadic-utf8
+```
+
 ## poppyS
 PDFリーダーはpoppySと命名しました。  
 ### git clone
@@ -87,6 +101,7 @@ cd poppyS
 stack build
 ```
 これでインストール完了です。
+
 # プログラムの実行
 ## PDFファイルの準備
 Stanford CoreNLP Serverを立ち上げた状態で、本PDFリーダー(poppyS)を立ち上げる必要があります。  
@@ -126,7 +141,7 @@ Stanford CoreNLP Serverを立ち上げた状態で、本PDFリーダー(poppyS)�
 3. 医療関連
 * [Basics of Molecular Biology](https://homes.cs.washington.edu/~tompa/papers/molbio.pdf)
 * [Clinical characteristics of 2019 novel coronavirus infection in China](https://www.medrxiv.org/content/10.1101/2020.02.06.20020974v1)
-4. 装置の説明書 <- new
+4. 装置の説明書
 * [カメラの説明書](https://1vision.co.il/pdfs/vieworks/manual/User_Manual_VA_GigE_EN.pdf)
 
 ## Stanford CoreNLP Serverの起動
@@ -225,18 +240,6 @@ PDFリーダー（poppyS）を立ち上げてから少し待つと一部単語�
 ### コメント
 Right, Left, Downは矢印キーのことです。Enterはエンターキーです。  
 Vimっぽい操作に近づけようとしています。今はこんな感じです。  
-### 日本語モードの搭載
-少しチューニングがまだ残っていますが、日本語文書にも対応しました。Mecabのインストールが必要です。  
-英語・日本語はソフト起動時に自動判定していますが、構文解析結果がおかしい感じのときは判定ミスしているはずなので、  
-space l tで切り替えてください(lはlanguage, tはtoggleという気持ちで設定しています)。  
-
-#### Mecabのインストール
-##### Mecab本体
-```shell
-sudo apt install mecab
-sudo apt install libmecab-dev
-sudo apt install mecab-ipadic-utf8
-```
 ### 着色
 マウス操作は着色に使います。文章中の適当な箇所をクリックしてみてください。色が変わります。何度か連打すると他の色に変わります。  
 色の変わる順番は、赤、青、緑、紫、オレンジ、ピンク、水色、シアン、赤、青、、といった具合です。
