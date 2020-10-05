@@ -3,6 +3,7 @@
 Syntactically highlighting PDF Documents in Haskell.  
 This is a Functional Toy Programming. Experimental yet.  
 Also an example of Haskell GUI(([gi-gtk](https://hackage.haskell.org/package/gi-gtk))
+Japanese page is [here](./READMEJP.md).
 ![demo](./poppySMovie.gif)
 # Installation
 ## OS
