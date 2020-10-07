@@ -168,7 +168,8 @@ mainGtk fpath poppySPath = do
       mode <- dksDebug <$> readIORef docsRef
       let
         newMode
-         | mode == Gramatica = Hint
+         | mode == Adhoc = Hint
+         | mode == Gramatica = Adhoc
          | mode == Primitive = Gramatica
          | otherwise = Primitive
       modifyIORef docsRef (\x -> x {dksDebug = newMode})
@@ -180,7 +181,8 @@ mainGtk fpath poppySPath = do
       mode <- dksDebug <$> readIORef docsRef
       let
         newMode
-         | mode == Hint = Gramatica
+         | mode == Hint = Adhoc
+         | mode == Adhoc = Gramatica
          | mode == Gramatica = Primitive
          | otherwise = Hint
       modifyIORef docsRef (\x -> x {dksDebug = newMode})
@@ -721,11 +723,11 @@ mainGtk fpath poppySPath = do
     let
       colundRects
        | mode == Vanilla = []
-       | mode == Primitive = rects
+       | mode == Primitive || mode == Adhoc = rects
        | otherwise = rectsSpec ++ rects
       colundRectsNext
        | mode == Vanilla = []
-       | mode == Primitive = rectsNext
+       | mode == Primitive || mode == Adhoc = rectsNext
        | otherwise = rectsSpecNext ++ rectsNext
     page <- GPop.documentGetPage currDoc currPage
     hw@(width, height) <- Gtk.windowGetSize window
@@ -798,7 +800,7 @@ data MVars = CMVars{
     mVarSExps :: (MV.MVector RealWorld (Maybe [(SExp (Posi, Tag) (String, [Sq Double]))]))
   }
 
-data Mode = Hint | Gramatica | Vanilla | Primitive
+data Mode = Hint | Gramatica | Vanilla | Primitive | Adhoc
   deriving (Show, Eq)
 
 
@@ -1388,7 +1390,7 @@ getColundRectangles sexps configs isJapanese colors mode = electeds
 
       detachedAssigneds
        -- | mode == Hint = detachedAssignedsHinted
-       | mode == Hint = deChimera $ detachedAssign detacheds
+       | mode == Hint  || mode == Adhoc = deChimera $ detachedAssign detacheds
        | mode == Gramatica = detachedAssignedsCyclic
        | mode == Primitive = deChimera detachedAssignPrimitive
        | otherwise = []
