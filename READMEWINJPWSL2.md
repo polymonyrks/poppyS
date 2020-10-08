@@ -39,6 +39,7 @@ Ubuntuのターミナルで、
 [stack](https://docs.haskellstack.org/en/stable/README/)
 ```shell
 wget -qO- https://get.haskellstack.org/ | sh
+stack update
 ```
 ## gi-gtk
 Ubuntuのターミナルで、
@@ -56,7 +57,7 @@ sudo apt install libpoppler-dev libpoppler-glib-dev
 https://docs.docker.com/docker-for-windows/install/(https://docs.docker.com/docker-for-windows/install/)
 
 ### stanford CoreNLP Parser
-Ubuntuのターミナルで、
+Windowsのターミナル(コマンドプロンプト or PowerShell)で、
 ```shell
 sudo docker pull graham3333/corenlp-complete
 ```
@@ -83,6 +84,10 @@ Ubuntuのターミナルで、
 cd poppyS
 stack install
 ```
+
+### IEによる指定アドレスへのアクセス
+"certificate has unknown CA.."みたいなエラーが出た場合は、
+一度、[https://www.haskell.org/](https://www.haskell.org)へInternet Explorerでアクセスすると解消できるかもです。  
 
 ## GUIの準備
 WSL2のUbuntu単体ではGUIがないので、準備します。
@@ -123,3 +128,4 @@ poppyS-exe /mnt/c/Users/polymony/hogehoge.pdf
 
 これ以降は、Ubuntuと同じなので、そちらを参照ください。
 ([Ubuntuでの解説](./READMEJP.md))。  
+dockerをWindowsのTerminal(コマンドプロンプト、PowerShell)で起動する点注意です。
