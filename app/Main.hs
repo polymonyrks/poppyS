@@ -123,6 +123,16 @@ mainGtk fpath poppySPath = do
   (window, movePallete) <- initWidgets poppySPath
   docs <- initDocs poppySPath
   docsRef <- newIORef docs
+  -- when git push, delete below
+  {-
+  modifyIORef docsRef (\x -> x {dksIsDualPage = False})
+
+  get2 "gsettings set com.canonical.Unity.Launcher launcher-position Bottom"
+  get2 "xrandr -o left"
+  Gtk.windowUnmaximize window
+  Gtk.windowResize window 1080 1600
+-}
+
   doc <- initDoc docsRef fpath
   docRef <- newIORef doc
   Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
@@ -771,7 +781,12 @@ mainGtk fpath poppySPath = do
           restore
       else return ()
     return True
-  on window #destroy Gtk.mainQuit
+  on window #destroy $ do
+    {-
+    get2 "xrandr -o normal"
+    get2 "gsettings set com.canonical.Unity.Launcher launcher-position Left"
+-}
+    Gtk.mainQuit
 
   #showAll window
 
@@ -845,15 +860,14 @@ setColors = do
     colorBlue <- GPop.colorNew
     set colorBlue [ #blue := 65535 ]
     colorGreen <- GPop.colorNew
-    -- set colorGreen [#red := 39424, #green := 52480, #blue := 12800 ]
-    -- set colorGreen [#red := 8704, #green := 35584, #blue := 8704 ]
     set colorGreen [#red := 0, #green := 32767, #blue := 0]
     colorWhite <- GPop.colorNew
     set colorWhite [#red := 65535, #green := 65535, #blue := 65535 ]
     colorNavy <- GPop.colorNew
     set colorNavy [#red := 0, #green := 0, #blue := 32767]
     colorLime <- GPop.colorNew
-    set colorLime [#red := 0, #green := 65535, #blue := 0 ]
+    --set colorLime [#red := 0, #green := 65535, #blue := 0 ]
+    set colorLime [#red := 0, #green := 61000, #blue := 0 ]
     colorAqua <- GPop.colorNew
     set colorAqua [#red := 0, #green := 49087, #blue := 65535]
     colorYellow <- GPop.colorNew
@@ -888,6 +902,59 @@ setColors = do
         , colGold = colorGold
         }
     return colors
+
+{-
+from ACM Keyword Colors (a bit weak to read so veto.)
+setColors :: IO Colors
+setColors = do
+
+    colorRed <- GPop.colorNew
+    set colorRed [ #red := 54998,  #green := 10023,  #blue := 10280]
+    colorBlue <- GPop.colorNew
+    set colorBlue [ #red := 7967,  #green := 30583,  #blue := 46260]
+    colorGreen <- GPop.colorNew
+    set colorGreen [#red := 11308,  #green := 41120,  #blue := 11308]
+    colorWhite <- GPop.colorNew
+    set colorWhite [#red := 65535, #green := 65535, #blue := 65535 ]
+    colorNavy <- GPop.colorNew
+    set colorNavy [#red := 0, #green := 0, #blue := 32767]
+    colorLime <- GPop.colorNew
+    set colorLime [#red := 26985,  #green := 48059,  #blue := 26985]
+    colorAqua <- GPop.colorNew
+    set colorAqua [#red := 18504,  #green := 52171,  #blue := 55512]
+    colorYellow <- GPop.colorNew
+    set colorYellow [#red := 65535, #green := 65535, #blue := 0 ]
+    colorPink <- GPop.colorNew
+    set colorPink [#red := 58339,  #green := 30583,  #blue := 49858]
+    colorOlive <- GPop.colorNew
+    set colorOlive [#red := 32639,  #green := 32639,  #blue := 32639]
+    colorPurple <- GPop.colorNew
+    set colorPurple [#red := 38036,  #green := 26471,  #blue := 48573]
+    colorBrown <- GPop.colorNew
+    set colorBrown [#red := 35980,  #green := 22102,  #blue := 19275]
+    colorOrange <- GPop.colorNew
+    set colorOrange [#red := 65535,  #green := 32639,  #blue := 3598]
+    colorGold <- GPop.colorNew
+    set colorGold [#red := 48316,  #green := 48573,  #blue := 8995]
+    let
+      colors = CColors {
+          colRed = colorRed
+        , colBlue = colorBlue
+        , colGreen = colorGreen
+        , colWhite = colorWhite
+        , colNavy = colorNavy
+        , colLime = colorLime
+        , colAqua = colorAqua
+        , colYellow = colorYellow
+        , colPink = colorPink
+        , colOlive = colorOlive
+        , colPurple = colorPurple
+        , colBrown = colorBrown
+        , colOrange = colorOrange
+        , colGold = colorGold
+        }
+    return colors
+-}
 
 retrText page rect = do
   text1 <- GPop.pageGetSelectedText page GPop.SelectionStyleGlyph rect
