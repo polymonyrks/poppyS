@@ -67,7 +67,7 @@ C:\msys64\mingw64\share
 ```
 ```shell
 HOME
-C:\Users\yourUsersName\poppyS
+C:\Users\yourUsersName
 ```
 yourUsersNameはご自身のホームフォルダ(コマンドプロンプトを立ち上げた際のデフォルトフォルダ)に対応する名前になります。  
 このソフト(poppyS)はこの位置に置かれることを前提としています(下のgit cloneコマンドはこの位置でなされる)。  
