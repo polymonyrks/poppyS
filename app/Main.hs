@@ -747,25 +747,17 @@ mainGtk fpath poppySPath = do
       save
       setOperator OperatorSource
       setSourceRGBA 255 255 255 1
+      -- setSourceRGBA 0 0 0 1
       paint
       restore
     renderWithContext context $ do
-      {-
-       attrss <- mapM (GPop.pageGetTextAttributesForArea page) $ takeSndL rects
-       let
-         alterFontSize attrs = do
-           sizes <- sequence $ map GPop.getTextAttributesFontSize attrs
-           cshowIL sizes
-           sequence $ map (\x@(att, size) -> GPop.setTextAttributesFontSize att 1.0) $ zip attrs sizes
-       liftIO $ sequence $ map alterFontSize attrss
-
--}
        save
        scale ratio ratio
        translate (- pageLeft) (- pageTop)
        -- zeroRect <- GPop.rectangleNew
        GPop.pageRender page context
        _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection page context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRects
+       --_ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection page context rect zeroRect GPop.SelectionStyleGlyph col $ colSemiWhite colors) colundRects
 
        restore
     -- for NextPage(If exists)
@@ -778,6 +770,7 @@ mainGtk fpath poppySPath = do
           -- zeroRect <- GPop.rectangleNew
           GPop.pageRender pageNext context
           _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection pageNext context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRectsNext
+          --_ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection pageNext context rect zeroRect GPop.SelectionStyleGlyph col $ colSemiWhite colors) colundRectsNext
           restore
       else return ()
     return True
@@ -797,6 +790,8 @@ data Colors = CColors
   , colBlue :: GPop.Color
   , colGreen :: GPop.Color
   , colWhite :: GPop.Color
+  , colSemiWhite :: GPop.Color
+  , colBlack :: GPop.Color
   , colNavy :: GPop.Color
   , colLime :: GPop.Color
   , colAqua :: GPop.Color
@@ -817,7 +812,6 @@ data MVars = CMVars{
 
 data Mode = Hint | Gramatica | Vanilla | Primitive | Adhoc
   deriving (Show, Eq)
-
 
 data Docs = CDocs {
     dksPoppySPath :: String
@@ -863,11 +857,13 @@ setColors = do
     set colorGreen [#red := 0, #green := 32767, #blue := 0]
     colorWhite <- GPop.colorNew
     set colorWhite [#red := 65535, #green := 65535, #blue := 65535 ]
+    colorSemiWhite <- GPop.colorNew
+    set colorSemiWhite [#red := 64250, #green := 64250, #blue := 64250 ]
     colorNavy <- GPop.colorNew
     set colorNavy [#red := 0, #green := 0, #blue := 32767]
     colorLime <- GPop.colorNew
     --set colorLime [#red := 0, #green := 65535, #blue := 0 ]
-    set colorLime [#red := 0, #green := 61000, #blue := 0 ]
+    set colorLime [#red := 0, #green := 60000, #blue := 0 ]
     colorAqua <- GPop.colorNew
     set colorAqua [#red := 0, #green := 49087, #blue := 65535]
     colorYellow <- GPop.colorNew
@@ -884,12 +880,16 @@ setColors = do
     set colorOrange [#red := 65535, #green := 35980, #blue := 0 ]
     colorGold <- GPop.colorNew
     set colorGold [#red := 65535, #green := 55255, #blue := 0 ]
+    colorBlack <- GPop.colorNew
+    set colorBlack [#red := 0, #green := 0, #blue := 0 ]
     let
       colors = CColors {
           colRed = colorRed
         , colBlue = colorBlue
         , colGreen = colorGreen
         , colWhite = colorWhite
+        , colSemiWhite = colorSemiWhite
+        , colBlack = colorBlack
         , colNavy = colorNavy
         , colLime = colorLime
         , colAqua = colorAqua
@@ -903,11 +903,8 @@ setColors = do
         }
     return colors
 
-{-
-from ACM Keyword Colors (a bit weak to read so veto.)
-setColors :: IO Colors
-setColors = do
-
+setColorsACM :: IO Colors
+setColorsACM = do
     colorRed <- GPop.colorNew
     set colorRed [ #red := 54998,  #green := 10023,  #blue := 10280]
     colorBlue <- GPop.colorNew
@@ -916,10 +913,13 @@ setColors = do
     set colorGreen [#red := 11308,  #green := 41120,  #blue := 11308]
     colorWhite <- GPop.colorNew
     set colorWhite [#red := 65535, #green := 65535, #blue := 65535 ]
+    colorSemiWhite <- GPop.colorNew
+    set colorSemiWhite [#red := 64250, #green := 64250, #blue := 64250 ]
     colorNavy <- GPop.colorNew
     set colorNavy [#red := 0, #green := 0, #blue := 32767]
     colorLime <- GPop.colorNew
-    set colorLime [#red := 26985,  #green := 48059,  #blue := 26985]
+    set colorLime [#red := 0, #green := 60000, #blue := 0 ]
+    -- set colorLime [#red := 26985,  #green := 48059,  #blue := 26985]
     colorAqua <- GPop.colorNew
     set colorAqua [#red := 18504,  #green := 52171,  #blue := 55512]
     colorYellow <- GPop.colorNew
@@ -936,12 +936,15 @@ setColors = do
     set colorOrange [#red := 65535,  #green := 32639,  #blue := 3598]
     colorGold <- GPop.colorNew
     set colorGold [#red := 48316,  #green := 48573,  #blue := 8995]
+    colorBlack <- GPop.colorNew
+    set colorBlack [#red := 0, #green := 0, #blue := 0 ]
     let
       colors = CColors {
           colRed = colorRed
         , colBlue = colorBlue
         , colGreen = colorGreen
         , colWhite = colorWhite
+        , colSemiWhite = colorSemiWhite
         , colNavy = colorNavy
         , colLime = colorLime
         , colAqua = colorAqua
@@ -952,9 +955,9 @@ setColors = do
         , colBrown = colorBrown
         , colOrange = colorOrange
         , colGold = colorGold
+        , colBlack = colorBlack
         }
     return colors
--}
 
 retrText page rect = do
   text1 <- GPop.pageGetSelectedText page GPop.SelectionStyleGlyph rect
@@ -1014,6 +1017,8 @@ parseConfig colors str = (tok, confColor)
       | colorPrim == "Blue" = colBlue colors
       | colorPrim == "Green" = colGreen colors
       | colorPrim == "White" = colWhite colors
+      | colorPrim == "SemiWhite" = colSemiWhite colors
+      | colorPrim == "Black" = colBlack colors
       | colorPrim == "Navy" = colNavy colors
       | colorPrim == "Lime" = colLime colors
       | colorPrim == "Aqua" = colAqua colors
@@ -1031,6 +1036,8 @@ decodeConfig colors y
   | y == (colBlue colors) = "Blue"
   | y == (colGreen colors) = "Green"
   | y == (colWhite colors) = "White"
+  | y == (colSemiWhite colors) = "SemiWhite"
+  | y == (colBlack colors) = "Black"
   | y == (colPurple colors) = "Purple"
   | y == (colOrange colors) = "Orange"
   | y == (colPink colors) = "Pink"
@@ -1056,6 +1063,7 @@ initDocs poppySPath = do
   configsPrim <- iVecFromFile $ poppySPath ++ "/" ++ globalConfigFilePath
   presetConfs <- listDirectory $ poppySPath ++ "/" ++ presetConfigDirr
   colors <- setColors
+  colors2 <- setColorsACM
   let
     notExists = filter (\x -> not $ elem x presetConfs) presetConfigFileNames
   mapM (\x -> oVecToFileJP (V.singleton $ ushow 0) $ poppySPath ++ "/" ++ presetConfigDirr ++ "/" ++ x) notExists
