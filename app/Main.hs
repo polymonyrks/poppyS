@@ -157,12 +157,45 @@ mainGtk fpath poppySPath = do
       decl1 n nOfPage = mod (n - 1) nOfPage
       numChars = (map (\c -> [c]) ['a' .. 'z']) ++ (map show [1 .. 9])
       registeredKeysConfigIO = ["at", "0"] : concatMap (\c -> [["at", c], ["colon", "w", "at", c]]) numChars
-      registeredKeys = [["j"], ["k"], ["Up"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"], ["m"], ["n"]] ++ registeredKeysConfigIO
+      registeredKeys = [["j"], ["k"], ["Up"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"], ["m"], ["n"], ["u"], ["r"]] ++ registeredKeysConfigIO
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
       isSomethingMatched = or $ map (\keys -> Lis.isPrefixOf stKeys keys) registeredKeys
     Gtk.windowSetTitle window $ Text.pack $ ushow stKeys
+
+    when (stKeys == ["u"]) $ do
+      configs <- dkConfig <$> readIORef docRef
+      configsForRedo <- dkConfigForRedo <$> readIORef docRef
+      let
+        isExistsConfig = 0 < (length configs)
+        (nextForRedo, nextConfigs)
+         | isExistsConfig = (head configs : configsForRedo, tail configs)
+         | otherwise = (configsForRedo, configs)
+      modifyIORef docRef (\x -> x {dkConfig = nextConfigs, dkConfigForRedo = nextForRedo})
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      if isExistsConfig
+        then Gtk.windowSetTitle window $ Text.pack $ "Popped: " ++ (fst $ head configs)
+        else Gtk.windowSetTitle window $ Text.pack "Nothing Popped"
+      Gtk.widgetQueueDraw window
+      return ()
+
+    when (stKeys == ["r"]) $ do
+      configs <- dkConfig <$> readIORef docRef
+      configsForRedo <- dkConfigForRedo <$> readIORef docRef
+      let
+        isExistsConfigRedo = 0 < (length configsForRedo)
+        (nextForRedo, nextConfigs)
+         | isExistsConfigRedo = (tail configsForRedo, head configsForRedo : configs)
+         | otherwise = (configsForRedo, configs)
+      modifyIORef docRef (\x -> x {dkConfig = nextConfigs, dkConfigForRedo = nextForRedo})
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      if isExistsConfigRedo
+        then Gtk.windowSetTitle window $ Text.pack $ "PoppedBack: " ++ (fst $ head configsForRedo)
+        else Gtk.windowSetTitle window $ Text.pack "Nothing PoppedBack"
+      Gtk.widgetQueueDraw window
+      return ()
+
     when (stKeys == ["v"]) $ do
       mode <- dksDebug <$> readIORef docsRef
       let
@@ -501,10 +534,6 @@ mainGtk fpath poppySPath = do
           alrdLocalConfigs  = filter (\x -> (fst x) == word) currConfig
           alrdGlobalConfigsSimilar = getAlrdConfigsSimilar globalConf
           alrdLocalConfigsSimilar  = getAlrdConfigsSimilar currConfig
-          isAlreadyG = not $ alrdGlobalConfigs == []
-          isAlreadyL = not $ alrdLocalConfigs == []
-          isAlreadyGSimilar = not $ alrdGlobalConfigsSimilar == []
-          isAlreadyLSimilar = not $ alrdLocalConfigsSimilar == []
           forWinTitle = (ushow word)
           colorIndex = dkTogColIndex doc
           (newInd, newColor)
@@ -515,7 +544,12 @@ mainGtk fpath poppySPath = do
             | isAlreadyGSimilar = (colorIndex, currColSimilarG)
             | otherwise = (newIndex, color)
              where
-              currCol = snd $ head alrdGlobalConfigs
+              isAlreadyG = not $ alrdGlobalConfigs == []
+              isAlreadyL = not $ alrdLocalConfigs == []
+              isAlreadyGSimilar = not $ alrdGlobalConfigsSimilar == []
+              isAlreadyLSimilar = not $ alrdLocalConfigsSimilar == []
+              -- currCol = snd $ head alrdGlobalConfigs
+              currCol = snd $ head alrdLocalConfigs
               currColSimilarL = snd $ head alrdLocalConfigsSimilar
               currColSimilarG = snd $ head alrdGlobalConfigsSimilar
               newIndexTemp
@@ -704,7 +738,7 @@ mainGtk fpath poppySPath = do
                  stemmedNormalNext = (map (\x -> (1, x)) stemmedNext)
            g tok
              | filtered == [] = []
-             | otherwise = [head $ filter (\y -> tok == (fst $ snd y)) stemmedOrderedTagged]
+             | otherwise = [head filtered]
              where
                filtered = filter (\y -> tok == (fst $ snd y)) stemmedOrderedTagged
       rectsSpecial@(special0, special1) = (res0, res1)
@@ -836,6 +870,7 @@ data Doc = CDoc {
   , dkCurrDoc :: GPop.Document
   , dkConfig :: [(String, GPop.Color)]
   , dkConfigYank :: [(String, GPop.Color)]
+  , dkConfigForRedo :: [(String, GPop.Color)]
   , dkCurrToken :: String
   , dkTogColIndex :: Int
   , dkCurrPage :: Int32
@@ -1147,6 +1182,7 @@ initDoc docsRef fpath = do
     , dkCurrDoc = doc
     , dkConfig = config
     , dkConfigYank = []
+    , dkConfigForRedo = []
     , dkCurrToken = ""
     , dkCurrPage = firstPage
     -- , dkNextPage = nextPage -- -negative if not 2 pages
