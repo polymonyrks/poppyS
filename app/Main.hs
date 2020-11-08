@@ -166,34 +166,36 @@ mainGtk fpath poppySPath = do
 
     when (stKeys == ["u"]) $ do
       configs <- dkConfig <$> readIORef docRef
-      configsForRedo <- dkConfigForRedo <$> readIORef docRef
-      let
-        isExistsConfig = 0 < (length configs)
-        (nextForRedo, nextConfigs)
-         | isExistsConfig = (head configs : configsForRedo, tail configs)
-         | otherwise = (configsForRedo, configs)
-      modifyIORef docRef (\x -> x {dkConfig = nextConfigs, dkConfigForRedo = nextForRedo})
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
-      if isExistsConfig
-        then Gtk.windowSetTitle window $ Text.pack $ "Popped: " ++ (fst $ head configs)
-        else Gtk.windowSetTitle window $ Text.pack "Nothing Popped"
-      Gtk.widgetQueueDraw window
+      when (not $ configs == []) $ do
+        configsForRedo <- dkConfigForRedo <$> readIORef docRef
+        let
+          isExistsConfig = 0 < (length configs)
+          (nextForRedo, nextConfigs)
+            | isExistsConfig = (head configs : configsForRedo, tail configs)
+            | otherwise = (configsForRedo, configs)
+        modifyIORef docRef (\x -> x {dkConfig = nextConfigs, dkConfigForRedo = nextForRedo})
+        modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+        if isExistsConfig
+          then Gtk.windowSetTitle window $ Text.pack $ "Popped: " ++ (fst $ head configs)
+          else Gtk.windowSetTitle window $ Text.pack "Nothing Popped"
+        Gtk.widgetQueueDraw window
       return ()
 
     when (stKeys == ["r"]) $ do
       configs <- dkConfig <$> readIORef docRef
       configsForRedo <- dkConfigForRedo <$> readIORef docRef
-      let
-        isExistsConfigRedo = 0 < (length configsForRedo)
-        (nextForRedo, nextConfigs)
-         | isExistsConfigRedo = (tail configsForRedo, head configsForRedo : configs)
-         | otherwise = (configsForRedo, configs)
-      modifyIORef docRef (\x -> x {dkConfig = nextConfigs, dkConfigForRedo = nextForRedo})
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
-      if isExistsConfigRedo
-        then Gtk.windowSetTitle window $ Text.pack $ "PoppedBack: " ++ (fst $ head configsForRedo)
-        else Gtk.windowSetTitle window $ Text.pack "Nothing PoppedBack"
-      Gtk.widgetQueueDraw window
+      when (not $ configsForRedo == []) $ do
+        let
+          isExistsConfigRedo = 0 < (length configsForRedo)
+          (nextForRedo, nextConfigs)
+            | isExistsConfigRedo = (tail configsForRedo, head configsForRedo : configs)
+            | otherwise = (configsForRedo, configs)
+        modifyIORef docRef (\x -> x {dkConfig = nextConfigs, dkConfigForRedo = nextForRedo})
+        modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+        if isExistsConfigRedo
+          then Gtk.windowSetTitle window $ Text.pack $ "PoppedBack: " ++ (fst $ head configsForRedo)
+          else Gtk.windowSetTitle window $ Text.pack "Nothing PoppedBack"
+        Gtk.widgetQueueDraw window
       return ()
 
     when (stKeys == ["v"]) $ do
@@ -530,28 +532,33 @@ mainGtk fpath poppySPath = do
                 where
                   nCommPref = length $ countPrefix tok word
                   nCommSuf = length $ countSuffix tok word
-          alrdGlobalConfigs = filter (\x -> (fst x) == word) globalConf
-          alrdLocalConfigs  = filter (\x -> (fst x) == word) currConfig
-          alrdGlobalConfigsSimilar = getAlrdConfigsSimilar globalConf
-          alrdLocalConfigsSimilar  = getAlrdConfigsSimilar currConfig
           forWinTitle = (ushow word)
           colorIndex = dkTogColIndex doc
           (newInd, newColor)
             | isAlreadyL && button == 1 = (colorIndex, togging currCol)
             | isAlreadyL = (colorIndex, toggingRev currCol)
-            | isAlreadyG = (colorIndex, currCol)
+            | isAlreadyG = (colorIndex, currColG)
             | isAlreadyLSimilar = (colorIndex, currColSimilarL)
             | isAlreadyGSimilar = (colorIndex, currColSimilarG)
             | otherwise = (newIndex, color)
              where
-              isAlreadyG = not $ alrdGlobalConfigs == []
               isAlreadyL = not $ alrdLocalConfigs == []
-              isAlreadyGSimilar = not $ alrdGlobalConfigsSimilar == []
-              isAlreadyLSimilar = not $ alrdLocalConfigsSimilar == []
-              -- currCol = snd $ head alrdGlobalConfigs
+              alrdLocalConfigs  = filter (\x -> (fst x) == word) currConfig
               currCol = snd $ head alrdLocalConfigs
+
+              isAlreadyG = not $ alrdGlobalConfigs == []
+              alrdGlobalConfigs = filter (\x -> (fst x) == word) globalConf
+              currColG = snd $ head alrdGlobalConfigs
+
+              isAlreadyLSimilar = not $ alrdLocalConfigsSimilar == []
+              alrdLocalConfigsSimilar  = getAlrdConfigsSimilar currConfig
               currColSimilarL = snd $ head alrdLocalConfigsSimilar
+
+              isAlreadyGSimilar = not $ alrdGlobalConfigsSimilar == []
+              alrdGlobalConfigsSimilar = getAlrdConfigsSimilar globalConf
               currColSimilarG = snd $ head alrdGlobalConfigsSimilar
+
+
               newIndexTemp
                 | button == 1 = (colorIndex + 1)
                 | otherwise = (colorIndex - 1)
