@@ -23,14 +23,11 @@ dependencies:
 - gi-gdk
 - gi-gdkpixbuf
 - gi-glib
-- old-time
 - cairo
 - vector
 - http-conduit
 - http-client
 - aeson
-- lens
-- aeson-lens
 - text-icu
 - bytestring
 - MissingH
@@ -48,7 +45,6 @@ dependencies:
 - safe-exceptions
 - iconv
 - utf8-string
-- charsetdetect
 
 name: poppyS
 version: 0.1.0.0

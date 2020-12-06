@@ -1905,11 +1905,6 @@ takeRight x = snd $ snd x
 flattenSnd :: Foldable t => t (a, [b]) -> [(a, b)]
 flattenSnd xs = concatMap (\x -> map (\y -> (fst x, y)) $ snd x) xs
 
-
-
-
-
-
 isIncludePoint :: Ord a => (a, a) -> Sq a -> Bool
 isIncludePoint poi@(r, c) sq = sqLeft sq <= c && c <= sqRight sq && sqTop sq <= r && r <= sqBot sq
 

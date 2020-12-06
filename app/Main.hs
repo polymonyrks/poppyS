@@ -9,26 +9,26 @@ import Control.Concurrent.MVar
 import qualified Data.Text as Text
 import qualified Data.List as Lis
 import qualified Data.Vector as V
-import qualified Data.Vector.Unboxed as UV
+-- import qualified Data.Vector.Unboxed as UV
 import qualified Data.Vector.Mutable as MV
-import qualified Network.HTTP.Simple as HT
+-- import qualified Network.HTTP.Simple as HT
 import System.Environment
-import Data.Aeson
-import Data.Time
-import System.Timeout
-import Network.HTTP.Client
-import qualified Control.Lens as LENS
-import qualified Data.Aeson.Lens as AL
-import Data.Text.ICU.Convert as ICU
-import qualified Data.ByteString.Lazy as BL
+-- import Data.Aeson
+-- import Data.Time
+-- import System.Timeout
+-- import Network.HTTP.Client
+-- import qualified Control.Lens as LENS
+-- import qualified Data.Aeson.Lens as AL
+-- import Data.Text.ICU.Convert as ICU
+--import qualified Data.ByteString.Lazy as BL
 import Lib (iVecFromFile, iVecFromFileJP, oVecToFile, oVecToFileJP, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getDivideLine, countPrefix, countSuffix, indexingL, oFileJP)
 -- import PopSExp (indexingSP, forgetSExp, injectSExpI, reconsSExp, showSP)
 import PopSExp
 import ParserP (parse, pSExp)
 import SExp
-import System.Process
+-- import System.Process
 import System.Directory
-import Data.Algorithm.Diff
+-- import Data.Algorithm.Diff
 import FromPDF
 import Data.IORef
 import Control.Monad.ST (RealWorld)
@@ -57,7 +57,7 @@ import Control.Exception.Safe
 import Codec.Text.IConv
 import Codec.Binary.UTF8.String
 import Data.Text.Encoding
-import Codec.Text.Detect
+-- import Codec.Text.Detect
 
 hogeP = do
   doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/poppyS/bug0.pdf") Nothing
@@ -213,7 +213,8 @@ mainGtk fpath poppySPath = do
       mode <- dksDebug <$> readIORef docsRef
       let
         newMode
-         | mode == Adhoc = Hint
+         | mode == Local = Hint
+         | mode == Adhoc = Local
          | mode == Gramatica = Adhoc
          | mode == Primitive = Gramatica
          | otherwise = Primitive
@@ -226,7 +227,8 @@ mainGtk fpath poppySPath = do
       mode <- dksDebug <$> readIORef docsRef
       let
         newMode
-         | mode == Hint = Adhoc
+         | mode == Hint = Local
+         | mode == Local = Adhoc
          | mode == Adhoc = Gramatica
          | mode == Gramatica = Primitive
          | otherwise = Hint
@@ -326,6 +328,7 @@ mainGtk fpath poppySPath = do
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       Gtk.widgetQueueDraw window
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      modifyIORef docRef (\doc -> doc  {dkTogColIndex = 0}) -- restart from Red (0)
       Gtk.windowSetTitle window $ Text.pack "DeColored"
       return ()
     when (stKeys == ["colon", "w", "Return"]) $ do
@@ -516,6 +519,7 @@ mainGtk fpath poppySPath = do
             | not isFail = (0, head words)
             | otherwise = (1, head wordsNext)
         modifyIORef docRef (\dk -> dk {dkClickedSquare = (isLeft, tarSqs)})
+        mode <- dksDebug <$> readIORef docsRef
         let
           currConfig = dkConfig doc
           getAlrdConfigsSimilar globalConf
@@ -535,6 +539,7 @@ mainGtk fpath poppySPath = do
           forWinTitle = (ushow word)
           colorIndex = dkTogColIndex doc
           (newInd, newColor)
+            | mode == Local = (newIndex, color)
             | isAlreadyL && button == 1 = (colorIndex, togging currCol)
             | isAlreadyL = (colorIndex, toggingRev currCol)
             | isAlreadyG = (colorIndex, currColG)
@@ -774,11 +779,11 @@ mainGtk fpath poppySPath = do
     let
       colundRects
        | mode == Vanilla = []
-       | mode == Primitive || mode == Adhoc = rects
+       | mode == Primitive || mode == Adhoc || mode == Local = rects
        | otherwise = rectsSpec ++ rects
       colundRectsNext
        | mode == Vanilla = []
-       | mode == Primitive || mode == Adhoc = rectsNext
+       | mode == Primitive || mode == Adhoc || mode == Local = rectsNext
        | otherwise = rectsSpecNext ++ rectsNext
     page <- GPop.documentGetPage currDoc currPage
     hw@(width, height) <- Gtk.windowGetSize window
@@ -851,7 +856,7 @@ data MVars = CMVars{
     mVarSExps :: (MV.MVector RealWorld (Maybe [(SExp (Posi, Tag) (String, [Sq Double]))]))
   }
 
-data Mode = Hint | Gramatica | Vanilla | Primitive | Adhoc
+data Mode = Hint | Gramatica | Vanilla | Primitive | Adhoc | Local
   deriving (Show, Eq)
 
 data Docs = CDocs {
@@ -1508,7 +1513,7 @@ getColundRectangles sexps configs isJapanese colors mode = electeds
 
       detachedAssigneds
        -- | mode == Hint = detachedAssignedsHinted
-       | mode == Hint  || mode == Adhoc = deChimera $ detachedAssign detacheds
+       | mode == Hint  || mode == Adhoc || mode == Local = deChimera $ detachedAssign detacheds
        | mode == Gramatica = detachedAssignedsCyclic
        | mode == Primitive = deChimera detachedAssignPrimitive
        | otherwise = []
