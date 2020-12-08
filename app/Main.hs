@@ -726,8 +726,12 @@ mainGtk fpath poppySPath = do
             stemmedNextPrimJP = filter (\x -> (not $ elem (fst x) ngStemsJP)) detachedsNext
       clickedSq@(isLeft, sqssqs) = dkClickedSquare doc
     let
-      specials = takeFstL $ filter (\x -> not $ elem (fst x) $ alreadies) $ take 2 $ reverse $ Lis.sortBy f $ V.toList $ getHistogram $ V.fromList $ takeFstL applicant
+      mode = dksDebug docs
+      specials = takeFstL $ filter (\x -> not $ elem (fst x) $ alreadies) $ take nOfSpecialsTaken $ reverse $ Lis.sortBy f $ V.toList $ getHistogram $ V.fromList $ takeFstL applicant
          where
+           nOfSpecialsTaken
+            | mode == Local = 4
+            | otherwise = 2
            f x y = compare (snd x) (snd y)
            applicant
             | (isLeft == -1) = stemmed ++ stemmedNext
@@ -761,15 +765,12 @@ mainGtk fpath poppySPath = do
           gold = colGold colors
           res0 = map (\x -> (\y -> (gold, y)) <$> sqToRect x) concated0
           res1 = map (\x -> (\y -> (gold, y)) <$> sqToRect x) concated1
-    let
       sexps = case sexpsMaybe of
         Just sexpsPrim -> sexpsPrim
         Nothing -> []
       nextSexps = case sexpsMaybeNext of
         Just sexpsPrim -> sexpsPrim
         Nothing -> []
-    let
-      mode = dksDebug docs
       electeds = getColundRectangles sexps configs isJapanese colors mode
       electedsNext = getColundRectangles nextSexps configs isJapanese colors mode
     rects <- sequence electeds
