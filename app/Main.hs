@@ -779,11 +779,11 @@ mainGtk fpath poppySPath = do
     let
       colundRects
        | mode == Vanilla = []
-       | mode == Primitive || mode == Adhoc || mode == Local = rects
+       | mode == Primitive || mode == Adhoc = rects
        | otherwise = rectsSpec ++ rects
       colundRectsNext
        | mode == Vanilla = []
-       | mode == Primitive || mode == Adhoc || mode == Local = rectsNext
+       | mode == Primitive || mode == Adhoc = rectsNext
        | otherwise = rectsSpecNext ++ rectsNext
     page <- GPop.documentGetPage currDoc currPage
     hw@(width, height) <- Gtk.windowGetSize window
