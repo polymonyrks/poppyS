@@ -31,7 +31,11 @@ HaskellでGUIをやる例にもなっています。([gi-gtk](https://hackage.ha
 ## OS
 推奨OSは[Ubuntu 20.04 LTS (Focal Fossa)](https://releases.ubuntu.com/20.04/)もしくは、[Ubuntu 18.04 LTS (Bionic Beaver) Desktop](https://releases.ubuntu.com/18.04/)です。  
 [lubuntu 20.04 Desktop](https://lubuntu.me/downloads/)でも動作確認できました。
-Windows10も動きます。([別ページ用意しました](./READMEWINJPWSL2.md))。
+Windows10も動きます。([別ページ用意しました](./READMEWINJPWSL2.md))。  
+ただしWindowsは環境構築が難しいところがあるので、ビルド済みバイナリファイルも用意しています。  
+[こちらのサイト(関数型玩具製作所、筆者のサイト)](https://polymony.net/2020/12/19/post-3765/)を参照ください。
+
+
 MacOSも動くこと確認済みです([別ページ用意しました](./READMEMACOSJP.md))。ただし、慣れていない人はParallels、VMWare、VirtualBox等の仮想環境でUbuntuを動かすことをおすすめします。  
 
 Ubuntuでのインストールに戻ります。  
