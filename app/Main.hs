@@ -746,10 +746,10 @@ mainGtk fpath poppySPath = do
             | (isLeft == 1) = stemmedSelectedNext
             | otherwise = error "unexpected condition (leftPage clicked or right one or nothing)"
                where
-                 -- stemmedSelected = map (\x -> (0, x)) $ dropWhile (\x@(_, sqs) -> not $ sqs == sqssqs) stemmed
-                 -- stemmedSelectedNext = map (\x -> (1, x)) $ dropWhile (\x@(_, sqs) -> not $ sqs == sqssqs) stemmedNext
-                 stemmedSelected = map (\x -> (0, x)) stemmed
-                 stemmedSelectedNext = map (\x -> (1, x)) stemmedNext
+                 stemmedSelected = map (\x -> (0, x)) $ dropWhile (\x@(_, sqs) -> not $ sqs == sqssqs) stemmed
+                 stemmedSelectedNext = map (\x -> (1, x)) $ dropWhile (\x@(_, sqs) -> not $ sqs == sqssqs) stemmedNext
+                 --stemmedSelected = map (\x -> (0, x)) stemmed
+                 --stemmedSelectedNext = map (\x -> (1, x)) stemmedNext
                  stemmedNormal = (map (\x -> (0, x)) stemmed)
                  stemmedNormalNext = (map (\x -> (1, x)) stemmedNext)
            g tok
