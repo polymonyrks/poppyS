@@ -9,26 +9,13 @@ import Control.Concurrent.MVar
 import qualified Data.Text as Text
 import qualified Data.List as Lis
 import qualified Data.Vector as V
--- import qualified Data.Vector.Unboxed as UV
 import qualified Data.Vector.Mutable as MV
--- import qualified Network.HTTP.Simple as HT
 import System.Environment
--- import Data.Aeson
--- import Data.Time
--- import System.Timeout
--- import Network.HTTP.Client
--- import qualified Control.Lens as LENS
--- import qualified Data.Aeson.Lens as AL
--- import Data.Text.ICU.Convert as ICU
---import qualified Data.ByteString.Lazy as BL
 import Lib (iVecFromFile, iVecFromFileJP, oVecToFile, oVecToFileJP, delimitAtWO2, delimitAtWO2By, vNub, takeFst, takeSnd, takeFstT, takeSndT, takeThdT, execShell, delimitAtW2, getDivideLine, countPrefix, countSuffix, indexingL, oFileJP)
--- import PopSExp (indexingSP, forgetSExp, injectSExpI, reconsSExp, showSP)
 import PopSExp
 import ParserP (parse, pSExp)
 import SExp
--- import System.Process
 import System.Directory
--- import Data.Algorithm.Diff
 import FromPDF
 import Data.IORef
 import Control.Monad.ST (RealWorld)
@@ -57,7 +44,6 @@ import Control.Exception.Safe
 import Codec.Text.IConv
 import Codec.Binary.UTF8.String
 import Data.Text.Encoding
--- import Codec.Text.Detect
 
 hogeP = do
   doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/poppyS/bug0.pdf") Nothing
@@ -157,12 +143,19 @@ mainGtk fpath poppySPath = do
       decl1 n nOfPage = mod (n - 1) nOfPage
       numChars = (map (\c -> [c]) ['a' .. 'z']) ++ (map show [1 .. 9])
       registeredKeysConfigIO = ["at", "0"] : concatMap (\c -> [["at", c], ["colon", "w", "at", c]]) numChars
-      registeredKeys = [["j"], ["k"], ["Up"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"], ["m"], ["n"], ["u"], ["r"]] ++ registeredKeysConfigIO
+      registeredKeys = [["j"], ["k"], ["Up"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"], ["m"], ["n"], ["u"], ["r"], ["c", "c"]] ++ registeredKeysConfigIO
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
       isSomethingMatched = or $ map (\keys -> Lis.isPrefixOf stKeys keys) registeredKeys
     Gtk.windowSetTitle window $ Text.pack $ ushow stKeys
+
+    when (stKeys == ["c", "c"]) $ do
+      nHint <- dksNofHint <$> readIORef docsRef
+      modifyIORef docsRef (\x -> x {dksKeysStacked = [], dksNofHint = nHint + 1})
+      Gtk.windowSetTitle window $ Text.pack $ "Cheated(Hint added): " ++  (show $ nHint + 1)
+      Gtk.widgetQueueDraw window
+      return ()
 
     when (stKeys == ["u"]) $ do
       configs <- dkConfig <$> readIORef docRef
@@ -249,9 +242,9 @@ mainGtk fpath poppySPath = do
         goFunc
          | isDual = incl
          | otherwise = incl1
-      goOtherPage window docRef goFunc goFunc
+      goOtherPage window docsRef docRef goFunc goFunc
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      modifyIORef docsRef (\x -> x {dksKeysStacked = [], dksNofHint = 2})
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       return ()
     when (stKeys == ["k"]) $ do
@@ -261,31 +254,31 @@ mainGtk fpath poppySPath = do
         goFunc
          | isDual = decl
          | otherwise = decl1
-      goOtherPage window docRef goFunc goFunc
+      goOtherPage window docsRef docRef goFunc goFunc
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       return ()
     when (stKeys == ["Left"]) $ do
-      goOtherPage window docRef decl1 decl1
+      goOtherPage window docsRef docRef decl1 decl1
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       return ()
     when (stKeys == ["Right"]) $ do
-      goOtherPage window docRef incl1 incl1
+      goOtherPage window docsRef docRef incl1 incl1
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       return ()
     when (stKeys == ["g", "g"]) $ do
-      goOtherPage window docRef (\n -> \m -> 0) (\n -> \m -> 1)
+      goOtherPage window docsRef docRef (\n -> \m -> 0) (\n -> \m -> 1)
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       return ()
     when (stKeys == ["G"]) $ do
-      goOtherPage window docRef (\n -> \m -> nPage - 1) (\n -> \m -> 0)
+      goOtherPage window docsRef docRef (\n -> \m -> nPage - 1) (\n -> \m -> 0)
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
@@ -437,6 +430,7 @@ mainGtk fpath poppySPath = do
         let
           nextIsDual = dksIsDualPage docs
           globalConf = dksGlobalConfig docs
+          baseConf = dksBaseConfig docs
           isDeleting = dksIsDeleting docs
           clipSq = dkClipSq doc
           pageLeft = sqLeft clipSq
@@ -539,7 +533,7 @@ mainGtk fpath poppySPath = do
           forWinTitle = (ushow word)
           colorIndex = dkTogColIndex doc
           (newInd, newColor)
-            | mode == Local = (newIndex, color)
+            | mode == Local = (newIndex, colorLocal)
             | isAlreadyL && button == 1 = (colorIndex, togging currCol)
             | isAlreadyL = (colorIndex, toggingRev currCol)
             | isAlreadyG = (colorIndex, currColG)
@@ -576,6 +570,15 @@ mainGtk fpath poppySPath = do
                 | mod newIndexTemp 8 == 5 = colOrange colors
                 | mod newIndexTemp 8 == 6 = colPink colors
                 | otherwise = colAqua colors
+              colorLocal
+                | mod newIndexTemp 8 == 0 = colGreen colors
+                | mod newIndexTemp 8 == 1 = colRed colors
+                | mod newIndexTemp 8 == 2 = colBlue colors
+                | mod newIndexTemp 8 == 3 = colPink colors
+                | mod newIndexTemp 8 == 4 = colAqua colors
+                | mod newIndexTemp 8 == 5 = colLime colors
+                | mod newIndexTemp 8 == 6 = colOrange colors
+                | otherwise = colPurple colors
               newIndex = mod newIndexTemp 8
               togging col
                | col == colRed colors = colBlue colors
@@ -626,18 +629,18 @@ mainGtk fpath poppySPath = do
             then
              if nextIsDual
                then do
-                 goOtherPage window docRef incl incl
+                 goOtherPage window docsRef docRef incl incl
                  Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
                else do
-                 goOtherPage window docRef incl1 incl1
+                 goOtherPage window docsRef docRef incl1 incl1
                  Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
             else
              if nextIsDual
                then do
-                 goOtherPage window docRef decl decl
+                 goOtherPage window docsRef docRef decl decl
                  Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
                else do
-                 goOtherPage window docRef decl1 decl1
+                 goOtherPage window docsRef docRef decl1 decl1
                  Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
         return False
 
@@ -729,9 +732,10 @@ mainGtk fpath poppySPath = do
       mode = dksDebug docs
       specials = takeFstL $ filter (\x -> not $ elem (fst x) $ alreadies) $ take nOfSpecialsTaken $ reverse $ Lis.sortBy f $ V.toList $ getHistogram $ V.fromList $ takeFstL applicant
          where
-           nOfSpecialsTaken
-            | mode == Local = 4
-            | otherwise = 2
+           nOfSpecialsTaken = dksNofHint docs
+            -- | mode == Local = 4
+            -- | mode == Local = dksNofHint docs
+            -- | otherwise =  dksNofHint docs
            f x y = compare (snd x) (snd y)
            applicant
             | (isLeft == -1) = stemmed ++ stemmedNext
@@ -866,12 +870,14 @@ data Docs = CDocs {
   , dksOffSetDY :: Double
   , dksOffSetNextTo :: Double
   , dksDebug :: Mode
+  , dksNofHint :: Int
   , dksIsVanilla :: Bool
   , dksIsTang :: Bool
   , dksColors :: Colors
   , dksKeysStacked :: [String]
   , dksForMisDoublePress :: Bool
   , dksGlobalConfig :: [(String, GPop.Color)]
+  , dksBaseConfig :: [(String, GPop.Color)]
   , dksIsDeleting :: Bool
   , dksIsDualPage :: Bool
   , dksPresetConfigs :: [[([Char], GPop.Color)]]
@@ -1099,6 +1105,7 @@ decodeConfig colors y
   | otherwise = "Red"
 
 globalConfigFilePath = "global_config.txt"
+baseConfigFilePath = "base_config.txt"
 presetConfigDirr = "configsPreset"
 presetConfigFileNames = (map (\c -> [c] ++ "_config.txt") ['a' .. 'z']) ++ (map (\n -> (show n) ++ "_config.txt") [0 .. 9])
 
@@ -1106,9 +1113,9 @@ initDocs :: String -> IO Docs
 initDocs poppySPath = do
   let
     fullPresetDirr = poppySPath ++ "/" ++ presetConfigDirr
-    fullGlobal = poppySPath ++ "/" ++ globalConfigFilePath
   createDirectoryIfMissing False fullPresetDirr
   configsPrim <- iVecFromFile $ poppySPath ++ "/" ++ globalConfigFilePath
+  configsBasePrim <- iVecFromFile $ poppySPath ++ "/" ++ baseConfigFilePath
   presetConfs <- listDirectory $ poppySPath ++ "/" ++ presetConfigDirr
   colors <- setColors
   colors2 <- setColorsACM
@@ -1120,18 +1127,22 @@ initDocs poppySPath = do
     getConfigContents configsPrim = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) $ V.tail configsPrim
     presetConfigs = map getConfigContents $ V.toList confContents
     config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsPrim
+    configBase = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsBasePrim
     res = CDocs {
         dksPoppySPath = poppySPath
       , dksOffSetDX = 8.0
       , dksOffSetDY = 8.0
       , dksOffSetNextTo = 16.0
       , dksDebug = Hint
+      -- , dksDebug = Local
+      , dksNofHint = 2
       , dksIsVanilla = False
       , dksIsTang = False
       , dksColors = colors
       , dksKeysStacked = []
       , dksForMisDoublePress = False
       , dksGlobalConfig = config
+      , dksBaseConfig = configBase
       , dksIsDeleting = False
       , dksIsDualPage = True
       , dksPresetConfigs = presetConfigs
@@ -1336,7 +1347,7 @@ getPrevNothing mv i = do
             else getPrevNothing mv (i - 1)
       f
 
-goOtherPage window docRef inclF inclFNext = do
+goOtherPage window docsRef docRef inclF inclFNext = do
   doc <- readIORef docRef
   let
     currDoc = dkCurrDoc doc
@@ -1347,6 +1358,7 @@ goOtherPage window docRef inclF inclFNext = do
     nextPagePrev = dkNextPage doc
     nextPage = inclFNext nextPagePrev nOfPage
   modifyIORef docRef (\x -> x {dkCurrPage = currPage, dkNextPage = nextPage})
+  modifyIORef docsRef (\x -> x {dksNofHint = 2})
   Gtk.widgetQueueDraw window
 
 resizeFromCurrPageSqs window docsRef docRef mVars = do
