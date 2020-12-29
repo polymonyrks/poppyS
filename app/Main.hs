@@ -430,7 +430,7 @@ mainGtk fpath poppySPath = do
         let
           nextIsDual = dksIsDualPage docs
           globalConf = dksGlobalConfig docs
-          baseConf = dksBaseConfig docs
+--          baseConf = dksBaseConfig docs
           isDeleting = dksIsDeleting docs
           clipSq = dkClipSq doc
           pageLeft = sqLeft clipSq
@@ -877,7 +877,7 @@ data Docs = CDocs {
   , dksKeysStacked :: [String]
   , dksForMisDoublePress :: Bool
   , dksGlobalConfig :: [(String, GPop.Color)]
-  , dksBaseConfig :: [(String, GPop.Color)]
+--  , dksBaseConfig :: [(String, GPop.Color)]
   , dksIsDeleting :: Bool
   , dksIsDualPage :: Bool
   , dksPresetConfigs :: [[([Char], GPop.Color)]]
@@ -1115,7 +1115,7 @@ initDocs poppySPath = do
     fullPresetDirr = poppySPath ++ "/" ++ presetConfigDirr
   createDirectoryIfMissing False fullPresetDirr
   configsPrim <- iVecFromFile $ poppySPath ++ "/" ++ globalConfigFilePath
-  configsBasePrim <- iVecFromFile $ poppySPath ++ "/" ++ baseConfigFilePath
+  -- configsBasePrim <- iVecFromFile $ poppySPath ++ "/" ++ baseConfigFilePath
   presetConfs <- listDirectory $ poppySPath ++ "/" ++ presetConfigDirr
   colors <- setColors
   colors2 <- setColorsACM
@@ -1127,14 +1127,14 @@ initDocs poppySPath = do
     getConfigContents configsPrim = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) $ V.tail configsPrim
     presetConfigs = map getConfigContents $ V.toList confContents
     config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsPrim
-    configBase = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsBasePrim
+     -- configBase = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsBasePrim
     res = CDocs {
         dksPoppySPath = poppySPath
       , dksOffSetDX = 8.0
       , dksOffSetDY = 8.0
       , dksOffSetNextTo = 16.0
-      , dksDebug = Hint
-      -- , dksDebug = Local
+      -- , dksDebug = Hint
+      , dksDebug = Local
       , dksNofHint = 2
       , dksIsVanilla = False
       , dksIsTang = False
@@ -1142,7 +1142,7 @@ initDocs poppySPath = do
       , dksKeysStacked = []
       , dksForMisDoublePress = False
       , dksGlobalConfig = config
-      , dksBaseConfig = configBase
+--      , dksBaseConfig = configBase
       , dksIsDeleting = False
       , dksIsDualPage = True
       , dksPresetConfigs = presetConfigs
