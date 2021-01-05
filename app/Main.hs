@@ -195,7 +195,8 @@ mainGtk fpath poppySPath = do
       mode <- dksDebug <$> readIORef docsRef
       let
         newMode
-         | mode == Vanilla = Hint
+         -- | mode == Vanilla = Hint
+         | mode == Vanilla = Local
          | otherwise = Vanilla
       modifyIORef docsRef (\x -> x {dksDebug = newMode})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
@@ -209,7 +210,8 @@ mainGtk fpath poppySPath = do
          | mode == Local = Hint
          | mode == Adhoc = Local
          | mode == Gramatica = Adhoc
-         | mode == Primitive = Gramatica
+         | mode == GramaticaPrim = Gramatica
+         | mode == Primitive = GramaticaPrim
          | otherwise = Primitive
       modifyIORef docsRef (\x -> x {dksDebug = newMode})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
@@ -223,7 +225,8 @@ mainGtk fpath poppySPath = do
          | mode == Hint = Local
          | mode == Local = Adhoc
          | mode == Adhoc = Gramatica
-         | mode == Gramatica = Primitive
+         | mode == Gramatica = GramaticaPrim
+         | mode == GramaticaPrim = Primitive
          | otherwise = Hint
       modifyIORef docsRef (\x -> x {dksDebug = newMode})
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
@@ -571,14 +574,14 @@ mainGtk fpath poppySPath = do
                 | mod newIndexTemp 8 == 6 = colPink colors
                 | otherwise = colAqua colors
               colorLocal
-                | mod newIndexTemp 8 == 0 = colGreen colors
-                | mod newIndexTemp 8 == 1 = colRed colors
-                | mod newIndexTemp 8 == 2 = colBlue colors
-                | mod newIndexTemp 8 == 3 = colPink colors
-                | mod newIndexTemp 8 == 4 = colAqua colors
-                | mod newIndexTemp 8 == 5 = colLime colors
-                | mod newIndexTemp 8 == 6 = colOrange colors
-                | otherwise = colPurple colors
+                | mod newIndexTemp 8 == 0 = colRed colors
+                | mod newIndexTemp 8 == 1 = colPink colors
+                | mod newIndexTemp 8 == 2 = colAqua colors
+                | mod newIndexTemp 8 == 3 = colLime colors
+                | mod newIndexTemp 8 == 4 = colOrange colors
+                | mod newIndexTemp 8 == 5 = colPurple colors
+                | mod newIndexTemp 8 == 6 = colGreen colors
+                | otherwise = colBlue colors
               newIndex = mod newIndexTemp 8
               togging col
                | col == colRed colors = colBlue colors
@@ -861,7 +864,7 @@ data MVars = CMVars{
     mVarSExps :: (MV.MVector RealWorld (Maybe [(SExp (Posi, Tag) (String, [Sq Double]))]))
   }
 
-data Mode = Hint | Gramatica | Vanilla | Primitive | Adhoc | Local
+data Mode = Hint | Gramatica | Vanilla | Primitive | Adhoc | Local | GramaticaPrim
   deriving (Show, Eq)
 
 data Docs = CDocs {
@@ -1133,8 +1136,8 @@ initDocs poppySPath = do
       , dksOffSetDX = 8.0
       , dksOffSetDY = 8.0
       , dksOffSetNextTo = 16.0
-      , dksDebug = Hint
-      -- , dksDebug = Local
+      -- , dksDebug = Hint
+      , dksDebug = Local
       , dksNofHint = 2
       , dksIsVanilla = False
       , dksIsTang = False
@@ -1524,10 +1527,25 @@ getColundRectangles sexps configs isJapanese colors mode = electeds
                 | mod i 2 == 0 = (colRed colors, sqs)
                 | otherwise = (colBlue colors, sqs)
 
+      detachedAssignedsCyclicPrimitive = map (\x@(x1, x2) -> (x1, [x2])) assed
+         where
+           flattenedSqs =  takeSndL detachedsPrimitive
+           flattenedNotInc = filter f flattenedSqs
+             where
+               f sqs = and $ map g flattenedSqs
+                 where
+                   g sq = (not $ [] == filter (\x -> not $ elem x sq) sqs) || sq == sqs
+           assed = map f $ indexingL flattenedNotInc
+             where
+               f (i, sqs)
+                | mod i 2 == 0 = (colRed colors, sqs)
+                | otherwise = (colBlue colors, sqs)
+
       detachedAssigneds
        -- | mode == Hint = detachedAssignedsHinted
        | mode == Hint  || mode == Adhoc || mode == Local = deChimera $ detachedAssign detacheds
        | mode == Gramatica = detachedAssignedsCyclic
+       | mode == GramaticaPrim = detachedAssignedsCyclicPrimitive
        | mode == Primitive = deChimera detachedAssignPrimitive
        | otherwise = []
       electeds = map f3 $ concatMap (\x@(col, sqss) -> map (\x -> (col, x)) $ concat sqss) detachedAssigneds
