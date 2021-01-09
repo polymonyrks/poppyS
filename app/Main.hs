@@ -320,7 +320,11 @@ mainGtk fpath poppySPath = do
       Gtk.windowSetTitle window windowRepr
       return ()
     when (stKeys == ["d", "d"]) $ do
-      modifyIORef docRef (\x -> x {dkConfigYank = dkConfig x, dkConfig = []})
+      docs <- readIORef docsRef
+      let
+        baseConfig = dksBaseConfig docs
+      -- modifyIORef docRef (\x -> x {dkConfigYank = dkConfig x, dkConfig = []})
+      modifyIORef docRef (\x -> x {dkConfigYank = dkConfig x, dkConfig = baseConfig})
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       Gtk.widgetQueueDraw window
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
@@ -880,7 +884,7 @@ data Docs = CDocs {
   , dksKeysStacked :: [String]
   , dksForMisDoublePress :: Bool
   , dksGlobalConfig :: [(String, GPop.Color)]
---  , dksBaseConfig :: [(String, GPop.Color)]
+  , dksBaseConfig :: [(String, GPop.Color)]
   , dksIsDeleting :: Bool
   , dksIsDualPage :: Bool
   , dksPresetConfigs :: [[([Char], GPop.Color)]]
@@ -1118,7 +1122,7 @@ initDocs poppySPath = do
     fullPresetDirr = poppySPath ++ "/" ++ presetConfigDirr
   createDirectoryIfMissing False fullPresetDirr
   configsPrim <- iVecFromFile $ poppySPath ++ "/" ++ globalConfigFilePath
-  -- configsBasePrim <- iVecFromFile $ poppySPath ++ "/" ++ baseConfigFilePath
+  configsBasePrim <- iVecFromFile $ poppySPath ++ "/" ++ baseConfigFilePath
   presetConfs <- listDirectory $ poppySPath ++ "/" ++ presetConfigDirr
   colors <- setColors
   colors2 <- setColorsACM
@@ -1130,7 +1134,7 @@ initDocs poppySPath = do
     getConfigContents configsPrim = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) $ V.tail configsPrim
     presetConfigs = map getConfigContents $ V.toList confContents
     config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsPrim
-     -- configBase = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsBasePrim
+    configBase = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsBasePrim
     res = CDocs {
         dksPoppySPath = poppySPath
       , dksOffSetDX = 8.0
@@ -1145,7 +1149,7 @@ initDocs poppySPath = do
       , dksKeysStacked = []
       , dksForMisDoublePress = False
       , dksGlobalConfig = config
---      , dksBaseConfig = configBase
+      , dksBaseConfig = configBase
       , dksIsDeleting = False
       , dksIsDualPage = True
       , dksPresetConfigs = presetConfigs
@@ -1163,6 +1167,7 @@ initDoc docsRef fpath = do
   let
     configSuffix = "_config.txt"
     colors = dksColors docs
+    baseConfig = dksBaseConfig docs
     -- configs = map (takeWhile (\c -> not $ c == '_')) $ filter (\x -> Lis.isSuffixOf ".txt" x) files
     configs = map (\str -> take (length str - length configSuffix) str) $ filter (\x -> Lis.isSuffixOf configSuffix x) files
     currDocName = reverse $ takeWhile (\c -> not $ c == '/') $ tail $ dropWhile (\c -> not $ c == '.') $ reverse fpath
@@ -1202,12 +1207,12 @@ initDoc docsRef fpath = do
      | otherwise = False
     clipSq = CSq {sqLeft = 0, sqTop = 0, sqRight = wid, sqBot = hei}
     clipSqNext = CSq {sqLeft = 0, sqTop = 0, sqRight = widNext, sqBot = heiNext}
-  let
     res = CDoc {
       dkPDFPath = fpath
     , dkPDFDocName = currDocName
     , dkCurrDoc = doc
-    , dkConfig = config
+    -- , dkConfig = config
+    , dkConfig = config ++ baseConfig
     , dkConfigYank = []
     , dkConfigForRedo = []
     , dkCurrToken = ""
