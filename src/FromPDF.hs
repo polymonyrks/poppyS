@@ -41,7 +41,7 @@ import ForGisho (JTag (CJTag), jTag, jTag1, jTagIsNP, foldNPsTest)
 -- for Stanford test
 tesStan = do
   let
-    engSens = "As an instance of the above formalization, let us show that the strict order < on natural numbers is well-founded."
+    engSens = "This Book should be regarded as a smapshot of just one portion of the field. "
   stanRess <- stanIOPoppy1 engSens
   let
     sexps = map parseStanford stanRess

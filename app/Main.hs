@@ -703,7 +703,7 @@ mainGtk fpath poppySPath = do
       detacheds =
         case sexpsMaybe of
           Nothing -> []
-          Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) $ concatMap (takeSpecTags (\tg -> (snd tg) == NP || (snd tg) == ADJP)) sexps
+          Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) $ concatMap (takeSpecTags (\tg -> (snd tg) == NP || (snd tg) == ADJP || (snd tg) == VBN)) sexps
             where
               g x = case x of
                 Nothing -> False
@@ -718,7 +718,7 @@ mainGtk fpath poppySPath = do
       detachedsNext =
         case sexpsMaybeNext of
           Nothing -> []
-          Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) $ concatMap (takeSpecTags (\tg -> (snd tg) == NP || (snd tg) == ADJP)) sexps
+          Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) $ concatMap (takeSpecTags (\tg -> (snd tg) == NP || (snd tg) == ADJP || (snd tg) == VBN)) sexps
             where
               g x = case x of
                 Nothing -> False
@@ -1498,7 +1498,7 @@ getColundRectangles sexps configs isJapanese colors mode = electeds
         $ map (filter g)
         $ map takeSndL
         $ map forgetSExp
-        $ concatMap ((filter filterFunction) . (takeSpecTags (\x -> x == NP || x == ADJP)))
+        $ concatMap ((filter filterFunction) . (takeSpecTags (\x -> x == NP || x == ADJP || x == VBN)))
         $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
         where
           filterFunction
