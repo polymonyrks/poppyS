@@ -41,7 +41,7 @@ import ForGisho (JTag (CJTag), jTag, jTag1, jTagIsNP, foldNPsTest)
 -- for Stanford test
 tesStan = do
   let
-    engSens = "This Book should be regarded as a smapshot of just one portion of the field. "
+    engSens = "It is used here as a witness that the function is terminating."
   stanRess <- stanIOPoppy1 engSens
   let
     sexps = map parseStanford stanRess
