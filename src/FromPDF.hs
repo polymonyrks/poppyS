@@ -35,6 +35,25 @@ import qualified Control.Exception as E
 import Data.Text.Encoding.Error
 import ForGisho (JTag (CJTag), jTag, jTag1, jTagIsNP, foldNPsTest)
 
+
+
+
+-- for Stanford test
+tesStan = do
+  let
+    engSens = "As an instance of the above formalization, let us show that the strict order < on natural numbers is well-founded."
+  stanRess <- stanIOPoppy1 engSens
+  let
+    sexps = map parseStanford stanRess
+  showSP $ sexps !! 0
+
+parseStanford :: Turtle.Text -> SExp Tag String
+parseStanford res = sexp
+  where
+    reshaped = reshapeSexp $ V.fromList $ map Text.unpack $ Text.split (== '\n')  res
+    parsed = parse pSExp reshaped
+    sexp =  modifyLastNPConj $ modifyPossession $ fst $ head $ parse pSExp reshaped
+
 {-
 data JTag = CJTag {
     jTag :: String

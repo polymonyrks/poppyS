@@ -4,7 +4,7 @@
 
 import Control.Monad (when, void)
 import Control.Monad.Trans.Reader (runReaderT)
-import Control.Concurrent (forkIO)
+import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.MVar
 import qualified Data.Text as Text
 import qualified Data.List as Lis
@@ -44,6 +44,7 @@ import Control.Exception.Safe
 import Codec.Text.IConv
 import Codec.Binary.UTF8.String
 import Data.Text.Encoding
+
 
 hogeP = do
   doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/poppyS/bug0.pdf") Nothing
@@ -578,14 +579,14 @@ mainGtk fpath poppySPath = do
                 | mod newIndexTemp 8 == 6 = colPink colors
                 | otherwise = colAqua colors
               colorLocal
-                | mod newIndexTemp 8 == 0 = colRed colors
+                | mod newIndexTemp 8 == 0 = colBlue colors
                 | mod newIndexTemp 8 == 1 = colPink colors
                 | mod newIndexTemp 8 == 2 = colAqua colors
                 | mod newIndexTemp 8 == 3 = colLime colors
                 | mod newIndexTemp 8 == 4 = colOrange colors
                 | mod newIndexTemp 8 == 5 = colPurple colors
                 | mod newIndexTemp 8 == 6 = colGreen colors
-                | otherwise = colBlue colors
+                | otherwise = colRed colors
               newIndex = mod newIndexTemp 8
               togging col
                | col == colRed colors = colBlue colors
@@ -665,6 +666,7 @@ mainGtk fpath poppySPath = do
     doc <- readIORef docRef
     mvs <- readMVar mVars
     let
+      isYondle = dksIsYondle docs
       clipSq = dkClipSq doc
       pageLeft = sqLeft clipSq
       pageTop = sqTop clipSq
@@ -701,7 +703,7 @@ mainGtk fpath poppySPath = do
       detacheds =
         case sexpsMaybe of
           Nothing -> []
-          Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) $ concatMap (takeSpecTags (\tg -> (snd tg) == NP)) sexps
+          Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) $ concatMap (takeSpecTags (\tg -> (snd tg) == NP || (snd tg) == ADJP)) sexps
             where
               g x = case x of
                 Nothing -> False
@@ -716,7 +718,7 @@ mainGtk fpath poppySPath = do
       detachedsNext =
         case sexpsMaybeNext of
           Nothing -> []
-          Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) $ concatMap (takeSpecTags (\tg -> (snd tg) == NP)) sexps
+          Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) $ concatMap (takeSpecTags (\tg -> (snd tg) == NP || (snd tg) == ADJP)) sexps
             where
               g x = case x of
                 Nothing -> False
@@ -801,37 +803,61 @@ mainGtk fpath poppySPath = do
     hw@(width, height) <- Gtk.windowGetSize window
     (pWid', pHei') <- GPop.pageGetSize page
 
-    renderWithContext context $ do
-      save
-      setOperator OperatorSource
-      setSourceRGBA 255 255 255 1
-      -- setSourceRGBA 0 0 0 1
-      paint
-      restore
-    renderWithContext context $ do
-       save
-       scale ratio ratio
-       translate (- pageLeft) (- pageTop)
-       -- zeroRect <- GPop.rectangleNew
-       GPop.pageRender page context
-       _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection page context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRects
-       --_ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection page context rect zeroRect GPop.SelectionStyleGlyph col $ colSemiWhite colors) colundRects
-
-       restore
-    -- for NextPage(If exists)
-    if (0 < nextPage) && (nextPage < (fromIntegral nOfPage) - 1) && (dksIsDualPage docs)then
+    if isYondle
+     then do
+      forkIO $ do
+       let
+        -- strs = takeFstL detacheds
+        strs = ["hoge", "fuga", "boke", "without"]
+        renderString str = do
+          renderWithContext context $ do
+            save
+            setOperator OperatorSource
+            setSourceRGBA 255 255 255 1
+            paint
+            restore
+          renderWithContext context $ do
+            save
+            scale ratio ratio
+            -- translate (- pageLeft) (- pageTop)
+            translate (200) (300)
+            showText (str :: String)
+            restore
+          -- threadDelay (2 * 1000 * 1000)
+       sequence $ map renderString strs
+       return ()
+      return True
+     else do
       renderWithContext context $ do
-          pageNext <- GPop.documentGetPage currDoc nextPage
-          save
-          scale ratioNext ratioNext
-          translate (pWid' - pageLeftNext - (pWid' - pageRight) - pageLeft) (- pageTopNext)
-          -- zeroRect <- GPop.rectangleNew
-          GPop.pageRender pageNext context
-          _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection pageNext context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRectsNext
-          --_ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection pageNext context rect zeroRect GPop.SelectionStyleGlyph col $ colSemiWhite colors) colundRectsNext
-          restore
-      else return ()
-    return True
+        save
+        setOperator OperatorSource
+        setSourceRGBA 255 255 255 1
+        -- setSourceRGBA 0 0 0 1
+        paint
+        restore
+      renderWithContext context $ do
+        save
+        scale ratio ratio
+        translate (- pageLeft) (- pageTop)
+        -- zeroRect <- GPop.rectangleNew
+        GPop.pageRender page context
+        _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection page context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRects
+        restore
+
+      -- for NextPage(If exists)
+      if (0 < nextPage) && (nextPage < (fromIntegral nOfPage) - 1) && (dksIsDualPage docs)then
+        renderWithContext context $ do
+            pageNext <- GPop.documentGetPage currDoc nextPage
+            save
+            scale ratioNext ratioNext
+            translate (pWid' - pageLeftNext - (pWid' - pageRight) - pageLeft) (- pageTopNext)
+            -- zeroRect <- GPop.rectangleNew
+            GPop.pageRender pageNext context
+            _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection pageNext context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRectsNext
+            --_ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection pageNext context rect zeroRect GPop.SelectionStyleGlyph col $ colSemiWhite colors) colundRectsNext
+            restore
+        else return ()
+      return True
   on window #destroy $ do
     {-
     get2 "xrandr -o normal"
@@ -888,6 +914,7 @@ data Docs = CDocs {
   , dksIsDeleting :: Bool
   , dksIsDualPage :: Bool
   , dksPresetConfigs :: [[([Char], GPop.Color)]]
+  , dksIsYondle :: Bool
   }
 
 data Doc = CDoc {
@@ -1153,6 +1180,7 @@ initDocs poppySPath = do
       , dksIsDeleting = False
       , dksIsDualPage = True
       , dksPresetConfigs = presetConfigs
+      , dksIsYondle = False
       }
   return res
 
@@ -1470,7 +1498,7 @@ getColundRectangles sexps configs isJapanese colors mode = electeds
         $ map (filter g)
         $ map takeSndL
         $ map forgetSExp
-        $ concatMap ((filter filterFunction) . (takeSpecTags (\x -> x == NP)))
+        $ concatMap ((filter filterFunction) . (takeSpecTags (\x -> x == NP || x == ADJP)))
         $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
         where
           filterFunction
