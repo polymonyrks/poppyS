@@ -193,6 +193,7 @@ mainGtk fpath poppySPath = do
       return ()
 
     when (stKeys == ["v"]) $ do
+      {-
       mode <- dksDebug <$> readIORef docsRef
       let
         newMode
@@ -200,9 +201,11 @@ mainGtk fpath poppySPath = do
          | mode == Vanilla = Local
          | otherwise = Vanilla
       modifyIORef docsRef (\x -> x {dksDebug = newMode})
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       Gtk.widgetQueueDraw window
+-}
+      toVanillaMode docsRef docRef window
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["n"]) $ do
       mode <- dksDebug <$> readIORef docsRef
@@ -321,6 +324,8 @@ mainGtk fpath poppySPath = do
       Gtk.windowSetTitle window windowRepr
       return ()
     when (stKeys == ["d", "d"]) $ do
+      deleteColors docsRef docRef window
+  {-
       docs <- readIORef docsRef
       let
         baseConfig = dksBaseConfig docs
@@ -328,11 +333,14 @@ mainGtk fpath poppySPath = do
       modifyIORef docRef (\x -> x {dkConfigYank = dkConfig x, dkConfig = baseConfig})
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       Gtk.widgetQueueDraw window
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       modifyIORef docRef (\doc -> doc  {dkTogColIndex = 0}) -- restart from Red (0)
       Gtk.windowSetTitle window $ Text.pack "DeColored"
+-}
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["colon", "w", "Return"]) $ do
+      saveConfigs docsRef docRef
+  {-
       docs <- readIORef docsRef
       doc <- readIORef docRef
       let
@@ -351,6 +359,7 @@ mainGtk fpath poppySPath = do
         configFilePath = configFilesDir ++ "/" ++ currDocName ++ "_config.txt"
       oVecToFileJP outout configFilePath
       oVecToFileJP (V.fromList confGlobal) globalConfigFilePath
+-}
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window "Config Saved."
       return ()
@@ -539,8 +548,10 @@ mainGtk fpath poppySPath = do
                   nCommPref = length $ countPrefix tok word
                   nCommSuf = length $ countSuffix tok word
           forWinTitle = (ushow word)
+          isTablet = dksIsTablet docs
           colorIndex = dkTogColIndex doc
           (newInd, newColor)
+            | isTablet = (newIndex, colorTablet)
             | mode == Local = (newIndex, colorLocal)
             | isAlreadyL && button == 1 = (colorIndex, togging currCol)
             | isAlreadyL = (colorIndex, toggingRev currCol)
@@ -587,7 +598,19 @@ mainGtk fpath poppySPath = do
                 | mod newIndexTemp 8 == 5 = colPurple colors
                 | mod newIndexTemp 8 == 6 = colGreen colors
                 | otherwise = colRed colors
-              newIndex = mod newIndexTemp 8
+              colorTablet
+                | mod newIndexTemp 9 == 0 = colBlack colors
+                | mod newIndexTemp 9 == 1 = colPink colors
+                | mod newIndexTemp 9 == 2 = colAqua colors
+                | mod newIndexTemp 9 == 3 = colLime colors
+                | mod newIndexTemp 9 == 4 = colOrange colors
+                | mod newIndexTemp 9 == 5 = colPurple colors
+                | mod newIndexTemp 9 == 6 = colGreen colors
+                | mod newIndexTemp 9 == 7 = colRed colors
+                | otherwise = colBlue colors
+              newIndex
+                | isTablet = mod newIndexTemp 9
+                | otherwise = mod newIndexTemp 8
               togging col
                | col == colRed colors = colBlue colors
                | col == colBlue colors = colGreen colors
@@ -606,12 +629,17 @@ mainGtk fpath poppySPath = do
                | col == colAqua colors = colPink colors
                | col == colLime colors = colAqua colors
                | otherwise = colLime colors
-          newIndex = mod newInd 8
+          isBothFail = (isFail && isFailNext)
+          newIndex
+            | isTablet && isBothFail = colorIndex
+            | isTablet = mod newInd 9
+            | otherwise = mod newInd 8
           incl n nOfPage = mod (n + 2) nOfPage
           decl n nOfPage = mod (n - 2) nOfPage
           incl1 n nOfPage = mod (n + 1) nOfPage
           decl1 n nOfPage = mod (n - 1) nOfPage
 
+        {-
         if not (isFail && isFailNext)
           then
            if not isDeleting
@@ -650,6 +678,96 @@ mainGtk fpath poppySPath = do
                else do
                  goOtherPage window docsRef docRef decl1 decl1
                  Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+-}
+        let
+          actionClicked
+           | isTablet && isClickedOuterYTop && isClickedLeftCol = toVanillaMode docsRef docRef window
+           | isTablet && isClickedOuterYTop     = deleteColors docsRef docRef window
+           | isTablet && isClickedOuterXLeft && nextIsDual   = actionBothFailRightNextDual
+           | isTablet && isClickedOuterXLeft    = actionBothFailRightNoNextDual
+           | isTablet && isClickedOuterXRightNext && nextIsDual         = actionBothFailLeftNextDual
+           | isTablet && isClickedOuterXRight     && (not nextIsDual)   = actionBothFailLeftNoNextDual
+           | isTablet && (not isDeleting)       = actionNotBothFailNoDeleting
+           | isTablet                           = actionNotBothFailDeleting
+
+           | not isBothFail && (not isDeleting) = actionNotBothFailNoDeleting
+           | not isBothFail                     = actionNotBothFailDeleting
+           | isLeftClicked && nextIsDual        = actionBothFailLeftNextDual
+           | isLeftClicked                      = actionBothFailLeftNoNextDual
+           | nextIsDual                         = actionBothFailRightNextDual
+           | otherwise                          = actionBothFailRightNoNextDual
+           where
+             -- isBothFail = (isFail && isFailNext)
+             isLeftClicked = button == 1
+             actionBothFailLeftNextDual = do
+                 goOtherPage window docsRef docRef incl incl
+                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+             actionBothFailLeftNoNextDual = do
+                 goOtherPage window docsRef docRef incl1 incl1
+                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+             actionBothFailRightNextDual = do
+                 goOtherPage window docsRef docRef decl decl
+                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+             actionBothFailRightNoNextDual = do
+                 goOtherPage window docsRef docRef decl1 decl1
+                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+             actionNotBothFailNoDeleting = do
+              let
+                 dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
+                 droppedG = filter (\x -> not $ (fst x) == word) $ dksGlobalConfig docs
+              modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = [(word, newColor)] ++ dropped, dkTogColIndex = newIndex})
+              modifyIORef docsRef (\docs -> docs {dksGlobalConfig = [(word, newColor)] ++ droppedG})
+              Gtk.widgetQueueDraw window
+              Gtk.windowSetTitle window $ Text.pack forWinTitle
+             actionNotBothFailDeleting = do
+               let
+                 dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
+               modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = dropped, dkTogColIndex = newIndex})
+
+               Gtk.widgetQueueDraw window
+               Gtk.windowSetTitle window $ Text.pack forWinTitle
+             squares = concatMap id $ takeSndL detacheds
+             squaresNext = concatMap id $ takeSndL detachedsNext
+             isSquaresVoid = squares == []
+             rowCenter
+               -- | nextIsDual = 0.5 * (leftPageCenter + rightPageCenter)
+               | otherwise = leftPageCenter
+               where
+                 leftPageCenter = 0.5 * (pageTop + pageBot)
+                 rightPageCenter = 0.5 * (pageTopNext + pageBotNext)
+             colCenter
+               | nextIsDual = bothPageColCenter
+               | otherwise = leftPageColCenter
+               where
+                 leftPageColCenter = 0.5 * (pageLeft + pageRight)
+                 bothPageColCenter = pageRight
+             mostLeft
+               | isSquaresVoid = colCenter
+               | otherwise = minimum $ map sqLeft squares
+             mostRight
+               | isSquaresVoid = colCenter
+               | nextIsDual = maximum $ map sqRight squaresNext
+               | otherwise = maximum $ map sqRight squares
+             mostTop
+               | isSquaresVoid = rowCenter
+               | nextIsDual = minimum $ map sqTop $ squares ++ squaresNext
+               | otherwise = minimum $ map sqTop squares
+             mostBot
+               | isSquaresVoid = rowCenter
+               | nextIsDual = maximum $ map sqBot $ squares ++ squaresNext
+               | otherwise = maximum $ map sqBot squares
+             clickedX = posX point
+             clickedY = posY point
+             clickedXNext = posX pointNext
+             clickedYNext = posY pointNext
+             -- isClickedInner = mostTop < clickedY && clickedY < mostBot && mostLeft < clickedX && clickedX < mostRight
+             isClickedOuterYTop = clickedY < mostTop
+             isClickedLeftCol = clickedX < colCenter
+             isClickedOuterXLeft = clickedX < mostLeft
+             isClickedOuterXRight = mostRight < clickedX
+             isClickedLeftColNext = clickedXNext < colCenter
+             isClickedOuterXRightNext = mostRight < clickedXNext
+        actionClicked
         return False
 
   on window #buttonReleaseEvent $ \event -> do
@@ -915,6 +1033,7 @@ data Docs = CDocs {
   , dksIsDualPage :: Bool
   , dksPresetConfigs :: [[([Char], GPop.Color)]]
   , dksIsYondle :: Bool
+  , dksIsTablet :: Bool
   }
 
 data Doc = CDoc {
@@ -1162,6 +1281,11 @@ initDocs poppySPath = do
     presetConfigs = map getConfigContents $ V.toList confContents
     config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsPrim
     configBase = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsBasePrim
+    isTablet = False
+    -- isTablet = True
+    isDual
+     | isTablet = False
+     | otherwise = True
     res = CDocs {
         dksPoppySPath = poppySPath
       , dksOffSetDX = 8.0
@@ -1178,9 +1302,10 @@ initDocs poppySPath = do
       , dksGlobalConfig = config
       , dksBaseConfig = configBase
       , dksIsDeleting = False
-      , dksIsDualPage = True
+      , dksIsDualPage = isDual
       , dksPresetConfigs = presetConfigs
       , dksIsYondle = False
+      , dksIsTablet = isTablet
       }
   return res
 
@@ -1385,7 +1510,9 @@ getPrevNothing mv i = do
 
 goOtherPage window docsRef docRef inclF inclFNext = do
   doc <- readIORef docRef
+  docs <- readIORef docsRef
   let
+    isTablet = dksIsTablet docs
     currDoc = dkCurrDoc doc
   nOfPage <- GPop.documentGetNPages currDoc
   let
@@ -1395,6 +1522,7 @@ goOtherPage window docsRef docRef inclF inclFNext = do
     nextPage = inclFNext nextPagePrev nOfPage
   modifyIORef docRef (\x -> x {dkCurrPage = currPage, dkNextPage = nextPage})
   modifyIORef docsRef (\x -> x {dksNofHint = 2})
+  when isTablet $ saveConfigs docsRef docRef
   Gtk.widgetQueueDraw window
 
 resizeFromCurrPageSqs window docsRef docRef mVars = do
@@ -1605,3 +1733,45 @@ getTotalSquares currSExps (pHei', pWid') = totalSquares
           leftFrons = minimum $ map sqLeft squares
           botFrons = maximum $ map sqBot squares
           rightFrons = maximum $ map sqRight squares
+
+saveConfigs docsRef docRef = do
+      docs <- readIORef docsRef
+      doc <- readIORef docRef
+      let
+        colors = dksColors docs
+        conf = res
+           where
+             res = map (\x -> (fst x) ++ "," ++ (decodeConfig colors $ snd x)) $ dkConfig doc
+        confGlobal = res
+           where
+             res = map (\x -> (fst x) ++ "," ++ (decodeConfig colors $ snd x)) $ dksGlobalConfig docs
+        currPage = dkCurrPage doc
+        poppySPath = dksPoppySPath docs
+        configFilesDir = poppySPath ++ "/configs"
+        outout = V.fromList $ (ushow currPage) : conf
+        currDocName = dkPDFDocName doc
+        configFilePath = configFilesDir ++ "/" ++ currDocName ++ "_config.txt"
+      oVecToFileJP outout configFilePath
+      oVecToFileJP (V.fromList confGlobal) globalConfigFilePath
+
+deleteColors docsRef docRef window = do
+      docs <- readIORef docsRef
+      let
+        baseConfig = dksBaseConfig docs
+      -- modifyIORef docRef (\x -> x {dkConfigYank = dkConfig x, dkConfig = []})
+      modifyIORef docRef (\x -> x {dkConfigYank = dkConfig x, dkConfig = baseConfig})
+      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
+      Gtk.widgetQueueDraw window
+      modifyIORef docRef (\doc -> doc  {dkTogColIndex = 0}) -- restart from Red (0)
+      Gtk.windowSetTitle window $ Text.pack "DeColored"
+
+toVanillaMode docsRef docRef window = do
+      mode <- dksDebug <$> readIORef docsRef
+      let
+        newMode
+         -- | mode == Vanilla = Hint
+         | mode == Vanilla = Local
+         | otherwise = Vanilla
+      modifyIORef docsRef (\x -> x {dksDebug = newMode})
+      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+      Gtk.widgetQueueDraw window
