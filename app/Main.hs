@@ -242,6 +242,41 @@ mainGtk fpath poppySPath = do
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window $ Text.pack "Cropped"
       return ()
+    when (stKeys == ["Up"]) $ do
+      doc <- readIORef docRef
+      let
+        currDoc = dkCurrDoc doc
+        currPage = dkCurrPage doc
+      page <- GPop.documentGetPage currDoc currPage
+      (pWid', pHei') <- GPop.pageGetSize page
+      let
+        clipSq = dkClipSq doc
+        tp = sqTop clipSq
+        bt = sqBot clipSq
+        lf = sqLeft clipSq
+        rg = sqRight clipSq
+        rat = (bt - tp) / (rg - lf)
+        pitchX = 3.0
+        pitchY = pitchX * rat
+        newClipSq
+         | 0 < tpPrim && btPrim < pHei' && 0 < lfPrim && rgPrim < pWid' = newSqPrim
+         | otherwise = clipSq
+          where
+            tpPrim = tp - pitchY
+            btPrim = bt + pitchY
+            lfPrim = lf - pitchX
+            rgPrim = rg + pitchX
+            newSqPrim = CSq
+              { sqTop = tpPrim
+              , sqBot = btPrim
+              , sqLeft = lfPrim
+              , sqRight = rgPrim
+              }
+      modifyIORef docRef (\x -> x {dkClipSq = newClipSq})
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window $ Text.pack "Resized"
+      Gtk.widgetQueueDraw window
+      return ()
     when (stKeys == ["j"]) $ do
       docs <- readIORef docsRef
       let
