@@ -29,6 +29,7 @@ import Data.GI.Base
 import qualified GI.Cairo as GI.Cairo
 import qualified GI.GLib as GLib
 import qualified GI.Gdk as Gdk
+import qualified GI.Gdk.Structs.Rectangle
 import qualified GI.GdkPixbuf as GP
 import qualified GI.Gtk as Gtk
 import qualified GI.Poppler as GPop
@@ -108,7 +109,9 @@ mainGtk :: String -> String -> IO ()
 mainGtk fpath poppySPath = do
   _ <- Gtk.init Nothing
   (window, movePallete) <- initWidgets poppySPath
-  docs <- initDocs poppySPath
+  Gtk.windowMaximize window
+
+  docs <- initDocs poppySPath window
   docsRef <- newIORef docs
   -- when git push, delete below
   {-
@@ -123,12 +126,53 @@ mainGtk fpath poppySPath = do
   doc <- initDoc docsRef fpath
   docRef <- newIORef doc
   Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+
   let
     currDoc = dkCurrDoc doc
     currPage = dkCurrPage doc
   mvarsPrim <- initMVars docRef
   mVars <- newMVar mvarsPrim
   zeroRect <- GPop.rectangleNew
+
+  {-
+  -- choose showing 1page or 2pages from Window's width and height.
+  (winWid, winHei) <- Gtk.windowGetSize window
+  if winWid < winHei
+    then do
+      modifyIORef docsRef (\x -> x {dksIsDualPage = False})
+      Gtk.widgetQueueDraw window
+      return ()
+    else do
+      modifyIORef docsRef (\x -> x {dksIsDualPage = True})
+      -- modifyIORef docsRef (\x -> x {dksIsDualPage = False})
+      -- resizeFromCurrPageSqs window docsRef docRef mVars
+      Gtk.widgetQueueDraw window
+      return ()
+  -- when isTablet, choose showing 1page or 2pages
+  isTabletInit <- dksIsTablet <$> readIORef docsRef
+  when isTabletInit $ do
+    dlg <- Gtk.dialogNew
+    let
+      n1p = 300
+      n2p = 400
+    Gtk.dialogAddButton dlg "1page" n1p
+    Gtk.dialogAddButton dlg "2pages" n2p
+    Gtk.widgetShowAll dlg
+    Gtk.afterDialogResponse dlg $ \wId -> do
+      if wId == n1p
+        then do
+          modifyIORef docsRef (\x -> x {dksIsDualPage = False})
+          Gtk.widgetHide dlg
+          Gtk.widgetQueueDraw window
+          return ()
+        else do
+          modifyIORef docsRef (\x -> x {dksIsDualPage = True})
+          resizeFromCurrPageSqs window docsRef docRef mVars
+          Gtk.widgetHide dlg
+          Gtk.widgetQueueDraw window
+          return ()
+    return ()
+-}
 
   on window #keyPressEvent $ \event -> do
     name <- event `get` #keyval >>= Gdk.keyvalName
@@ -674,53 +718,16 @@ mainGtk fpath poppySPath = do
           incl1 n nOfPage = mod (n + 1) nOfPage
           decl1 n nOfPage = mod (n - 1) nOfPage
 
-        {-
-        if not (isFail && isFailNext)
-          then
-           if not isDeleting
-           then
-             do
-              let
-                 dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
-                 droppedG = filter (\x -> not $ (fst x) == word) $ dksGlobalConfig docs
-              modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = [(word, newColor)] ++ dropped, dkTogColIndex = newIndex})
-              modifyIORef docsRef (\docs -> docs {dksGlobalConfig = [(word, newColor)] ++ droppedG})
-              Gtk.widgetQueueDraw window
-              Gtk.windowSetTitle window $ Text.pack forWinTitle
-           else
-             do
-               let
-                 dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
-               modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = dropped, dkTogColIndex = newIndex})
-
-               Gtk.widgetQueueDraw window
-               Gtk.windowSetTitle window $ Text.pack forWinTitle
-          else
-           if button == 1
-            then
-             if nextIsDual
-               then do
-                 goOtherPage window docsRef docRef incl incl
-                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
-               else do
-                 goOtherPage window docsRef docRef incl1 incl1
-                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
-            else
-             if nextIsDual
-               then do
-                 goOtherPage window docsRef docRef decl decl
-                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
-               else do
-                 goOtherPage window docsRef docRef decl1 decl1
-                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
--}
-        let
           actionClicked
+           -- | isTablet && isClickedOuterXLeft && (not isClickedUpperRow) && (not nextIsDual) = actionBothFailLeftNoNextDual
+           | isTablet && isClickedOuterXLeft && (isClickedUpperRow) && (not nextIsDual) = actionBothFailLeftNoNextDual
+           | isTablet && isClickedOuterXLeft && (isClickedUpperRow) && nextIsDual = actionBothFailRightNoNextDual
+           | isTablet && isClickedOuterXLeft && (not isClickedUpperRow) && nextIsDual = actionBothFailRightNextDual
+           | isTablet && isClickedOuterXLeft                 = actionBothFailRightNoNextDual
            | isTablet && isClickedOuterYTop && isClickedLeftCol = toVanillaMode docsRef docRef window
            | isTablet && isClickedOuterYTop     = deleteColors docsRef docRef window
-           | isTablet && isClickedOuterXLeft && nextIsDual   = actionBothFailRightNextDual
-           | isTablet && isClickedOuterXLeft    = actionBothFailRightNoNextDual
-           | isTablet && isClickedOuterXRightNext && nextIsDual         = actionBothFailLeftNextDual
+           | isTablet && isClickedOuterXRightNext && nextIsDual  && (isClickedUpperRow)        = actionBothFailLeftNoNextDual
+           | isTablet && isClickedOuterXRightNext && nextIsDual  && (not isClickedUpperRow)        = actionBothFailLeftNextDual
            | isTablet && isClickedOuterXRight     && (not nextIsDual)   = actionBothFailLeftNoNextDual
            | isTablet && (not isDeleting)       = actionNotBothFailNoDeleting
            | isTablet                           = actionNotBothFailDeleting
@@ -764,6 +771,7 @@ mainGtk fpath poppySPath = do
              squares = concatMap id $ takeSndL detacheds
              squaresNext = concatMap id $ takeSndL detachedsNext
              isSquaresVoid = squares == []
+             isSquaresNextVoid = squaresNext == []
              rowCenter
                -- | nextIsDual = 0.5 * (leftPageCenter + rightPageCenter)
                | otherwise = leftPageCenter
@@ -777,18 +785,18 @@ mainGtk fpath poppySPath = do
                  leftPageColCenter = 0.5 * (pageLeft + pageRight)
                  bothPageColCenter = pageRight
              mostLeft
-               | isSquaresVoid = colCenter
+               | (isSquaresVoid || isSquaresNextVoid) = colCenter
                | otherwise = minimum $ map sqLeft squares
              mostRight
-               | isSquaresVoid = colCenter
+               | (isSquaresVoid || isSquaresNextVoid)  = colCenter
                | nextIsDual = maximum $ map sqRight squaresNext
                | otherwise = maximum $ map sqRight squares
              mostTop
-               | isSquaresVoid = rowCenter
+               | isSquaresVoid || isSquaresNextVoid  = rowCenter
                | nextIsDual = minimum $ map sqTop $ squares ++ squaresNext
                | otherwise = minimum $ map sqTop squares
              mostBot
-               | isSquaresVoid = rowCenter
+               | isSquaresVoid || isSquaresNextVoid  = rowCenter
                | nextIsDual = maximum $ map sqBot $ squares ++ squaresNext
                | otherwise = maximum $ map sqBot squares
              clickedX = posX point
@@ -798,6 +806,7 @@ mainGtk fpath poppySPath = do
              -- isClickedInner = mostTop < clickedY && clickedY < mostBot && mostLeft < clickedX && clickedX < mostRight
              isClickedOuterYTop = clickedY < mostTop
              isClickedLeftCol = clickedX < colCenter
+             isClickedUpperRow = clickedY < rowCenter
              isClickedOuterXLeft = clickedX < mostLeft
              isClickedOuterXRight = mostRight < clickedX
              isClickedLeftColNext = clickedXNext < colCenter
@@ -845,8 +854,16 @@ mainGtk fpath poppySPath = do
     (pWidNext', pHeiNext') <- GPop.pageGetSize pageNext
     hw@(wWid, wHei) <- Gtk.windowGetSize window
     let
-      ratio = (fromIntegral wHei) / (pageBot - pageTop)
-      ratioNext = (fromIntegral wHei) / (pageBotNext - pageTopNext)
+      ratioRow = (fromIntegral wHei) / (pageBot - pageTop)
+      ratioCol = (fromIntegral wWid) / (pageRight - pageLeft)
+      ratio
+     --  | ratioCol < ratioRow = ratioCol
+       | otherwise = ratioRow
+      ratioNextRow = (fromIntegral wHei) / (pageBotNext - pageTopNext)
+      ratioNextCol = (fromIntegral wWid) / (pageRightNext - pageLeftNext)
+      ratioNext
+    --   | ratioNextCol < ratioNextRow = ratioNextCol
+       | otherwise = ratioNextRow
       sexpsMV = mVarSExps mvs
     sexpsMaybe <- MV.read sexpsMV (fromIntegral currPage)
     sexpsMaybeNext <- MV.read sexpsMV (fromIntegral nextPage)
@@ -1019,6 +1036,13 @@ mainGtk fpath poppySPath = do
     Gtk.mainQuit
 
   #showAll window
+
+  {-
+  (winWid, winHei) <- Gtk.windowGetSize window
+  if winHei < winWid
+    then modifyIORef docsRef $ \x -> x {dksIsDualPage = True}
+    else modifyIORef docsRef $ \x -> x {dksIsDualPage = False}
+-}
 
   Gtk.main
 
@@ -1297,8 +1321,8 @@ baseConfigFilePath = "base_config.txt"
 presetConfigDirr = "configsPreset"
 presetConfigFileNames = (map (\c -> [c] ++ "_config.txt") ['a' .. 'z']) ++ (map (\n -> (show n) ++ "_config.txt") [0 .. 9])
 
-initDocs :: String -> IO Docs
-initDocs poppySPath = do
+initDocs :: String -> Gtk.Window -> IO Docs
+initDocs poppySPath window = do
   let
     fullPresetDirr = poppySPath ++ "/" ++ presetConfigDirr
   createDirectoryIfMissing False fullPresetDirr
@@ -1316,11 +1340,30 @@ initDocs poppySPath = do
     presetConfigs = map getConfigContents $ V.toList confContents
     config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsPrim
     configBase = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsBasePrim
-    isTablet = False
-    -- isTablet = True
-    isDual
-     | isTablet = False
-     | otherwise = True
+  {-
+  screen <- window `get` #screen
+  monId <- Gdk.screenGetPrimaryMonitor screen
+  area <- Gdk.screenGetMonitorWorkarea screen monId
+  winHei <- GI.Gdk.Structs.Rectangle.getRectangleHeight area
+  winWid <- GI.Gdk.Structs.Rectangle.getRectangleWidth area
+-}
+
+  let
+    -- isTablet = False
+    isTablet = True
+  isDual <- do
+    if isTablet
+      then do
+        screen <- window `get` #screen
+        monId <- Gdk.screenGetPrimaryMonitor screen
+        area <- Gdk.screenGetMonitorWorkarea screen monId
+        winHei <- GI.Gdk.Structs.Rectangle.getRectangleHeight area
+        winWid <- GI.Gdk.Structs.Rectangle.getRectangleWidth area
+        if winWid < winHei
+         then return False
+         else return True
+      else return True
+  let
     res = CDocs {
         dksPoppySPath = poppySPath
       , dksOffSetDX = 8.0
@@ -1544,6 +1587,7 @@ getPrevNothing mv i = do
       f
 
 goOtherPage window docsRef docRef inclF inclFNext = do
+  -- (winWid, winHei) <- Gtk.windowGetSize window
   doc <- readIORef docRef
   docs <- readIORef docsRef
   let
