@@ -122,6 +122,7 @@ mainGtk fpath poppySPath = do
   Gtk.windowUnmaximize window
   Gtk.windowResize window 1080 1600
 -}
+  gestureSwipe <- Gtk.gestureSwipeNew window
 
   doc <- initDoc docsRef fpath
   docRef <- newIORef doc
@@ -135,44 +136,17 @@ mainGtk fpath poppySPath = do
   zeroRect <- GPop.rectangleNew
 
   {-
-  -- choose showing 1page or 2pages from Window's width and height.
-  (winWid, winHei) <- Gtk.windowGetSize window
-  if winWid < winHei
-    then do
-      modifyIORef docsRef (\x -> x {dksIsDualPage = False})
-      Gtk.widgetQueueDraw window
-      return ()
-    else do
-      modifyIORef docsRef (\x -> x {dksIsDualPage = True})
-      -- modifyIORef docsRef (\x -> x {dksIsDualPage = False})
-      -- resizeFromCurrPageSqs window docsRef docRef mVars
-      Gtk.widgetQueueDraw window
-      return ()
-  -- when isTablet, choose showing 1page or 2pages
-  isTabletInit <- dksIsTablet <$> readIORef docsRef
-  when isTabletInit $ do
-    dlg <- Gtk.dialogNew
+  Gtk.afterGestureSwipeSwipe gestureSwipe $ \x -> \y -> do
     let
-      n1p = 300
-      n2p = 400
-    Gtk.dialogAddButton dlg "1page" n1p
-    Gtk.dialogAddButton dlg "2pages" n2p
-    Gtk.widgetShowAll dlg
-    Gtk.afterDialogResponse dlg $ \wId -> do
-      if wId == n1p
-        then do
-          modifyIORef docsRef (\x -> x {dksIsDualPage = False})
-          Gtk.widgetHide dlg
-          Gtk.widgetQueueDraw window
-          return ()
-        else do
-          modifyIORef docsRef (\x -> x {dksIsDualPage = True})
-          resizeFromCurrPageSqs window docsRef docRef mVars
-          Gtk.widgetHide dlg
-          Gtk.widgetQueueDraw window
-          return ()
+      isLeftSwiped = x < 0
+      isSwiped = (10.0) ^ 2 < (x ^ 2 + y ^ 2)
+      actionSwiped
+       | isSwiped && isLeftSwiped = undefined
+       | isSwiped                 = undefined
+       | otherwise = return ()
     return ()
 -}
+
 
   on window #keyPressEvent $ \event -> do
     name <- event `get` #keyval >>= Gdk.keyvalName
@@ -188,12 +162,16 @@ mainGtk fpath poppySPath = do
       decl1 n nOfPage = mod (n - 1) nOfPage
       numChars = (map (\c -> [c]) ['a' .. 'z']) ++ (map show [1 .. 9])
       registeredKeysConfigIO = ["at", "0"] : concatMap (\c -> [["at", c], ["colon", "w", "at", c]]) numChars
-      registeredKeys = [["j"], ["k"], ["Up"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"], ["m"], ["n"], ["u"], ["r"], ["c", "c"]] ++ registeredKeysConfigIO
+      registeredKeys = [["Shift_L"], ["Shift_R"], ["J"], ["K"], ["L"], ["M"], ["j"], ["k"], ["Up"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"], ["m"], ["n"], ["u"], ["r"], ["c", "c"]] ++ registeredKeysConfigIO
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
       isSomethingMatched = or $ map (\keys -> Lis.isPrefixOf stKeys keys) registeredKeys
     Gtk.windowSetTitle window $ Text.pack $ ushow stKeys
+
+    when (stKeys == ["Shift_L"] || stKeys == ["Shift_R"]) $ do
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      return ()
 
     when (stKeys == ["c", "c"]) $ do
       nHint <- dksNofHint <$> readIORef docsRef
@@ -237,17 +215,6 @@ mainGtk fpath poppySPath = do
       return ()
 
     when (stKeys == ["v"]) $ do
-      {-
-      mode <- dksDebug <$> readIORef docsRef
-      let
-        newMode
-         -- | mode == Vanilla = Hint
-         | mode == Vanilla = Local
-         | otherwise = Vanilla
-      modifyIORef docsRef (\x -> x {dksDebug = newMode})
-      Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
-      Gtk.widgetQueueDraw window
--}
       toVanillaMode docsRef docRef window
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
@@ -282,9 +249,34 @@ mainGtk fpath poppySPath = do
       Gtk.widgetQueueDraw window
       return ()
     when (stKeys == ["Down"]) $ do
-      resizeFromCurrPageSqs window docsRef docRef mVars
-      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
-      Gtk.windowSetTitle window $ Text.pack "Cropped"
+      doc <- readIORef docRef
+      docs <- readIORef docsRef
+      let
+        currPage = dkCurrPage doc
+        nextPage = dkNextPage doc
+        currDoc = dkCurrDoc doc
+      nOfPage <- GPop.documentGetNPages currDoc
+      page <- GPop.documentGetPage currDoc currPage
+      pageNext <- do
+        if nOfPage == 1
+          then return page
+          else GPop.documentGetPage currDoc nextPage
+      let
+        isDefaultSize = dksIsDefaultSize docs
+      if isDefaultSize
+        then do
+          resizeFromCurrPageSqs window docsRef docRef mVars
+          Gtk.windowSetTitle window $ Text.pack "Cropped"
+        else do
+          (wid, hei) <- GPop.pageGetSize page
+          (widNext, heiNext) <- GPop.pageGetSize pageNext
+          let
+            clipSq = CSq {sqLeft = 0, sqTop = 0, sqRight = wid, sqBot = hei}
+            clipSqNext = CSq {sqLeft = 0, sqTop = 0, sqRight = widNext, sqBot = heiNext}
+          modifyIORef docRef (\x -> x {dkClipSq = clipSq, dkClipSqNext = clipSqNext})
+          Gtk.windowSetTitle window $ Text.pack "Dafaulted"
+          Gtk.widgetQueueDraw window
+      modifyIORef docsRef (\x -> x {dksKeysStacked = [], dksIsDefaultSize = not isDefaultSize})
       return ()
     when (stKeys == ["Up"]) $ do
       doc <- readIORef docRef
@@ -321,6 +313,31 @@ mainGtk fpath poppySPath = do
       Gtk.windowSetTitle window $ Text.pack "Resized"
       Gtk.widgetQueueDraw window
       return ()
+    when (stKeys == ["H"]) $ do
+      setClipSq docsRef docRef DLeft
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window $ Text.pack "Resized H"
+      Gtk.widgetQueueDraw window
+      return ()
+    when (stKeys == ["J"]) $ do
+      setClipSq docsRef docRef DBot
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window $ Text.pack "Resized J"
+      Gtk.widgetQueueDraw window
+      return ()
+    when (stKeys == ["K"]) $ do
+      setClipSq docsRef docRef DTop
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window $ Text.pack "Resized K"
+      Gtk.widgetQueueDraw window
+      return ()
+    when (stKeys == ["L"]) $ do
+      setClipSq docsRef docRef DRight
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window $ Text.pack "Resized L"
+      Gtk.widgetQueueDraw window
+      return ()
+-- setClipSq docsRef docRef dir
     when (stKeys == ["j"]) $ do
       docs <- readIORef docsRef
       let
@@ -404,41 +421,10 @@ mainGtk fpath poppySPath = do
       return ()
     when (stKeys == ["d", "d"]) $ do
       deleteColors docsRef docRef window
-  {-
-      docs <- readIORef docsRef
-      let
-        baseConfig = dksBaseConfig docs
-      -- modifyIORef docRef (\x -> x {dkConfigYank = dkConfig x, dkConfig = []})
-      modifyIORef docRef (\x -> x {dkConfigYank = dkConfig x, dkConfig = baseConfig})
-      modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
-      Gtk.widgetQueueDraw window
-      modifyIORef docRef (\doc -> doc  {dkTogColIndex = 0}) -- restart from Red (0)
-      Gtk.windowSetTitle window $ Text.pack "DeColored"
--}
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["colon", "w", "Return"]) $ do
       saveConfigs docsRef docRef
-  {-
-      docs <- readIORef docsRef
-      doc <- readIORef docRef
-      let
-        colors = dksColors docs
-        conf = res
-           where
-             res = map (\x -> (fst x) ++ "," ++ (decodeConfig colors $ snd x)) $ dkConfig doc
-        confGlobal = res
-           where
-             res = map (\x -> (fst x) ++ "," ++ (decodeConfig colors $ snd x)) $ dksGlobalConfig docs
-        currPage = dkCurrPage doc
-        poppySPath = dksPoppySPath docs
-        configFilesDir = poppySPath ++ "/configs"
-        outout = V.fromList $ (ushow currPage) : conf
-        currDocName = dkPDFDocName doc
-        configFilePath = configFilesDir ++ "/" ++ currDocName ++ "_config.txt"
-      oVecToFileJP outout configFilePath
-      oVecToFileJP (V.fromList confGlobal) globalConfigFilePath
--}
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window "Config Saved."
       return ()
@@ -607,8 +593,33 @@ mainGtk fpath poppySPath = do
           iword@(isLeft, (word, tarSqs))
             | isFail && isFailNext = (-1, ("", []))
             | not isFail = (0, head words)
-            | otherwise = (1, head wordsNext)
+            | otherwise =  (1, head wordsNext)
+          previousDkClickedSquares = dkClickedSquare doc
+          isSameClicked = previousDkClickedSquares == (isLeft, tarSqs)
         modifyIORef docRef (\dk -> dk {dkClickedSquare = (isLeft, tarSqs)})
+
+        let
+          isLeftSideClicked = isHalfLeft -- used when tablet mode (which wise color toggles)
+            where
+              point0
+                | isLeft == 0 = point
+                | otherwise = pointNext
+              totalDist = sum $ map (\x -> (sqRight x) - (sqLeft x)) tarSqs
+              res@(isIncFound, resDist, _) = foldl f (False, 0.0, 0.0) tarSqs
+                where
+                  f y@(isRes, iterRes, iter) sq
+                    | isRes == True = y
+                    | isIncluded = (True, currDist, nextDist)
+                    | otherwise = (False, iterRes, nextDist)
+                    where
+                      nextDist = iter + (sqRight sq) - (sqLeft sq)
+                      isIncluded = isSqIncludePoint sq point0
+                      distXWhenInc = (posX point0) - (sqLeft sq)
+                      currDist = iter + distXWhenInc
+              isHalfLeft
+                | isIncFound = resDist / totalDist < 0.3
+                | otherwise  = False
+
         mode <- dksDebug <$> readIORef docsRef
         let
           currConfig = dkConfig doc
@@ -659,6 +670,9 @@ mainGtk fpath poppySPath = do
               newIndexTemp
                 | button == 1 = (colorIndex + 1)
                 | otherwise = (colorIndex - 1)
+              newIndexTempTab
+                | isSameClicked && isLeftSideClicked = (colorIndex - 1)
+                | otherwise = colorIndex + 1
               color
                 | mod newIndexTemp 8 == 0 = colLime colors
                 | mod newIndexTemp 8 == 1 = colRed colors
@@ -678,17 +692,17 @@ mainGtk fpath poppySPath = do
                 | mod newIndexTemp 8 == 6 = colGreen colors
                 | otherwise = colRed colors
               colorTablet
-                | mod newIndexTemp 9 == 0 = colBlack colors
-                | mod newIndexTemp 9 == 1 = colPink colors
-                | mod newIndexTemp 9 == 2 = colAqua colors
-                | mod newIndexTemp 9 == 3 = colLime colors
-                | mod newIndexTemp 9 == 4 = colOrange colors
-                | mod newIndexTemp 9 == 5 = colPurple colors
-                | mod newIndexTemp 9 == 6 = colGreen colors
-                | mod newIndexTemp 9 == 7 = colRed colors
+                | mod newIndexTempTab 9 == 0 = colBlack colors
+                | mod newIndexTempTab 9 == 1 = colPink colors
+                | mod newIndexTempTab 9 == 2 = colAqua colors
+                | mod newIndexTempTab 9 == 3 = colLime colors
+                | mod newIndexTempTab 9 == 4 = colOrange colors
+                | mod newIndexTempTab 9 == 5 = colPurple colors
+                | mod newIndexTempTab 9 == 6 = colGreen colors
+                | mod newIndexTempTab 9 == 7 = colRed colors
                 | otherwise = colBlue colors
               newIndex
-                | isTablet = mod newIndexTemp 9
+                | isTablet = mod newIndexTempTab 9
                 | otherwise = mod newIndexTemp 8
               togging col
                | col == colRed colors = colBlue colors
@@ -791,10 +805,15 @@ mainGtk fpath poppySPath = do
                | (isSquaresVoid || isSquaresNextVoid)  = colCenter
                | nextIsDual = maximum $ map sqRight squaresNext
                | otherwise = maximum $ map sqRight squares
-             mostTop
+             mostTopPrim
                | isSquaresVoid || isSquaresNextVoid  = rowCenter
                | nextIsDual = minimum $ map sqTop $ squares ++ squaresNext
                | otherwise = minimum $ map sqTop squares
+             mostTop
+               | mostTopUB < mostTopPrim = mostTopUB
+               | otherwise = mostTopPrim
+               where
+                 mostTopUB = pageTop + (0.2 * (pageBot - pageTop))
              mostBot
                | isSquaresVoid || isSquaresNextVoid  = rowCenter
                | nextIsDual = maximum $ map sqBot $ squares ++ squaresNext
@@ -854,16 +873,8 @@ mainGtk fpath poppySPath = do
     (pWidNext', pHeiNext') <- GPop.pageGetSize pageNext
     hw@(wWid, wHei) <- Gtk.windowGetSize window
     let
-      ratioRow = (fromIntegral wHei) / (pageBot - pageTop)
-      ratioCol = (fromIntegral wWid) / (pageRight - pageLeft)
-      ratio
-     --  | ratioCol < ratioRow = ratioCol
-       | otherwise = ratioRow
-      ratioNextRow = (fromIntegral wHei) / (pageBotNext - pageTopNext)
-      ratioNextCol = (fromIntegral wWid) / (pageRightNext - pageLeftNext)
-      ratioNext
-    --   | ratioNextCol < ratioNextRow = ratioNextCol
-       | otherwise = ratioNextRow
+      ratio = (fromIntegral wHei) / (pageBot - pageTop)
+      ratioNext = (fromIntegral wHei) / (pageBotNext - pageTopNext)
       sexpsMV = mVarSExps mvs
     sexpsMaybe <- MV.read sexpsMV (fromIntegral currPage)
     sexpsMaybeNext <- MV.read sexpsMV (fromIntegral nextPage)
@@ -1036,14 +1047,6 @@ mainGtk fpath poppySPath = do
     Gtk.mainQuit
 
   #showAll window
-
-  {-
-  (winWid, winHei) <- Gtk.windowGetSize window
-  if winHei < winWid
-    then modifyIORef docsRef $ \x -> x {dksIsDualPage = True}
-    else modifyIORef docsRef $ \x -> x {dksIsDualPage = False}
--}
-
   Gtk.main
 
 data Colors = CColors
@@ -1093,6 +1096,7 @@ data Docs = CDocs {
   , dksPresetConfigs :: [[([Char], GPop.Color)]]
   , dksIsYondle :: Bool
   , dksIsTablet :: Bool
+  , dksIsDefaultSize :: Bool
   }
 
 data Doc = CDoc {
@@ -1110,7 +1114,6 @@ data Doc = CDoc {
   , dkClipSq :: Sq Double
   , dkClipSqNext :: Sq Double
   , dkClickedSquare :: (Int, [Sq Double]) -- fst is which of these, i.e. (-1: no clicked, 0: leftPage, 1:rightPage)
--- ppp  , dkTokSqTrues :: V.Vector (V.Vector (String, PopPRectangle))
   }
 
 setColors :: IO Colors
@@ -1340,15 +1343,6 @@ initDocs poppySPath window = do
     presetConfigs = map getConfigContents $ V.toList confContents
     config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsPrim
     configBase = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsBasePrim
-  {-
-  screen <- window `get` #screen
-  monId <- Gdk.screenGetPrimaryMonitor screen
-  area <- Gdk.screenGetMonitorWorkarea screen monId
-  winHei <- GI.Gdk.Structs.Rectangle.getRectangleHeight area
-  winWid <- GI.Gdk.Structs.Rectangle.getRectangleWidth area
--}
-
-  let
     -- isTablet = False
     isTablet = True
   isDual <- do
@@ -1384,6 +1378,7 @@ initDocs poppySPath window = do
       , dksPresetConfigs = presetConfigs
       , dksIsYondle = False
       , dksIsTablet = isTablet
+      , dksIsDefaultSize = True
       }
   return res
 
@@ -1854,3 +1849,40 @@ toVanillaMode docsRef docRef window = do
       modifyIORef docsRef (\x -> x {dksDebug = newMode})
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       Gtk.widgetQueueDraw window
+
+data Direction = DTop | DBot | DLeft | DRight
+  deriving (Show, Eq)
+
+
+setClipSq docsRef docRef dir = do
+  doc <- readIORef docRef
+  let
+    currDoc = dkCurrDoc doc
+    currPage = dkCurrPage doc
+  page <- GPop.documentGetPage currDoc currPage
+  (pWid', pHei') <- GPop.pageGetSize page
+  let
+    clipSq = dkClipSq doc
+    tp = sqTop clipSq
+    bt = sqBot clipSq
+    lf = sqLeft clipSq
+    rg = sqRight clipSq
+    rat = (bt - tp) / (rg - lf)
+    pitchX = 3.0
+    pitchY = pitchX * rat
+    newClipSq = newSqPrim
+      where
+        (tpPrim, btPrim, lfPrim, rgPrim)
+         | dir == DTop && (tp + pitchY < bt)  = (tp + pitchY, bt, lf, rg)
+         | dir == DBot  && (tp < bt - pitchY)  = (tp, bt - pitchY, lf, rg)
+         | dir == DLeft  && (lf + pitchX < rg) = (tp, bt, lf + pitchX, rg)
+         | dir == DRight  && (lf < rg - pitchX) = (tp, bt, lf, rg - pitchX)
+         | otherwise     = (tp, bt, lf, rg)
+        newSqPrim = CSq
+          { sqTop = tpPrim
+          , sqBot = btPrim
+          , sqLeft = lfPrim
+          , sqRight = rgPrim
+          }
+  modifyIORef docRef (\x -> x {dkClipSq = newClipSq})
+  return ()
