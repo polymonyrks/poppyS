@@ -113,16 +113,6 @@ mainGtk fpath poppySPath = do
 
   docs <- initDocs poppySPath window
   docsRef <- newIORef docs
-  -- when git push, delete below
-  {-
-  modifyIORef docsRef (\x -> x {dksIsDualPage = False})
-
-  get2 "gsettings set com.canonical.Unity.Launcher launcher-position Bottom"
-  get2 "xrandr -o left"
-  Gtk.windowUnmaximize window
-  Gtk.windowResize window 1080 1600
--}
-  gestureSwipe <- Gtk.gestureSwipeNew window
 
   doc <- initDoc docsRef fpath
   docRef <- newIORef doc
@@ -135,18 +125,31 @@ mainGtk fpath poppySPath = do
   mVars <- newMVar mvarsPrim
   zeroRect <- GPop.rectangleNew
 
-  {-
-  Gtk.afterGestureSwipeSwipe gestureSwipe $ \x -> \y -> do
-    let
-      isLeftSwiped = x < 0
-      isSwiped = (10.0) ^ 2 < (x ^ 2 + y ^ 2)
-      actionSwiped
-       | isSwiped && isLeftSwiped = undefined
-       | isSwiped                 = undefined
-       | otherwise = return ()
-    return ()
--}
+  on window #motionNotifyEvent $ \event -> do
+    rowReal <- get event #y
+    colReal <- get event #x
+    traj <- dksTraject <$> readIORef docsRef
+    modifyIORef docsRef (\x -> x {dksTraject = snocL traj (rowReal, colReal)})
+    -- Gtk.windowSetTitle window $ Text.pack $ "Col: " ++ (show $ round colReal) ++ "Row: " ++ (show $ round rowReal)
+    return False
 
+  on window #buttonPressEvent $ \event -> do
+    rowReal <- get event #y
+    colReal <- get event #x
+    button <- show <$> get event #button -- left click is 1, right click is 3
+    modifyIORef docsRef (\x -> x {dksClickedPoint = (rowReal, colReal), dksClickedButton = button})
+    return False
+
+  on window #buttonReleaseEvent $ \event -> do
+    docs <- readIORef docsRef
+    let
+      (rowInit, colInit) = dksClickedPoint docs
+      button = dksClickedButton docs
+    colTerm <- get event #x
+    rowTerm <- get event #y
+    callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm button
+    modifyIORef docsRef (\x -> x {dksTraject = []})
+    return False
 
   on window #keyPressEvent $ \event -> do
     name <- event `get` #keyval >>= Gdk.keyvalName
@@ -403,7 +406,8 @@ mainGtk fpath poppySPath = do
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       return ()
     when (stKeys == ["p"]) $ do
-      modifyIORef docRef (\x -> x {dkConfig = dkConfigYank x})
+      -- modifyIORef docRef (\x -> x {dkConfig = dkConfigYank x})
+      yankColorConfig docRef
       Gtk.widgetQueueDraw window
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
       Gtk.windowSetTitle window $ Text.pack "Pasted"
@@ -497,345 +501,6 @@ mainGtk fpath poppySPath = do
   forkIO $ do
     stackStan window mVars docsRef docRef
 
-  on window #buttonPressEvent $ \event -> do
-    isNonMis <- dksForMisDoublePress <$> readIORef docsRef
-    if (isNonMis == False)
-      then do
-       modifyIORef docsRef (\x -> x {dksForMisDoublePress = True})
-       return False
-      else
-       do
-        modifyIORef docsRef (\x -> x {dksForMisDoublePress = False})
-        docs <- readIORef docsRef
-        doc <- readIORef docRef
-        mvs <- readMVar mVars
-        let
-          nextIsDual = dksIsDualPage docs
-          globalConf = dksGlobalConfig docs
---          baseConf = dksBaseConfig docs
-          isDeleting = dksIsDeleting docs
-          clipSq = dkClipSq doc
-          pageLeft = sqLeft clipSq
-          pageTop = sqTop clipSq
-          pageRight = sqRight clipSq
-          pageBot = sqBot clipSq
-          clipSqNext = dkClipSq doc
-          pageLeftNext = sqLeft clipSqNext
-          pageTopNext = sqTop clipSqNext
-          pageRightNext = sqRight clipSqNext
-          pageBotNext = sqBot clipSqNext
-          currDoc = dkCurrDoc doc
-          currPage = dkCurrPage doc
-          nextPage = dkNextPage doc
-          isJapanese = dkIsJapanese doc
-        page <- GPop.documentGetPage currDoc currPage
-        nOfPage <- GPop.documentGetNPages currDoc
-        (pWid', pHei') <- GPop.pageGetSize page
-        hw@(wWid, wHei) <- Gtk.windowGetSize window
-        let
-          ratio = (fromIntegral wHei) / (pageBot - pageTop)
-          sexpsMV = mVarSExps mvs
-        colReal <- get event #x
-        rowReal <- get event #y
-        button <- get event #button -- left click is 1, right click is 3
-        sexpsMaybe <- MV.read sexpsMV (fromIntegral currPage)
-        sexpsMaybeNext <- case nOfPage of
-          1 -> return Nothing
-          _ -> MV.read sexpsMV (fromIntegral nextPage)
-        let
-          detacheds =
-            case sexpsMaybe of
-              Nothing -> []
-              Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
-                where
-                  g x = case x of
-                    Nothing -> False
-                    Just _ -> True
-                  g2 x = case x of
-                    Nothing -> ("", [])
-                    Just y -> y
-          detachedsNext =
-            case sexpsMaybeNext of
-              Nothing -> []
-              Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
-                where
-                  g x = case x of
-                    Nothing -> False
-                    Just _ -> True
-                  g2 x = case x of
-                    Nothing -> ("", [])
-                    Just y -> y
-
-          offSetXAll = - pageLeft
-          offSetYAll = - pageTop
-          point = CPos {posX = colReal / ratio - offSetXAll, posY = rowReal / ratio - offSetYAll}
-          offSetXAllNext = (pWid' - pageLeftNext - (pWid' - pageRight) - pageLeft)
-          offSetYAllNext = - pageTopNext
-          pointNext = CPos {posX = colReal / ratio -offSetXAllNext , posY = rowReal / ratio - offSetYAllNext}
-          (stemmed, stemmedNext)
-           | isJapanese = (detacheds, detachedsNext)
-           | otherwise = (stemmedPrim, stemmedNextPrim)
-            where
-              stemmedPrim = map (\x -> (stemEng $ fst x, snd x)) detacheds
-              stemmedNextPrim = map (\x -> (stemEng $ fst x, snd x)) detachedsNext
-          wordSq = filter f stemmed
-            where
-              f x@(str, sqs) = or $ map (\sq -> isSqIncludePoint sq point) sqs
-          wordSqNext = filter f stemmedNext
-            where
-              f x@(str, sqs) = or $ map (\sq -> isSqIncludePoint sq pointNext) sqs
-          words =  wordSq
-          wordsNext = wordSqNext
-
-          colors = dksColors docs
-          isFail = words == []
-          isFailNext = wordsNext == []
-          iword@(isLeft, (word, tarSqs))
-            | isFail && isFailNext = (-1, ("", []))
-            | not isFail = (0, head words)
-            | otherwise =  (1, head wordsNext)
-          previousDkClickedSquares = dkClickedSquare doc
-          isSameClicked = previousDkClickedSquares == (isLeft, tarSqs)
-        modifyIORef docRef (\dk -> dk {dkClickedSquare = (isLeft, tarSqs)})
-
-        let
-          isLeftSideClicked = isHalfLeft -- used when tablet mode (which wise color toggles)
-            where
-              point0
-                | isLeft == 0 = point
-                | otherwise = pointNext
-              totalDist = sum $ map (\x -> (sqRight x) - (sqLeft x)) tarSqs
-              res@(isIncFound, resDist, _) = foldl f (False, 0.0, 0.0) tarSqs
-                where
-                  f y@(isRes, iterRes, iter) sq
-                    | isRes == True = y
-                    | isIncluded = (True, currDist, nextDist)
-                    | otherwise = (False, iterRes, nextDist)
-                    where
-                      nextDist = iter + (sqRight sq) - (sqLeft sq)
-                      isIncluded = isSqIncludePoint sq point0
-                      distXWhenInc = (posX point0) - (sqLeft sq)
-                      currDist = iter + distXWhenInc
-              isHalfLeft
-                | isIncFound = resDist / totalDist < 0.3
-                | otherwise  = False
-
-        mode <- dksDebug <$> readIORef docsRef
-        let
-          currConfig = dkConfig doc
-          getAlrdConfigsSimilar globalConf
-            | filtered == [] = []
-            | otherwise = [mostSimilar]
-            where
-              mostSimilar = fst $ Lis.maximumBy g filtered
-              filtered = filter (\x@(x1, n) -> (4 < n ) || (n == lenOfWord)) $  map f2 globalConf
-              g x y = compare (snd x) (snd y)
-              lenOfWord = length word
-              f2 x@(tok, _)
-              --   | nCommPref < nCommSuf = (x, nCommSuf)
-                | otherwise = (x, nCommPref)
-                where
-                  nCommPref = length $ countPrefix tok word
-                  nCommSuf = length $ countSuffix tok word
-          forWinTitle = (ushow word)
-          isTablet = dksIsTablet docs
-          colorIndex = dkTogColIndex doc
-          (newInd, newColor)
-            | isTablet = (newIndex, colorTablet)
-            | mode == Local = (newIndex, colorLocal)
-            | isAlreadyL && button == 1 = (colorIndex, togging currCol)
-            | isAlreadyL = (colorIndex, toggingRev currCol)
-            | isAlreadyG = (colorIndex, currColG)
-            | isAlreadyLSimilar = (colorIndex, currColSimilarL)
-            | isAlreadyGSimilar = (colorIndex, currColSimilarG)
-            | otherwise = (newIndex, color)
-             where
-              isAlreadyL = not $ alrdLocalConfigs == []
-              alrdLocalConfigs  = filter (\x -> (fst x) == word) currConfig
-              currCol = snd $ head alrdLocalConfigs
-
-              isAlreadyG = not $ alrdGlobalConfigs == []
-              alrdGlobalConfigs = filter (\x -> (fst x) == word) globalConf
-              currColG = snd $ head alrdGlobalConfigs
-
-              isAlreadyLSimilar = not $ alrdLocalConfigsSimilar == []
-              alrdLocalConfigsSimilar  = getAlrdConfigsSimilar currConfig
-              currColSimilarL = snd $ head alrdLocalConfigsSimilar
-
-              isAlreadyGSimilar = not $ alrdGlobalConfigsSimilar == []
-              alrdGlobalConfigsSimilar = getAlrdConfigsSimilar globalConf
-              currColSimilarG = snd $ head alrdGlobalConfigsSimilar
-
-
-              newIndexTemp
-                | button == 1 = (colorIndex + 1)
-                | otherwise = (colorIndex - 1)
-              newIndexTempTab
-                | isSameClicked && isLeftSideClicked = (colorIndex - 1)
-                | otherwise = colorIndex + 1
-              color
-                | mod newIndexTemp 8 == 0 = colLime colors
-                | mod newIndexTemp 8 == 1 = colRed colors
-                | mod newIndexTemp 8 == 2 = colBlue colors
-                | mod newIndexTemp 8 == 3 = colGreen colors
-                | mod newIndexTemp 8 == 4 = colPurple colors
-                | mod newIndexTemp 8 == 5 = colOrange colors
-                | mod newIndexTemp 8 == 6 = colPink colors
-                | otherwise = colAqua colors
-              colorLocal
-                | mod newIndexTemp 8 == 0 = colBlue colors
-                | mod newIndexTemp 8 == 1 = colPink colors
-                | mod newIndexTemp 8 == 2 = colAqua colors
-                | mod newIndexTemp 8 == 3 = colLime colors
-                | mod newIndexTemp 8 == 4 = colOrange colors
-                | mod newIndexTemp 8 == 5 = colPurple colors
-                | mod newIndexTemp 8 == 6 = colGreen colors
-                | otherwise = colRed colors
-              colorTablet
-                | mod newIndexTempTab 9 == 0 = colBlack colors
-                | mod newIndexTempTab 9 == 1 = colPink colors
-                | mod newIndexTempTab 9 == 2 = colAqua colors
-                | mod newIndexTempTab 9 == 3 = colLime colors
-                | mod newIndexTempTab 9 == 4 = colOrange colors
-                | mod newIndexTempTab 9 == 5 = colPurple colors
-                | mod newIndexTempTab 9 == 6 = colGreen colors
-                | mod newIndexTempTab 9 == 7 = colRed colors
-                | otherwise = colBlue colors
-              newIndex
-                | isTablet = mod newIndexTempTab 9
-                | otherwise = mod newIndexTemp 8
-              togging col
-               | col == colRed colors = colBlue colors
-               | col == colBlue colors = colGreen colors
-               | col == colGreen colors = colPurple colors
-               | col == colPurple colors = colOrange colors
-               | col == colOrange colors = colPink colors
-               | col == colPink colors = colAqua colors
-               | col == colAqua colors = colLime colors
-               | otherwise = colRed colors
-              toggingRev col
-               | col == colBlue colors = colRed colors
-               | col == colGreen colors = colBlue colors
-               | col == colPurple colors = colGreen colors
-               | col == colOrange colors = colPurple colors
-               | col == colPink colors = colOrange colors
-               | col == colAqua colors = colPink colors
-               | col == colLime colors = colAqua colors
-               | otherwise = colLime colors
-          isBothFail = (isFail && isFailNext)
-          newIndex
-            | isTablet && isBothFail = colorIndex
-            | isTablet = mod newInd 9
-            | otherwise = mod newInd 8
-          incl n nOfPage = mod (n + 2) nOfPage
-          decl n nOfPage = mod (n - 2) nOfPage
-          incl1 n nOfPage = mod (n + 1) nOfPage
-          decl1 n nOfPage = mod (n - 1) nOfPage
-
-          actionClicked
-           -- | isTablet && isClickedOuterXLeft && (not isClickedUpperRow) && (not nextIsDual) = actionBothFailLeftNoNextDual
-           | isTablet && isClickedOuterXLeft && (isClickedUpperRow) && (not nextIsDual) = actionBothFailLeftNoNextDual
-           | isTablet && isClickedOuterXLeft && (isClickedUpperRow) && nextIsDual = actionBothFailRightNoNextDual
-           | isTablet && isClickedOuterXLeft && (not isClickedUpperRow) && nextIsDual = actionBothFailRightNextDual
-           | isTablet && isClickedOuterXLeft                 = actionBothFailRightNoNextDual
-           | isTablet && isClickedOuterYTop && isClickedLeftCol = toVanillaMode docsRef docRef window
-           | isTablet && isClickedOuterYTop     = deleteColors docsRef docRef window
-           | isTablet && isClickedOuterXRightNext && nextIsDual  && (isClickedUpperRow)        = actionBothFailLeftNoNextDual
-           | isTablet && isClickedOuterXRightNext && nextIsDual  && (not isClickedUpperRow)        = actionBothFailLeftNextDual
-           | isTablet && isClickedOuterXRight     && (not nextIsDual)   = actionBothFailLeftNoNextDual
-           | isTablet && (not isDeleting)       = actionNotBothFailNoDeleting
-           | isTablet                           = actionNotBothFailDeleting
-
-           | not isBothFail && (not isDeleting) = actionNotBothFailNoDeleting
-           | not isBothFail                     = actionNotBothFailDeleting
-           | isLeftClicked && nextIsDual        = actionBothFailLeftNextDual
-           | isLeftClicked                      = actionBothFailLeftNoNextDual
-           | nextIsDual                         = actionBothFailRightNextDual
-           | otherwise                          = actionBothFailRightNoNextDual
-           where
-             -- isBothFail = (isFail && isFailNext)
-             isLeftClicked = button == 1
-             actionBothFailLeftNextDual = do
-                 goOtherPage window docsRef docRef incl incl
-                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
-             actionBothFailLeftNoNextDual = do
-                 goOtherPage window docsRef docRef incl1 incl1
-                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
-             actionBothFailRightNextDual = do
-                 goOtherPage window docsRef docRef decl decl
-                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
-             actionBothFailRightNoNextDual = do
-                 goOtherPage window docsRef docRef decl1 decl1
-                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
-             actionNotBothFailNoDeleting = do
-              let
-                 dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
-                 droppedG = filter (\x -> not $ (fst x) == word) $ dksGlobalConfig docs
-              modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = [(word, newColor)] ++ dropped, dkTogColIndex = newIndex})
-              modifyIORef docsRef (\docs -> docs {dksGlobalConfig = [(word, newColor)] ++ droppedG})
-              Gtk.widgetQueueDraw window
-              Gtk.windowSetTitle window $ Text.pack forWinTitle
-             actionNotBothFailDeleting = do
-               let
-                 dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
-               modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = dropped, dkTogColIndex = newIndex})
-
-               Gtk.widgetQueueDraw window
-               Gtk.windowSetTitle window $ Text.pack forWinTitle
-             squares = concatMap id $ takeSndL detacheds
-             squaresNext = concatMap id $ takeSndL detachedsNext
-             isSquaresVoid = squares == []
-             isSquaresNextVoid = squaresNext == []
-             rowCenter
-               -- | nextIsDual = 0.5 * (leftPageCenter + rightPageCenter)
-               | otherwise = leftPageCenter
-               where
-                 leftPageCenter = 0.5 * (pageTop + pageBot)
-                 rightPageCenter = 0.5 * (pageTopNext + pageBotNext)
-             colCenter
-               | nextIsDual = bothPageColCenter
-               | otherwise = leftPageColCenter
-               where
-                 leftPageColCenter = 0.5 * (pageLeft + pageRight)
-                 bothPageColCenter = pageRight
-             mostLeft
-               | (isSquaresVoid || isSquaresNextVoid) = colCenter
-               | otherwise = minimum $ map sqLeft squares
-             mostRight
-               | (isSquaresVoid || isSquaresNextVoid)  = colCenter
-               | nextIsDual = maximum $ map sqRight squaresNext
-               | otherwise = maximum $ map sqRight squares
-             mostTopPrim
-               | isSquaresVoid || isSquaresNextVoid  = rowCenter
-               | nextIsDual = minimum $ map sqTop $ squares ++ squaresNext
-               | otherwise = minimum $ map sqTop squares
-             mostTop
-               | mostTopUB < mostTopPrim = mostTopUB
-               | otherwise = mostTopPrim
-               where
-                 mostTopUB = pageTop + (0.2 * (pageBot - pageTop))
-             mostBot
-               | isSquaresVoid || isSquaresNextVoid  = rowCenter
-               | nextIsDual = maximum $ map sqBot $ squares ++ squaresNext
-               | otherwise = maximum $ map sqBot squares
-             clickedX = posX point
-             clickedY = posY point
-             clickedXNext = posX pointNext
-             clickedYNext = posY pointNext
-             -- isClickedInner = mostTop < clickedY && clickedY < mostBot && mostLeft < clickedX && clickedX < mostRight
-             isClickedOuterYTop = clickedY < mostTop
-             isClickedLeftCol = clickedX < colCenter
-             isClickedUpperRow = clickedY < rowCenter
-             isClickedOuterXLeft = clickedX < mostLeft
-             isClickedOuterXRight = mostRight < clickedX
-             isClickedLeftColNext = clickedXNext < colCenter
-             isClickedOuterXRightNext = mostRight < clickedXNext
-        actionClicked
-        return False
-
-  on window #buttonReleaseEvent $ \event -> do
-    pressType <- get event #type
-    return False
 
   on window #motionNotifyEvent $ \event -> do
     col <- get event #x
@@ -984,61 +649,33 @@ mainGtk fpath poppySPath = do
     hw@(width, height) <- Gtk.windowGetSize window
     (pWid', pHei') <- GPop.pageGetSize page
 
-    if isYondle
-     then do
-      forkIO $ do
-       let
-        -- strs = takeFstL detacheds
-        strs = ["hoge", "fuga", "boke", "without"]
-        renderString str = do
-          renderWithContext context $ do
-            save
-            setOperator OperatorSource
-            setSourceRGBA 255 255 255 1
-            paint
-            restore
-          renderWithContext context $ do
-            save
-            scale ratio ratio
-            -- translate (- pageLeft) (- pageTop)
-            translate (200) (300)
-            showText (str :: String)
-            restore
-          -- threadDelay (2 * 1000 * 1000)
-       sequence $ map renderString strs
-       return ()
-      return True
-     else do
-      renderWithContext context $ do
-        save
-        setOperator OperatorSource
-        setSourceRGBA 255 255 255 1
-        -- setSourceRGBA 0 0 0 1
-        paint
-        restore
-      renderWithContext context $ do
-        save
-        scale ratio ratio
-        translate (- pageLeft) (- pageTop)
-        -- zeroRect <- GPop.rectangleNew
-        GPop.pageRender page context
-        _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection page context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRects
-        restore
+    renderWithContext context $ do
+      save
+      setOperator OperatorSource
+      setSourceRGBA 255 255 255 1
+      paint
+      restore
+    renderWithContext context $ do
+      save
+      scale ratio ratio
+      translate (- pageLeft) (- pageTop)
+      GPop.pageRender page context
+      _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection page context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRects
+      restore
 
-      -- for NextPage(If exists)
-      if (0 < nextPage) && (nextPage < (fromIntegral nOfPage) - 1) && (dksIsDualPage docs)then
-        renderWithContext context $ do
-            pageNext <- GPop.documentGetPage currDoc nextPage
-            save
-            scale ratioNext ratioNext
-            translate (pWid' - pageLeftNext - (pWid' - pageRight) - pageLeft) (- pageTopNext)
-            -- zeroRect <- GPop.rectangleNew
-            GPop.pageRender pageNext context
-            _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection pageNext context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRectsNext
-            --_ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection pageNext context rect zeroRect GPop.SelectionStyleGlyph col $ colSemiWhite colors) colundRectsNext
-            restore
-        else return ()
-      return True
+    -- for NextPage(If exists)
+    if (0 < nextPage) && (nextPage < (fromIntegral nOfPage) - 1) && (dksIsDualPage docs)
+      then
+       renderWithContext context $ do
+          pageNext <- GPop.documentGetPage currDoc nextPage
+          save
+          scale ratioNext ratioNext
+          translate (pWid' - pageLeftNext - (pWid' - pageRight) - pageLeft) (- pageTopNext)
+          GPop.pageRender pageNext context
+          _ <- mapM (\x@(col, rect) -> GPop.pageRenderSelection pageNext context rect zeroRect GPop.SelectionStyleGlyph col $ colWhite colors) colundRectsNext
+          restore
+      else return ()
+    return True
   on window #destroy $ do
     {-
     get2 "xrandr -o normal"
@@ -1097,6 +734,10 @@ data Docs = CDocs {
   , dksIsYondle :: Bool
   , dksIsTablet :: Bool
   , dksIsDefaultSize :: Bool
+  , dksClickedPoint :: (Double, Double) -- (row, col)
+  , dksClickedButton :: String -- Mouse Button
+  , dksTraject :: [(Double, Double)] -- (row, col)
+  , dksIsYankPhase :: Bool
   }
 
 data Doc = CDoc {
@@ -1379,6 +1020,10 @@ initDocs poppySPath window = do
       , dksIsYondle = False
       , dksIsTablet = isTablet
       , dksIsDefaultSize = True
+      , dksTraject = []
+      , dksClickedPoint = (0.0, 0.0)
+      , dksClickedButton = ""
+      , dksIsYankPhase = False
       }
   return res
 
@@ -1839,6 +1484,9 @@ deleteColors docsRef docRef window = do
       modifyIORef docRef (\doc -> doc  {dkTogColIndex = 0}) -- restart from Red (0)
       Gtk.windowSetTitle window $ Text.pack "DeColored"
 
+yankColorConfig docRef = do
+      modifyIORef docRef (\x -> x {dkConfig = dkConfigYank x})
+
 toVanillaMode docsRef docRef window = do
       mode <- dksDebug <$> readIORef docsRef
       let
@@ -1886,3 +1534,352 @@ setClipSq docsRef docRef dir = do
           }
   modifyIORef docRef (\x -> x {dkClipSq = newClipSq})
   return ()
+
+callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm button = do
+    isNonMis <- dksForMisDoublePress <$> readIORef docsRef
+    if (isNonMis == False)
+      then do
+       modifyIORef docsRef (\x -> x {dksForMisDoublePress = True})
+       return False
+      else
+       do
+        modifyIORef docsRef (\x -> x {dksForMisDoublePress = False})
+        docs <- readIORef docsRef
+        doc <- readIORef docRef
+        mvs <- readMVar mVars
+        let
+          nextIsDual = dksIsDualPage docs
+          globalConf = dksGlobalConfig docs
+--          baseConf = dksBaseConfig docs
+          isDeleting = dksIsDeleting docs
+          clipSq = dkClipSq doc
+          pageLeft = sqLeft clipSq
+          pageTop = sqTop clipSq
+          pageRight = sqRight clipSq
+          pageBot = sqBot clipSq
+          clipSqNext = dkClipSq doc
+          pageLeftNext = sqLeft clipSqNext
+          pageTopNext = sqTop clipSqNext
+          pageRightNext = sqRight clipSqNext
+          pageBotNext = sqBot clipSqNext
+          currDoc = dkCurrDoc doc
+          currPage = dkCurrPage doc
+          nextPage = dkNextPage doc
+          isJapanese = dkIsJapanese doc
+        page <- GPop.documentGetPage currDoc currPage
+        nOfPage <- GPop.documentGetNPages currDoc
+        (pWid', pHei') <- GPop.pageGetSize page
+        hw@(wWid, wHei) <- Gtk.windowGetSize window
+        let
+          ratio = (fromIntegral wHei) / (pageBot - pageTop)
+          sexpsMV = mVarSExps mvs
+        sexpsMaybe <- MV.read sexpsMV (fromIntegral currPage)
+        sexpsMaybeNext <- case nOfPage of
+          1 -> return Nothing
+          _ -> MV.read sexpsMV (fromIntegral nextPage)
+        let
+          detacheds =
+            case sexpsMaybe of
+              Nothing -> []
+              Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
+                where
+                  g x = case x of
+                    Nothing -> False
+                    Just _ -> True
+                  g2 x = case x of
+                    Nothing -> ("", [])
+                    Just y -> y
+          detachedsNext =
+            case sexpsMaybeNext of
+              Nothing -> []
+              Just sexps -> map g2 $ filter g $ takeSndL $ concatMap forgetSExp $ map (mapNode snd (\x -> (fst x, synSqs $ snd x))) sexps
+                where
+                  g x = case x of
+                    Nothing -> False
+                    Just _ -> True
+                  g2 x = case x of
+                    Nothing -> ("", [])
+                    Just y -> y
+
+          offSetXAll = - pageLeft
+          offSetYAll = - pageTop
+          dYRatio = (rowTerm - rowInit) / (fromIntegral wHei)
+          dXRatio = (colTerm - colInit) / (fromIntegral wWid)
+          point = CPos {posX = colInit / ratio - offSetXAll, posY = rowInit / ratio - offSetYAll}
+          offSetXAllNext = (pWid' - pageLeftNext - (pWid' - pageRight) - pageLeft)
+          offSetYAllNext = - pageTopNext
+          pointNext = CPos {posX = colInit / ratio -offSetXAllNext , posY = rowInit / ratio - offSetYAllNext}
+          (stemmed, stemmedNext)
+           | isJapanese = (detacheds, detachedsNext)
+           | otherwise = (stemmedPrim, stemmedNextPrim)
+            where
+              stemmedPrim = map (\x -> (stemEng $ fst x, snd x)) detacheds
+              stemmedNextPrim = map (\x -> (stemEng $ fst x, snd x)) detachedsNext
+          wordSq = filter f stemmed
+            where
+              f x@(str, sqs) = or $ map (\sq -> isSqIncludePoint sq point) sqs
+          wordSqNext = filter f stemmedNext
+            where
+              f x@(str, sqs) = or $ map (\sq -> isSqIncludePoint sq pointNext) sqs
+          words =  wordSq
+          wordsNext = wordSqNext
+
+          colors = dksColors docs
+          isFail = words == []
+          isFailNext = wordsNext == []
+          iword@(isLeft, (word, tarSqs))
+            | isFail && isFailNext = (-1, ("", []))
+            | not isFail = (0, head words)
+            | otherwise =  (1, head wordsNext)
+          previousDkClickedSquares = dkClickedSquare doc
+          isSameClicked = previousDkClickedSquares == (isLeft, tarSqs)
+        modifyIORef docRef (\dk -> dk {dkClickedSquare = (isLeft, tarSqs)})
+
+        let
+          isLeftSideClicked = isHalfLeft -- used when tablet mode (which wise color toggles)
+            where
+              point0
+                | isLeft == 0 = point
+                | otherwise = pointNext
+              totalDist = sum $ map (\x -> (sqRight x) - (sqLeft x)) tarSqs
+              res@(isIncFound, resDist, _) = foldl f (False, 0.0, 0.0) tarSqs
+                where
+                  f y@(isRes, iterRes, iter) sq
+                    | isRes == True = y
+                    | isIncluded = (True, currDist, nextDist)
+                    | otherwise = (False, iterRes, nextDist)
+                    where
+                      nextDist = iter + (sqRight sq) - (sqLeft sq)
+                      isIncluded = isSqIncludePoint sq point0
+                      distXWhenInc = (posX point0) - (sqLeft sq)
+                      currDist = iter + distXWhenInc
+              isHalfLeft
+                | isIncFound = resDist / totalDist < 0.3
+                | otherwise  = False
+
+        mode <- dksDebug <$> readIORef docsRef
+        let
+          currConfig = dkConfig doc
+          getAlrdConfigsSimilar globalConf
+            | filtered == [] = []
+            | otherwise = [mostSimilar]
+            where
+              mostSimilar = fst $ Lis.maximumBy g filtered
+              filtered = filter (\x@(x1, n) -> (4 < n ) || (n == lenOfWord)) $  map f2 globalConf
+              g x y = compare (snd x) (snd y)
+              lenOfWord = length word
+              f2 x@(tok, _)
+              --   | nCommPref < nCommSuf = (x, nCommSuf)
+                | otherwise = (x, nCommPref)
+                where
+                  nCommPref = length $ countPrefix tok word
+                  nCommSuf = length $ countSuffix tok word
+          forWinTitle = (ushow word)
+          isTablet = dksIsTablet docs
+          colorIndex = dkTogColIndex doc
+          (newInd, newColor)
+            | isTablet = (newIndex, colorTablet)
+            | mode == Local = (newIndex, colorLocal)
+            | isAlreadyL && button == "1" = (colorIndex, togging currCol)
+            | isAlreadyL = (colorIndex, toggingRev currCol)
+            | isAlreadyG = (colorIndex, currColG)
+            | isAlreadyLSimilar = (colorIndex, currColSimilarL)
+            | isAlreadyGSimilar = (colorIndex, currColSimilarG)
+            | otherwise = (newIndex, color)
+             where
+              isAlreadyL = not $ alrdLocalConfigs == []
+              alrdLocalConfigs  = filter (\x -> (fst x) == word) currConfig
+              currCol = snd $ head alrdLocalConfigs
+
+              isAlreadyG = not $ alrdGlobalConfigs == []
+              alrdGlobalConfigs = filter (\x -> (fst x) == word) globalConf
+              currColG = snd $ head alrdGlobalConfigs
+
+              isAlreadyLSimilar = not $ alrdLocalConfigsSimilar == []
+              alrdLocalConfigsSimilar  = getAlrdConfigsSimilar currConfig
+              currColSimilarL = snd $ head alrdLocalConfigsSimilar
+
+              isAlreadyGSimilar = not $ alrdGlobalConfigsSimilar == []
+              alrdGlobalConfigsSimilar = getAlrdConfigsSimilar globalConf
+              currColSimilarG = snd $ head alrdGlobalConfigsSimilar
+
+
+              newIndexTemp
+                | button == "1" = (colorIndex + 1)
+                | otherwise = (colorIndex - 1)
+              newIndexTempTab
+              --  | isSameClicked && isLeftSideClicked = (colorIndex - 1)
+                | otherwise = colorIndex + 1
+              color
+                | mod newIndexTemp 8 == 0 = colLime colors
+                | mod newIndexTemp 8 == 1 = colRed colors
+                | mod newIndexTemp 8 == 2 = colBlue colors
+                | mod newIndexTemp 8 == 3 = colGreen colors
+                | mod newIndexTemp 8 == 4 = colPurple colors
+                | mod newIndexTemp 8 == 5 = colOrange colors
+                | mod newIndexTemp 8 == 6 = colPink colors
+                | otherwise = colAqua colors
+              colorLocal
+                | mod newIndexTemp 8 == 0 = colBlue colors
+                | mod newIndexTemp 8 == 1 = colPink colors
+                | mod newIndexTemp 8 == 2 = colAqua colors
+                | mod newIndexTemp 8 == 3 = colLime colors
+                | mod newIndexTemp 8 == 4 = colOrange colors
+                | mod newIndexTemp 8 == 5 = colPurple colors
+                | mod newIndexTemp 8 == 6 = colGreen colors
+                | otherwise = colRed colors
+              colorTablet
+                | mod newIndexTempTab 9 == 0 = colBlack colors
+                | mod newIndexTempTab 9 == 1 = colPink colors
+                | mod newIndexTempTab 9 == 2 = colAqua colors
+                | mod newIndexTempTab 9 == 3 = colLime colors
+                | mod newIndexTempTab 9 == 4 = colOrange colors
+                | mod newIndexTempTab 9 == 5 = colPurple colors
+                | mod newIndexTempTab 9 == 6 = colGreen colors
+                | mod newIndexTempTab 9 == 7 = colRed colors
+                | otherwise = colBlue colors
+              newIndex
+                | isTablet = mod newIndexTempTab 9
+                | otherwise = mod newIndexTemp 8
+              togging col
+               | col == colRed colors = colBlue colors
+               | col == colBlue colors = colGreen colors
+               | col == colGreen colors = colPurple colors
+               | col == colPurple colors = colOrange colors
+               | col == colOrange colors = colPink colors
+               | col == colPink colors = colAqua colors
+               | col == colAqua colors = colLime colors
+               | otherwise = colRed colors
+              toggingRev col
+               | col == colBlue colors = colRed colors
+               | col == colGreen colors = colBlue colors
+               | col == colPurple colors = colGreen colors
+               | col == colOrange colors = colPurple colors
+               | col == colPink colors = colOrange colors
+               | col == colAqua colors = colPink colors
+               | col == colLime colors = colAqua colors
+               | otherwise = colLime colors
+          isBothFail = (isFail && isFailNext)
+          newIndex
+            | isTablet && isBothFail = colorIndex
+            | isTablet = mod newInd 9
+            | otherwise = mod newInd 8
+          incl n nOfPage = mod (n + 2) nOfPage
+          decl n nOfPage = mod (n - 2) nOfPage
+          incl1 n nOfPage = mod (n + 1) nOfPage
+          decl1 n nOfPage = mod (n - 1) nOfPage
+
+          actionClicked
+        {-
+           | isTablet && isClickedOuterXLeft && (isClickedUpperRow) && (not nextIsDual) = actionBothFailLeftNoNextDual
+           | isTablet && isClickedOuterXLeft && (isClickedUpperRow) && nextIsDual = actionBothFailRightNoNextDual
+           | isTablet && isClickedOuterXLeft && (not isClickedUpperRow) && nextIsDual = actionBothFailRightNextDual
+           | isTablet && isClickedOuterXLeft                 = actionBothFailRightNoNextDual
+           | isTablet && isClickedOuterYTop && isClickedLeftCol = toVanillaMode docsRef docRef window
+           | isTablet && isClickedOuterYTop     = deleteColors docsRef docRef window
+           | isTablet && isClickedOuterXRightNext && nextIsDual  && (isClickedUpperRow)        = actionBothFailLeftNoNextDual
+           | isTablet && isClickedOuterXRightNext && nextIsDual  && (not isClickedUpperRow)        = actionBothFailLeftNextDual
+           | isTablet && isClickedOuterXRight     && (not nextIsDual)   = actionBothFailLeftNoNextDual
+           | isTablet && (not isDeleting)       = actionNotBothFailNoDeleting
+           | isTablet                           = actionNotBothFailDeleting
+
+-}
+
+           | isTablet && (0 < dXRatio) && (0.1 < abs dXRatio) && nextIsDual = actionBothFailRightNextDual
+           | isTablet && (0 < dXRatio) && (0.01 < abs dXRatio && abs dXRatio < 0.1) && nextIsDual = actionBothFailRightNoNextDual
+           | isTablet && (0 < dXRatio) && (0.01 < abs dXRatio)               = actionBothFailRightNoNextDual
+           | isTablet && (dXRatio < 0) && (0.1 < abs dXRatio) && nextIsDual = actionBothFailLeftNextDual
+           | isTablet && (dXRatio < 0) && (0.01 < abs dXRatio && abs dXRatio < 0.1) && nextIsDual = actionBothFailLeftNoNextDual
+           | isTablet && (dXRatio < 0) && (0.01 < abs dXRatio)               = actionBothFailLeftNoNextDual
+
+           | isTablet && isClickedOuterYTop && isClickedLeftCol = toVanillaMode docsRef docRef window
+           | isTablet && isClickedOuterYTop     = deleteColors docsRef docRef window
+           | isTablet && (not isDeleting)       = actionNotBothFailNoDeleting
+           | isTablet                           = actionNotBothFailDeleting
+
+           | not isBothFail && (not isDeleting) = actionNotBothFailNoDeleting
+           | not isBothFail                     = actionNotBothFailDeleting
+           | isLeftClicked && nextIsDual        = actionBothFailLeftNextDual
+           | isLeftClicked                      = actionBothFailLeftNoNextDual
+           | nextIsDual                         = actionBothFailRightNextDual
+           | otherwise                          = actionBothFailRightNoNextDual
+           where
+             -- isBothFail = (isFail && isFailNext)
+             isLeftClicked = button == "1"
+             actionBothFailLeftNextDual = do
+                 goOtherPage window docsRef docRef incl incl
+                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+             actionBothFailLeftNoNextDual = do
+                 goOtherPage window docsRef docRef incl1 incl1
+                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+             actionBothFailRightNextDual = do
+                 goOtherPage window docsRef docRef decl decl
+                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+             actionBothFailRightNoNextDual = do
+                 goOtherPage window docsRef docRef decl1 decl1
+                 Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+             actionNotBothFailNoDeleting = do
+              let
+                 dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
+                 droppedG = filter (\x -> not $ (fst x) == word) $ dksGlobalConfig docs
+              modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = [(word, newColor)] ++ dropped, dkTogColIndex = newIndex})
+              modifyIORef docsRef (\docs -> docs {dksGlobalConfig = [(word, newColor)] ++ droppedG})
+              Gtk.widgetQueueDraw window
+              Gtk.windowSetTitle window $ Text.pack forWinTitle
+             actionNotBothFailDeleting = do
+               let
+                 dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
+               modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = dropped, dkTogColIndex = newIndex})
+
+               Gtk.widgetQueueDraw window
+               Gtk.windowSetTitle window $ Text.pack forWinTitle
+             squares = concatMap id $ takeSndL detacheds
+             squaresNext = concatMap id $ takeSndL detachedsNext
+             isSquaresVoid = squares == []
+             isSquaresNextVoid = squaresNext == []
+             rowCenter
+               -- | nextIsDual = 0.5 * (leftPageCenter + rightPageCenter)
+               | otherwise = leftPageCenter
+               where
+                 leftPageCenter = 0.5 * (pageTop + pageBot)
+                 rightPageCenter = 0.5 * (pageTopNext + pageBotNext)
+             colCenter
+               | nextIsDual = bothPageColCenter
+               | otherwise = leftPageColCenter
+               where
+                 leftPageColCenter = 0.5 * (pageLeft + pageRight)
+                 bothPageColCenter = pageRight
+             mostLeft
+               | (isSquaresVoid || isSquaresNextVoid) = colCenter
+               | otherwise = minimum $ map sqLeft squares
+             mostRight
+               | (isSquaresVoid || isSquaresNextVoid)  = colCenter
+               | nextIsDual = maximum $ map sqRight squaresNext
+               | otherwise = maximum $ map sqRight squares
+             mostTopPrim
+               | isSquaresVoid || isSquaresNextVoid  = rowCenter
+               | nextIsDual = minimum $ map sqTop $ squares ++ squaresNext
+               | otherwise = minimum $ map sqTop squares
+             mostTop
+               | mostTopUB < mostTopPrim = mostTopUB
+               | otherwise = mostTopPrim
+               where
+                 mostTopUB = pageTop + (0.2 * (pageBot - pageTop))
+             mostBot
+               | isSquaresVoid || isSquaresNextVoid  = rowCenter
+               | nextIsDual = maximum $ map sqBot $ squares ++ squaresNext
+               | otherwise = maximum $ map sqBot squares
+             clickedX = posX point
+             clickedY = posY point
+             clickedXNext = posX pointNext
+             clickedYNext = posY pointNext
+             -- isClickedInner = mostTop < clickedY && clickedY < mostBot && mostLeft < clickedX && clickedX < mostRight
+             isClickedOuterYTop = clickedY < mostTop
+             isClickedLeftCol = clickedX < colCenter
+             isClickedUpperRow = clickedY < rowCenter
+             isClickedOuterXLeft = clickedX < mostLeft
+             isClickedOuterXRight = mostRight < clickedX
+             isClickedLeftColNext = clickedXNext < colCenter
+             isClickedOuterXRightNext = mostRight < clickedXNext
+        actionClicked
+        return False
