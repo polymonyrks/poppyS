@@ -4,6 +4,7 @@
 
 import Control.Monad (when, void)
 import Control.Monad.Trans.Reader (runReaderT)
+import Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT))
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.MVar
 import qualified Data.Text as Text
@@ -37,7 +38,7 @@ import qualified GI.Poppler as GPop
 import Graphics.Rendering.Cairo
 import Graphics.Rendering.Cairo.Internal (Render(runRender))
 import Graphics.Rendering.Cairo.Types (Cairo(Cairo))
-import Foreign.Ptr (castPtr)
+import Foreign.Ptr (Ptr, castPtr, nullPtr)
 
 import GHC.IO.Encoding
 import Control.Exception.Safe
@@ -46,19 +47,6 @@ import Codec.Text.IConv
 import Codec.Binary.UTF8.String
 import Data.Text.Encoding
 
-
-hogeP = do
-  doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/poppyS/bug0.pdf") Nothing
-  nmax <- GPop.documentGetNPages doc
-  let
-    showTxt n = do
-      page <- GPop.documentGetPage doc n
-      txt <- GPop.pageGetText page
-      mRes <- getMecabed $ Text.unpack txt
-      let
-        toks = V.map mToken mRes
-      cshowI toks
-  mapM showTxt [0 .. nmax - 1]
 
 pdfFilesDir :: String
 pdfFilesDir = "./pdfs"
@@ -154,6 +142,7 @@ mainGtk fpath poppySPath = do
   on window #keyPressEvent $ \event -> do
     name <- event `get` #keyval >>= Gdk.keyvalName
     nPage <- GPop.documentGetNPages currDoc
+    modifyIORef docsRef (\x -> x {dksIsClickedStg = False})
     let
       fff name = case name of
         Nothing -> return ()
@@ -407,10 +396,10 @@ mainGtk fpath poppySPath = do
       return ()
     when (stKeys == ["p"]) $ do
       -- modifyIORef docRef (\x -> x {dkConfig = dkConfigYank x})
-      yankColorConfig docRef
-      Gtk.widgetQueueDraw window
+      -- Gtk.widgetQueueDraw window
+      -- Gtk.windowSetTitle window $ Text.pack "Pasted"
+      yankColorConfig docsRef docRef window
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
-      Gtk.windowSetTitle window $ Text.pack "Pasted"
       return ()
     when (stKeys == ["x"]) $ do
       docs <- readIORef docsRef
@@ -738,6 +727,7 @@ data Docs = CDocs {
   , dksClickedButton :: String -- Mouse Button
   , dksTraject :: [(Double, Double)] -- (row, col)
   , dksIsYankPhase :: Bool
+  , dksIsClickedStg :: Bool
   }
 
 data Doc = CDoc {
@@ -755,6 +745,7 @@ data Doc = CDoc {
   , dkClipSq :: Sq Double
   , dkClipSqNext :: Sq Double
   , dkClickedSquare :: (Int, [Sq Double]) -- fst is which of these, i.e. (-1: no clicked, 0: leftPage, 1:rightPage)
+  , dkIndexTree :: [([Int], (Text.Text, Int32))]
   }
 
 setColors :: IO Colors
@@ -984,8 +975,8 @@ initDocs poppySPath window = do
     presetConfigs = map getConfigContents $ V.toList confContents
     config = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsPrim
     configBase = map (parseConfig colors) $ V.toList $ V.map (\x -> read x :: String) configsBasePrim
-    -- isTablet = False
-    isTablet = True
+    isTablet = False
+    -- isTablet = True
   isDual <- do
     if isTablet
       then do
@@ -1024,6 +1015,7 @@ initDocs poppySPath window = do
       , dksClickedPoint = (0.0, 0.0)
       , dksClickedButton = ""
       , dksIsYankPhase = False
+      , dksIsClickedStg = False
       }
   return res
 
@@ -1068,6 +1060,7 @@ initDoc docsRef fpath = do
         pageNext <- GPop.documentGetPage doc nextPage
         sizeN <- GPop.pageGetSize pageNext
         return sizeN
+  indexTree <- retrIndexTree doc
   let
     engRatio = (fromIntegral $ length $ filter f $ txt ++ txtHalf) / (fromIntegral $ length $ txt ++ txtHalf)
       where
@@ -1095,6 +1088,7 @@ initDoc docsRef fpath = do
     , dkClipSq = clipSq
     , dkClipSqNext = clipSqNext
     , dkClickedSquare = (-1, [])
+    , dkIndexTree = indexTree
     }
   return res
 
@@ -1124,7 +1118,7 @@ getWindowTitleFromDoc docsRef docRef = do
      | dkIsJapanese doc = "JP"
      | otherwise = "EN"
     mode = dksDebug docs
-    res = docName ++ ": " ++ "[" ++ (show currPage) ++ "/" ++ (show nOfPage) ++ "]" ++ " lang := " ++ lang ++ ": " ++ "mode := " ++ (show mode)
+    res = docName ++ ": " ++ "[" ++ (show currPage) ++ "/" ++ (show $ nOfPage - 1) ++ "]" ++ " lang := " ++ lang ++ ": " ++ "mode := " ++ (show mode)
   return res
 
 initMVars :: IORef Doc -> IO MVars
@@ -1240,7 +1234,23 @@ goOtherPage window docsRef docRef inclF inclFNext = do
     nextPagePrev = dkNextPage doc
     nextPage = inclFNext nextPagePrev nOfPage
   modifyIORef docRef (\x -> x {dkCurrPage = currPage, dkNextPage = nextPage})
-  modifyIORef docsRef (\x -> x {dksNofHint = 2})
+  modifyIORef docsRef (\x -> x {dksNofHint = 2, dksIsClickedStg = False})
+  when isTablet $ saveConfigs docsRef docRef
+  Gtk.widgetQueueDraw window
+
+goOtherPageAbs window docsRef docRef n = do
+  doc <- readIORef docRef
+  docs <- readIORef docsRef
+  let
+    isTablet = dksIsTablet docs
+    currDoc = dkCurrDoc doc
+  nPage <- GPop.documentGetNPages currDoc
+  if nPage == 1
+    then
+      modifyIORef docRef (\x -> x {dkCurrPage = 0, dkNextPage = 0})
+    else
+      modifyIORef docRef (\x -> x {dkCurrPage = n, dkNextPage = n + 1})
+  modifyIORef docsRef (\x -> x {dksNofHint = 2, dksIsClickedStg = False})
   when isTablet $ saveConfigs docsRef docRef
   Gtk.widgetQueueDraw window
 
@@ -1308,6 +1318,7 @@ resizeFromCurrPageSqs window docsRef docRef mVars = do
     modifyIORef docRef (\x -> x
                          {dkClipSq = sq
                         , dkClipSqNext = sqNext})
+    modifyIORef docsRef (\x -> x {dksIsClickedStg = False})
     Gtk.widgetQueueDraw window
 
 stopper f minmPrim maxmPrim n
@@ -1482,10 +1493,14 @@ deleteColors docsRef docRef window = do
       modifyIORef docRef (\x -> x {dkClickedSquare = (-1, [])})
       Gtk.widgetQueueDraw window
       modifyIORef docRef (\doc -> doc  {dkTogColIndex = 0}) -- restart from Red (0)
+      modifyIORef docsRef (\x -> x {dksIsClickedStg = False})
       Gtk.windowSetTitle window $ Text.pack "DeColored"
 
-yankColorConfig docRef = do
+yankColorConfig docsRef docRef window = do
       modifyIORef docRef (\x -> x {dkConfig = dkConfigYank x})
+      modifyIORef docsRef (\x -> x {dksIsClickedStg = False})
+      Gtk.widgetQueueDraw window
+      Gtk.windowSetTitle window $ Text.pack "Pasted"
 
 toVanillaMode docsRef docRef window = do
       mode <- dksDebug <$> readIORef docsRef
@@ -1495,6 +1510,7 @@ toVanillaMode docsRef docRef window = do
          | mode == Vanilla = Local
          | otherwise = Vanilla
       modifyIORef docsRef (\x -> x {dksDebug = newMode})
+      modifyIORef docsRef (\x -> x {dksIsClickedStg = False})
       Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
       Gtk.widgetQueueDraw window
 
@@ -1533,6 +1549,7 @@ setClipSq docsRef docRef dir = do
           , sqRight = rgPrim
           }
   modifyIORef docRef (\x -> x {dkClipSq = newClipSq})
+  modifyIORef docsRef (\x -> x {dksIsClickedStg = False})
   return ()
 
 callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm button = do
@@ -1566,6 +1583,7 @@ callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm butt
           currPage = dkCurrPage doc
           nextPage = dkNextPage doc
           isJapanese = dkIsJapanese doc
+          currConfig = dkConfig doc
         page <- GPop.documentGetPage currDoc currPage
         nOfPage <- GPop.documentGetNPages currDoc
         (pWid', pHei') <- GPop.pageGetSize page
@@ -1627,11 +1645,16 @@ callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm butt
           colors = dksColors docs
           isFail = words == []
           isFailNext = wordsNext == []
+          isBothFail = (isFail && isFailNext)
+          isClickedStg = dksIsClickedStg docs
+          isToggleRev = isClickedStg && isBothFail
+          notIsCurrConfigVoid = not $ currConfig == []
+          previousDkClickedSquares@(iPrev, tarsqPrev) = dkClickedSquare doc
           iword@(isLeft, (word, tarSqs))
-            | isFail && isFailNext = (-1, ("", []))
+            | isToggleRev && notIsCurrConfigVoid = (iPrev, (fst $ head currConfig, tarsqPrev))
+            | isBothFail = (-1, ("", []))
             | not isFail = (0, head words)
             | otherwise =  (1, head wordsNext)
-          previousDkClickedSquares = dkClickedSquare doc
           isSameClicked = previousDkClickedSquares == (isLeft, tarSqs)
         modifyIORef docRef (\dk -> dk {dkClickedSquare = (isLeft, tarSqs)})
 
@@ -1659,7 +1682,6 @@ callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm butt
 
         mode <- dksDebug <$> readIORef docsRef
         let
-          currConfig = dkConfig doc
           getAlrdConfigsSimilar globalConf
             | filtered == [] = []
             | otherwise = [mostSimilar]
@@ -1708,7 +1730,7 @@ callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm butt
                 | button == "1" = (colorIndex + 1)
                 | otherwise = (colorIndex - 1)
               newIndexTempTab
-              --  | isSameClicked && isLeftSideClicked = (colorIndex - 1)
+                | isToggleRev = (colorIndex - 1)
                 | otherwise = colorIndex + 1
               color
                 | mod newIndexTemp 8 == 0 = colLime colors
@@ -1759,8 +1781,8 @@ callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm butt
                | col == colAqua colors = colPink colors
                | col == colLime colors = colAqua colors
                | otherwise = colLime colors
-          isBothFail = (isFail && isFailNext)
           newIndex
+            | isTablet && isToggleRev && notIsCurrConfigVoid = mod newInd 9
             | isTablet && isBothFail = colorIndex
             | isTablet = mod newInd 9
             | otherwise = mod newInd 8
@@ -1769,32 +1791,55 @@ callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm butt
           incl1 n nOfPage = mod (n + 1) nOfPage
           decl1 n nOfPage = mod (n - 1) nOfPage
 
+          isYankPhase = dksIsYankPhase docs
+
+          -- chapters' pages retrieved from poppler is begun from 1 page, so must be -1.
+          indexTree = map (\x@(x1, (x2, x3)) -> (x1, (x2, x3 - 1))) $ dkIndexTree doc
+          -- chapters = takeSndL $ takeSndL $ filter (\x -> (length $ fst x) == 1) indexTree
+          chapters = takeSndL $ takeSndL filteredConcated
+            where
+              leastDist = 50
+              filtered1 = filter (\x -> (length $ fst x) == 1) indexTree
+              filtered2 = filter (\x -> (length $ fst x) == 2) indexTree
+              filtered3 = concatMap (\x@(x1, x2) -> f (snd $ snd x1) (snd $ snd x2)) $ filter (\x@(x1, x2) -> leastDist < (snd $ snd x2) - (snd $ snd x1)) $ zip (init filtered1) (tail filtered1)
+                 where
+                   f leftP rightP = filter (\x -> leftP < (snd $ snd x) && (snd $ snd x) < rightP) filtered2
+              filteredConcated = Lis.sortBy f $ filtered1 ++ filtered3
+                 where
+                   f x y = compare (snd $ snd x) (snd $ snd y)
+          chapNextTo@(prevC, nextC)
+            -- | indexTree == [] = (currPage, currPage)
+            | otherwise = (prevChap, nextChap)
+            where
+              lastPage = nOfPage - 1
+              added = snocL (0 : chapters) lastPage
+              prevChap
+               | nOfPage == 1 = 0
+               | currPage == 0 && nextIsDual = lastPage - 1
+               | currPage == 0 = lastPage
+               | otherwise = last $ filter (\x -> x < currPage) added
+              nextChap
+               | nOfPage == 1 = 0
+               | currPage == lastPage = 0
+               | res == lastPage && nextIsDual = 0
+               | otherwise = res
+                 where
+                   res = head $ filter (\x -> currPage < x) added
+
           actionClicked
-        {-
-           | isTablet && isClickedOuterXLeft && (isClickedUpperRow) && (not nextIsDual) = actionBothFailLeftNoNextDual
-           | isTablet && isClickedOuterXLeft && (isClickedUpperRow) && nextIsDual = actionBothFailRightNoNextDual
-           | isTablet && isClickedOuterXLeft && (not isClickedUpperRow) && nextIsDual = actionBothFailRightNextDual
-           | isTablet && isClickedOuterXLeft                 = actionBothFailRightNoNextDual
-           | isTablet && isClickedOuterYTop && isClickedLeftCol = toVanillaMode docsRef docRef window
-           | isTablet && isClickedOuterYTop     = deleteColors docsRef docRef window
-           | isTablet && isClickedOuterXRightNext && nextIsDual  && (isClickedUpperRow)        = actionBothFailLeftNoNextDual
-           | isTablet && isClickedOuterXRightNext && nextIsDual  && (not isClickedUpperRow)        = actionBothFailLeftNextDual
-           | isTablet && isClickedOuterXRight     && (not nextIsDual)   = actionBothFailLeftNoNextDual
-           | isTablet && (not isDeleting)       = actionNotBothFailNoDeleting
-           | isTablet                           = actionNotBothFailDeleting
-
--}
-
-           | isTablet && (0 < dXRatio) && (0.1 < abs dXRatio) && nextIsDual = actionBothFailRightNextDual
+           | isTablet && (0 < dXRatio) && (0.6 < abs dXRatio) = actionGoChap prevC
+           | isTablet && (0 < dXRatio) && (0.1 < abs dXRatio && abs dXRatio <= 0.6) && nextIsDual = actionBothFailRightNextDual
            | isTablet && (0 < dXRatio) && (0.01 < abs dXRatio && abs dXRatio < 0.1) && nextIsDual = actionBothFailRightNoNextDual
            | isTablet && (0 < dXRatio) && (0.01 < abs dXRatio)               = actionBothFailRightNoNextDual
-           | isTablet && (dXRatio < 0) && (0.1 < abs dXRatio) && nextIsDual = actionBothFailLeftNextDual
+           | isTablet && (dXRatio < 0) && (0.6 < abs dXRatio) = actionGoChap nextC
+           | isTablet && (dXRatio < 0) && (0.1 < abs dXRatio && abs dXRatio <= 0.6) && nextIsDual = actionBothFailLeftNextDual
            | isTablet && (dXRatio < 0) && (0.01 < abs dXRatio && abs dXRatio < 0.1) && nextIsDual = actionBothFailLeftNoNextDual
            | isTablet && (dXRatio < 0) && (0.01 < abs dXRatio)               = actionBothFailLeftNoNextDual
 
            | isTablet && isClickedOuterYTop && isClickedLeftCol = toVanillaMode docsRef docRef window
-           | isTablet && isClickedOuterYTop     = deleteColors docsRef docRef window
-           | isTablet && (not isDeleting)       = actionNotBothFailNoDeleting
+           | isTablet && isClickedOuterYTop && isYankPhase     = yankColorConfig docsRef docRef window >> modifyIORef docsRef (\x -> x {dksIsYankPhase = not (dksIsYankPhase x)})
+           | isTablet && isClickedOuterYTop     = deleteColors docsRef docRef window >> modifyIORef docsRef (\x -> x {dksIsYankPhase = not (dksIsYankPhase x)})
+           | isTablet && (not isDeleting)       = actionNotBothFailNoDeleting -- >> showFlagIO
            | isTablet                           = actionNotBothFailDeleting
 
            | not isBothFail && (not isDeleting) = actionNotBothFailNoDeleting
@@ -1804,8 +1849,19 @@ callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm butt
            | nextIsDual                         = actionBothFailRightNextDual
            | otherwise                          = actionBothFailRightNoNextDual
            where
+             {-
+             showFlagIO = do
+               if isClickedStg
+                 then Gtk.windowSetTitle window $ (Text.pack $ "clickedStg " ++ (ushow word) ++ (show newInd))
+                 else Gtk.windowSetTitle window "notClicked"
+-}
              -- isBothFail = (isFail && isFailNext)
              isLeftClicked = button == "1"
+
+             actionGoChap n = do
+               goOtherPageAbs window docsRef docRef n
+               Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
+
              actionBothFailLeftNextDual = do
                  goOtherPage window docsRef docRef incl incl
                  Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
@@ -1824,12 +1880,14 @@ callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm butt
                  droppedG = filter (\x -> not $ (fst x) == word) $ dksGlobalConfig docs
               modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = [(word, newColor)] ++ dropped, dkTogColIndex = newIndex})
               modifyIORef docsRef (\docs -> docs {dksGlobalConfig = [(word, newColor)] ++ droppedG})
+              modifyIORef docsRef (\docs -> docs {dksIsClickedStg = True})
               Gtk.widgetQueueDraw window
               Gtk.windowSetTitle window $ Text.pack forWinTitle
              actionNotBothFailDeleting = do
                let
                  dropped = filter (\x -> not $ (fst x) == word) $ dkConfig doc
                modifyIORef docRef (\doc -> doc {dkCurrToken = word, dkConfig = dropped, dkTogColIndex = newIndex})
+               modifyIORef docsRef (\x -> x {dksIsClickedStg = False})
 
                Gtk.widgetQueueDraw window
                Gtk.windowSetTitle window $ Text.pack forWinTitle

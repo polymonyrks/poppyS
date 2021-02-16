@@ -28,7 +28,7 @@ import qualified Control.Foldl as Fold
 import Text.Show.Unicode
 import Data.GI.Base
 import qualified GI.Poppler as GPop
-import Foreign.Ptr (castPtr, nullPtr)
+import Foreign.Ptr (Ptr, castPtr, nullPtr)
 import Foreign.ForeignPtr (withForeignPtr)
 import System.Info
 import qualified Control.Exception as E
@@ -2400,3 +2400,96 @@ shrinkGinzaIO str = do
           Second a -> a
           Both a b -> a
   return (takeFstL reshaped, resSepped)
+
+foreign import ccall "poppler_index_iter_new" poppler_index_iter_new ::
+  Ptr GPop.Document -> IO (Ptr GPop.IndexIter)
+
+retrIndexTree doc = do
+  -- doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/Desktop/Professional CUDA C Programming.pdf") Nothing
+  -- doc <- GPop.documentNewFromFile (Text.pack "file:///home/polymony/Desktop/poppySBookVol1_gisho10_20201220Ver7.pdf") Nothing
+  docRaw <- unsafeManagedPtrGetPtr doc
+  iterRaw <- poppler_index_iter_new docRaw
+  let
+    isNoIter = iterRaw == nullPtr
+  if isNoIter
+    then return []
+    else do
+      iter <- GPop.indexIterNew doc
+      indexTreePrim <- fromIter doc [] iter [0]
+      let
+        indexTree = map (\x@(x1, (x2, x3)) -> (x1, (f "" x2,f 0 x3))) indexTreePrim
+          where
+            f v0 vMaybe = case vMaybe of
+              Nothing -> v0
+              Just v -> v
+      return indexTree
+
+foreign import ccall "poppler_index_iter_get_child" poppler_index_iter_get_child ::
+    Ptr GPop.IndexIter -> IO (Ptr GPop.IndexIter)
+
+fromIter doc alrdList iter currIndices = do
+  act <- GPop.indexIterGetAction iter
+  let
+    f0 :: Maybe a -> (a -> IO b) -> IO (Maybe b)
+    f0 a g = case a of
+      Nothing -> return Nothing
+      Just a0 -> do
+        res <- g a0
+        return (Just res)
+    f1 :: Maybe a -> (a -> IO (Maybe b)) -> IO (Maybe b)
+    f1 a g = case a of
+      Nothing -> return Nothing
+      Just a0 -> g a0
+  atype <- GPop.getActionType act
+  currTitleEtNPage <- do
+      if atype == GPop.ActionTypeGotoDest
+        then do
+          actGotoDest <- GPop.getActionGotoDest act
+          dest <- GPop.getActionGotoDestDest actGotoDest
+          dtype <- f0 dest GPop.getDestType
+          title <- GPop.getActionGotoDestTitle actGotoDest
+          destName <- f1 dest GPop.getDestNamedDest
+          destNamed <- f0 destName (GPop.documentFindDest doc)
+          destPageNum0 <- f0 destNamed GPop.getDestPageNum
+          destPageNum1 <- f0 dest GPop.getDestPageNum
+          let
+            destPageNum
+             | destPageNum1 == Nothing = destPageNum0
+             | destPageNum1 == Just 0 = destPageNum0
+             | otherwise = destPageNum1
+          return (title, destPageNum)
+{-
+          if dtype == Just GPop.DestTypeNamed
+            then do
+              title <- GPop.getActionGotoDestTitle actGotoDest
+              destName <- f1 dest GPop.getDestNamedDest
+              destNamed <- f0 destName (GPop.documentFindDest doc)
+              destPageNum <- f0 destNamed GPop.getDestPageNum
+              return (title, destPageNum)
+            else return (Nothing, Nothing)
+-}
+        else return (Nothing, Nothing)
+  let
+    alrdNew = snocL alrdList (currIndices, currTitleEtNPage)
+  iterRaw <- unsafeManagedPtrGetPtr iter
+  childRaw <- poppler_index_iter_get_child iterRaw
+  let
+    isHasChild = not $ childRaw == nullPtr
+    retChild = do
+      if isHasChild
+        then do
+          child <- GPop.indexIterGetChild iter
+          childConcated <- fromIter doc alrdNew child (snocL currIndices 0)
+          return childConcated
+        else
+          return alrdNew
+  res <- retChild
+  isHasNext <- GPop.indexIterNext iter
+  if isHasNext
+    then do
+     let
+       nextIndexLast = last currIndices + 1
+     res2 <- fromIter doc res iter (snocL (init currIndices) nextIndexLast)
+     return res2
+    else do
+      return res
