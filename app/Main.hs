@@ -154,7 +154,7 @@ mainGtk fpath poppySPath = do
       decl1 n nOfPage = mod (n - 1) nOfPage
       numChars = (map (\c -> [c]) ['a' .. 'z']) ++ (map show [1 .. 9])
       registeredKeysConfigIO = ["at", "0"] : concatMap (\c -> [["at", c], ["colon", "w", "at", c]]) numChars
-      registeredKeys = [["Shift_L"], ["Shift_R"], ["J"], ["K"], ["L"], ["M"], ["j"], ["k"], ["Up"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"], ["m"], ["n"], ["u"], ["r"], ["c", "c"]] ++ registeredKeysConfigIO
+      registeredKeys = [["Shift_L"], ["Shift_R"], ["J"], ["K"], ["L"], ["M"], ["j"], ["k"], ["Up"], ["Left"], ["Right"], ["p"], ["x"], ["d", "d"], ["Escape"], ["colon", "w", "Return"], ["g","g"], ["G"], ["space", "l", "t"], ["w"], ["v"], ["m"], ["n"], ["u"], ["r"], ["c", "c"], ["t"]] ++ registeredKeysConfigIO
     fff name
     stKeys <- dksKeysStacked <$> readIORef docsRef
     let
@@ -163,6 +163,19 @@ mainGtk fpath poppySPath = do
 
     when (stKeys == ["Shift_L"] || stKeys == ["Shift_R"]) $ do
       modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      return ()
+
+    when (stKeys == ["t"]) $ do
+      docs <- readIORef docsRef
+      let
+        nextTabMode = not $ dksIsTablet docs
+        messageShown
+         | nextTabMode == True = "TabletMode"
+         | otherwise = "NonTabletMode"
+      modifyIORef docsRef (\x -> x {dksIsTablet = nextTabMode})
+      modifyIORef docsRef (\x -> x {dksKeysStacked = []})
+      Gtk.windowSetTitle window $ Text.pack $ messageShown
+      Gtk.widgetQueueDraw window
       return ()
 
     when (stKeys == ["c", "c"]) $ do
@@ -1238,7 +1251,7 @@ goOtherPage window docsRef docRef inclF inclFNext = do
   when isTablet $ saveConfigs docsRef docRef
   Gtk.widgetQueueDraw window
 
-goOtherPageAbs window docsRef docRef n = do
+goOtherPageAbs window docsRef docRef n nextIsDual = do
   doc <- readIORef docRef
   docs <- readIORef docsRef
   let
@@ -1249,7 +1262,11 @@ goOtherPageAbs window docsRef docRef n = do
     then
       modifyIORef docRef (\x -> x {dkCurrPage = 0, dkNextPage = 0})
     else
-      modifyIORef docRef (\x -> x {dkCurrPage = n, dkNextPage = n + 1})
+      if n == nPage - 1
+       then
+        modifyIORef docRef (\x -> x {dkCurrPage = n, dkNextPage = 0})
+       else
+        modifyIORef docRef (\x -> x {dkCurrPage = n, dkNextPage = n + 1})
   modifyIORef docsRef (\x -> x {dksNofHint = 2, dksIsClickedStg = False})
   when isTablet $ saveConfigs docsRef docRef
   Gtk.widgetQueueDraw window
@@ -1796,12 +1813,26 @@ callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm butt
           -- chapters' pages retrieved from poppler is begun from 1 page, so must be -1.
           indexTree = map (\x@(x1, (x2, x3)) -> (x1, (x2, x3 - 1))) $ dkIndexTree doc
           -- chapters = takeSndL $ takeSndL $ filter (\x -> (length $ fst x) == 1) indexTree
-          chapters = takeSndL $ takeSndL filteredConcated
+          chapters
+            | chaptersPrim == [] = pseudoChapters
+            | chaptersPrim == [0] = pseudoChapters
+            | otherwise = takeSndL $ takeSndL filteredConcated
             where
-              leastDist = 50
+              pseudoChapters = map (\n -> step * n) [1 .. (floor $ (fromIntegral nOfPage) / (fromIntegral step))]
+                 where
+                   step
+                    | 1000 < nOfPage = 100
+                    | 500 < nOfPage = 50
+                    | 200 < nOfPage = 20
+                    | otherwise = 10
+                   stepPrim5 = 10 * (floor $ ((fromIntegral nOfPage) / 5.0) / 10.0)
+              chaptersPrim = takeSndL $ takeSndL filteredConcated
+              leastDist = 100
               filtered1 = filter (\x -> (length $ fst x) == 1) indexTree
               filtered2 = filter (\x -> (length $ fst x) == 2) indexTree
-              filtered3 = concatMap (\x@(x1, x2) -> f (snd $ snd x1) (snd $ snd x2)) $ filter (\x@(x1, x2) -> leastDist < (snd $ snd x2) - (snd $ snd x1)) $ zip (init filtered1) (tail filtered1)
+              filtered3
+                | filtered1 == [] = []
+                | otherwise = concatMap (\x@(x1, x2) -> f (snd $ snd x1) (snd $ snd x2)) $ filter (\x@(x1, x2) -> leastDist < (snd $ snd x2) - (snd $ snd x1)) $ zip (init filtered1) (tail filtered1)
                  where
                    f leftP rightP = filter (\x -> leftP < (snd $ snd x) && (snd $ snd x) < rightP) filtered2
               filteredConcated = Lis.sortBy f $ filtered1 ++ filtered3
@@ -1828,13 +1859,13 @@ callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm butt
 
           actionClicked
            | isTablet && (0 < dXRatio) && (0.6 < abs dXRatio) = actionGoChap prevC
-           | isTablet && (0 < dXRatio) && (0.1 < abs dXRatio && abs dXRatio <= 0.6) && nextIsDual = actionBothFailRightNextDual
-           | isTablet && (0 < dXRatio) && (0.01 < abs dXRatio && abs dXRatio < 0.1) && nextIsDual = actionBothFailRightNoNextDual
-           | isTablet && (0 < dXRatio) && (0.01 < abs dXRatio)               = actionBothFailRightNoNextDual
+           | isTablet && (0 < dXRatio) && (abs dXRatio <= 0.6) && nextIsDual && isClickedLeftPage = actionBothFailRightNextDual
+           | isTablet && (0 < dXRatio) && (abs dXRatio <= 0.6) && nextIsDual  = actionBothFailRightNoNextDual
+           | isTablet && (0 < dXRatio)                = actionBothFailRightNoNextDual
            | isTablet && (dXRatio < 0) && (0.6 < abs dXRatio) = actionGoChap nextC
-           | isTablet && (dXRatio < 0) && (0.1 < abs dXRatio && abs dXRatio <= 0.6) && nextIsDual = actionBothFailLeftNextDual
-           | isTablet && (dXRatio < 0) && (0.01 < abs dXRatio && abs dXRatio < 0.1) && nextIsDual = actionBothFailLeftNoNextDual
-           | isTablet && (dXRatio < 0) && (0.01 < abs dXRatio)               = actionBothFailLeftNoNextDual
+           | isTablet && (dXRatio < 0) && (abs dXRatio <= 0.6) && nextIsDual && isClickedLeftPage = actionBothFailLeftNoNextDual
+           | isTablet && (dXRatio < 0) && (abs dXRatio <= 0.6) && nextIsDual = actionBothFailLeftNextDual
+           | isTablet && (dXRatio < 0)                = actionBothFailLeftNoNextDual
 
            | isTablet && isClickedOuterYTop && isClickedLeftCol = toVanillaMode docsRef docRef window
            | isTablet && isClickedOuterYTop && isYankPhase     = yankColorConfig docsRef docRef window >> modifyIORef docsRef (\x -> x {dksIsYankPhase = not (dksIsYankPhase x)})
@@ -1856,10 +1887,12 @@ callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm butt
                  else Gtk.windowSetTitle window "notClicked"
 -}
              -- isBothFail = (isFail && isFailNext)
+
+             isClickedLeftPage = posX pointNext < 0
              isLeftClicked = button == "1"
 
              actionGoChap n = do
-               goOtherPageAbs window docsRef docRef n
+               goOtherPageAbs window docsRef docRef n nextIsDual
                Gtk.windowSetTitle window =<< Text.pack <$> getWindowTitleFromDoc docsRef docRef
 
              actionBothFailLeftNextDual = do
@@ -1940,4 +1973,5 @@ callbackClicked docsRef docRef mVars window rowInit colInit rowTerm colTerm butt
              isClickedLeftColNext = clickedXNext < colCenter
              isClickedOuterXRightNext = mostRight < clickedXNext
         actionClicked
+        -- Gtk.windowSetTitle window $ (Text.pack $ "point: " ++ (ushow point) ++ " pointNext: " ++ (ushow pointNext))
         return False

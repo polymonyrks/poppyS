@@ -1729,6 +1729,8 @@ data TokSq a b = CTokSq { tsId :: Int
                           deriving (Show, Eq, Ord)
 
 data Pos a = CPos {posX :: a, posY :: a}
+  deriving (Show, Eq, Ord)
+
 data Sq a = CSq {
    sqTop :: a
  , sqLeft :: a
