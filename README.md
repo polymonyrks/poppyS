@@ -45,6 +45,7 @@ sudo apt install docker-ce
 ```
 ### Stanford CoreNLP Server
 ```shell
+sudo docker pull nlpbox/corenlp:2018-10-27
 sudo docker pull graham3333/corenlp-complete
 ```
 See [Stanford CoreNLP](https://stanfordnlp.github.io/CoreNLP/other-languages.html) and [Graham MacDonald](https://hub.docker.com/r/graham3333/corenlp-complete)  

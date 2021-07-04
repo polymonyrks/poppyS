@@ -63,7 +63,8 @@ https://docs.docker.com/docker-for-windows/install/(https://docs.docker.com/dock
 ### stanford CoreNLP Parser
 Windowsのターミナル(コマンドプロンプト or PowerShell)で、
 ```shell
-sudo docker pull graham3333/corenlp-complete
+docker pull nlpbox/corenlp:2018-10-27
+docker pull graham3333/corenlp-complete
 ```
 [stanford CoreNLP Parser](https://stanfordnlp.github.io/CoreNLP/other-languages.html)のdockerの箇所。  
 [Graham MacDonald氏のリンク](https://hub.docker.com/r/graham3333/corenlp-complete)をご参考です。  

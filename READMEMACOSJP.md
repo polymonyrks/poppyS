@@ -39,6 +39,7 @@ PDFを描画するウィンドウを立ち上げるのに必要です。
 [https://hub.docker.com/editions/community/docker-ce-desktop-mac/](https://hub.docker.com/editions/community/docker-ce-desktop-mac/)
 ### stanford CoreNLP Parser
 ```shell
+sudo docker pull nlpbox/corenlp:2018-10-27
 sudo docker pull graham3333/corenlp-complete
 ```
 [stanford CoreNLP Parser](https://stanfordnlp.github.io/CoreNLP/other-languages.html)のdockerの箇所。  

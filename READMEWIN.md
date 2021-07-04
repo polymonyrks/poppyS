@@ -58,6 +58,7 @@ pacman -S mingw-w64-x86_64-poppler mingw-w64-x86_64-poppler-data
 [Windows10 Home](https://docs.docker.com/docker-for-windows/install-windows-home/)
 ### stanford CoreNLP Parser
 ```shell
+docker pull nlpbox/corenlp:2018-10-27
 docker pull graham3333/corenlp-complete
 ```
 See [Stanford CoreNLP](https://stanfordnlp.github.io/CoreNLP/other-languages.html) and [Graham MacDonald](https://hub.docker.com/r/graham3333/corenlp-complete)  

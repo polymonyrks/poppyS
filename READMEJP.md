@@ -89,6 +89,7 @@ sudo apt install docker-ce
 [この記事](https://qiita.com/yoshiyasu1111/items/7a3159446888fe556431)を参考にしました。
 ### stanford CoreNLP Parser
 ```shell
+sudo docker pull nlpbox/corenlp:2018-10-27
 sudo docker pull graham3333/corenlp-complete
 ```
 [stanford CoreNLP Parser](https://stanfordnlp.github.io/CoreNLP/other-languages.html)のdockerの箇所。  
@@ -166,7 +167,6 @@ Stanford CoreNLP Serverを立ち上げた状態で、本PDFリーダー(poppyS)�
 ```
 sudo docker run -p 9000:9000 nlpbox/corenlp
 ```
-初回だけダウンロードが始まります。ちょっと時間がかかりますが、次回以降はこのプロセスはないです。
 
 Dockerをいちいち立ち上げるのが面倒な人は、以下のコマンドで対応します。
 --restart=alwaysというオプションを指定するだけです。

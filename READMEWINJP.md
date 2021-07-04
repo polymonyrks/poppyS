@@ -95,6 +95,7 @@ pacman -S mingw-w64-x86_64-poppler mingw-w64-x86_64-poppler-data
 [Windows10 Home](https://docs.docker.com/docker-for-windows/install-windows-home/)
 ### stanford CoreNLP Parser
 ```shell
+docker pull nlpbox/corenlp:2018-10-27
 docker pull graham3333/corenlp-complete
 ```
 [stanford CoreNLP Parser](https://stanfordnlp.github.io/CoreNLP/other-languages.html)のdockerの箇所。  
@@ -162,7 +163,6 @@ Stanford CoreNLP Serverを立ち上げた状態で、本PDFリーダー(poppyS)�
 ```
 docker run -p 9000:9000 nlpbox/corenlp
 ```
-初回だけダウンロードが始まります。ちょっと時間がかかりますが、次回以降はこのプロセスはないです。
 poppySのプログラムの設定上、dockerはlocalhostを使っていることを想定しています。異なる環境の場合はエラーが出ると思いますので、fromPDF.hsの  
 ```haskell
 command = "http://localhost:9000/?annotators=parse&outputFormat=json&timeout=50000"
